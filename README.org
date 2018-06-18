@@ -1,0 +1,7 @@
+# bloggerbust.ca
+
+* Description
+  A place for me to bust out a blog on programming, infosec, emacs and things that interest me.
+
+* Notice
+  This site is under construction
