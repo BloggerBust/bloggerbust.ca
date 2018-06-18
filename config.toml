@@ -1,4 +1,4 @@
-baseurl = "/"
+baseurl = "https://bloggerbust.github.io/bloggerbust.io/"
 title = "Blogger Bust"
 copyright = "Copyright (c) 2018, all rights reserved."
 languageCode = "en-CA"
