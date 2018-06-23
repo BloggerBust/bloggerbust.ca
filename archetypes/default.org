@@ -1,6 +1,6 @@
----
+#+author: Trevor Wilson
+#+email: trevor.wilson@bloggerbust.ca
 #+title: "{{ replace .Name "-" " " | title }}"
 #+date: {{ .Date }}
 #+draft: true
----
 
