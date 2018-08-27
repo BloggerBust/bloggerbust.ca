@@ -38,8 +38,7 @@ pygmentsCodeFences = true
   github = "bloggerbust"
 
 [params.colors]
-  # hugo-dusk colors
-  background = "#101010" # background color for the site
+  background = "#26282A"
   main = "#99cc66"
   text = "#dbdbdb"
   code-quote-bg = "#1D1F21" # background color for quotes and code blocks
