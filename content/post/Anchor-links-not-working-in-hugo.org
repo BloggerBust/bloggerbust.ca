@@ -2,7 +2,6 @@
 #+email: trevor.wilson@bloggerbust.ca
 #+title: "Anchor links not working in hugo"
 #+date: 2018-06-20T07:09:19-06:00
-#+draft: draft
 #+startup: showeverything
 
 * What is the issue
