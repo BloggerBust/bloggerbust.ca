@@ -1,0 +1,20 @@
+#+title: "Anchor links not working in hugo"
+#+author: Trevor Wilson
+#+email: trevor.wilson@bloggerbust.ca
+#+date: 2018-06-20T07:09:19-06:00
+#+HUGO_BASE_DIR: ../
+#+HUGO_SECTION: post
+#+startup: showeverything
+
+* What is the issue
+If I create a link to a local heading [[#footnotes][a header link]], the browser renders the link relative to the webroot. If you click on the link it will navigate the browser to the webroot and query for the anchor from that location rather than the current document. The same issue happens when tring to link to a footnote [fn:1].
+kkkjj
+* Footnotes
+:PROPERTIES:
+:COLUMNS:  %CUSTOM_ID[(Custom Id)]
+:CUSTOM_ID: footnotes
+:END:
+
+[fn:1] this is a footnote.
+
+
