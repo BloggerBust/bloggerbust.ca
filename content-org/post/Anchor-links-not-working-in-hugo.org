@@ -7,8 +7,8 @@
 #+startup: showeverything
 
 * What is the issue
-If I create a link to a local heading [[#footnotes][a header link]], the browser renders the link relative to the webroot. If you click on the link it will navigate the browser to the webroot and query for the anchor from that location rather than the current document. The same issue happens when tring to link to a footnote [fn:1].
-kkkjj
+If I create a link to a local heading [[#footnotes][a header link]], the browser renders the link relative to the webroot. If you click on the link it will navigate the browser to the webroot and query for the anchor from that location rather than the current document. The same issue happens when trying to link to a footnote [fn:1]. This post will be deleted once resolved as I have only posted it for the purpose of troubleshooting this issue.
+
 * Footnotes
 :PROPERTIES:
 :COLUMNS:  %CUSTOM_ID[(Custom Id)]
