@@ -2,5 +2,8 @@
 #+email: trevor.wilson@bloggerbust.ca
 #+title: "{{ replace .Name "-" " " | title }}"
 #+date: {{ .Date }}
-#+draft: true
-
+#+HUGO_BASE_DIR: ../../
+#+HUGO_SECTION: post
+#+HUGO_DRAFT: true
+#+HUGO_AUTO_SET_LASTMOD: true
+#+startup: showeverything

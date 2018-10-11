@@ -6,7 +6,6 @@ canonifyurls = true
 paginate = 3
 theme = "hugo-dusk"
 enableGitInfo = true
-
 SectionPagesMenu = "main"
 
 # use Chroma for syntax highlight
@@ -14,11 +13,11 @@ pygmentsStyle = "native" # other dark style options: vim, fruity, monokai
 # enable syntax highlight for code blocks
 pygmentsCodeFences = true
 
-# [[menu.main]]
-#   name = "Posts"
-#   weight = -120
-#   identifier = "post"
-#   url = "/post/"
+[[menu.main]]
+  name = "About"
+  weight = -120
+  identifier = "about"
+  url = "/about/"
 
 [[menu.main]]
   name = "Tags"
