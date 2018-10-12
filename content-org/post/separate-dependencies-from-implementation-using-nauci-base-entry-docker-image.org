@@ -135,7 +135,7 @@ By default newly created files and directories inherit group ownership from the 
 : drwxrwsr-x  2 dustfinger developer   2 Oct 11 10:41 src
 #+END_EXAMPLE
 
-You can see that there is an */s/* in the execute bit position for group ownership. That is how you know setgit has actually been applied. You  might be also interested in trying out the getfacl to view the effective access control list.
+You can see that there is an */s/* in the execute bit position for group ownership. That is how you know setgid mode bit has actually been applied. You  might be also interested in trying out the getfacl to view the effective access control list.
 
 #+BEGIN_SRC sh :results output scalar :shebang "#!/bin/bash" :dir /home/dustfinger/dev/my_project :wrap EXAMPLE
 getfacl -e src/
@@ -186,7 +186,7 @@ By the way, if your file system is zfs, as mine is, then you must ensure that *x
   tank/root/home  xattr       sa             inherited from tank
 #+END_EXAMPLE
 
-Now all we need to do is use the setfacl command to set the default acl for the developer group to apply rw permissions.
+Now all we need to do is use the setfacl command to set the default ACL for the developer group to apply rw permissions.
 #+BEGIN_SRC sh :results output scalar :shebang "#!/bin/bash" :dir /home/dustfinger/dev/my_project :wrap EXAMPLE
   setfacl -Rdm g:developer:rw src
   touch src/example2
@@ -203,7 +203,7 @@ Now all we need to do is use the setfacl command to set the default acl for the 
 : -rw-rw-r--+ 1 dustfinger developer  0 Oct 11 11:40 example2
 #+END_EXAMPLE
 
-Let's see how that has effected the effective rights of our access control list.
+Let's see how that has affected the effective rights of our access control list.
 
 #+BEGIN_SRC sh :results output scalar :shebang "#!/bin/bash" :dir /home/dustfinger/dev/my_project :wrap EXAMPLE
 getfacl -e src/
@@ -337,4 +337,4 @@ ssh -Y -p 23 dustfinger@fe80::2c7a:74ff:feaa:4961%vethe6655d7 firefox
 
 If it worked, then you should see a Firefox brows GUI popup in your host environment.
 * Conclusion
-To be honest, when I started writing this post I new very little about docker. The experience I have gained has been my reward. I hope that by following along you have gained the same. If you notice something wrong please create an issue on the [[https://github.com/BloggerBust/nauci_base_init/issues][nauci base entry GitHub issues page]]. If you would like to share some tips for improvements, or just feel like commenting for any other reason, please email me directly, or if this post happens to be picked up by hacker news then you may comment there as well. In my next post I will use the nauci base entry image to derive a dependency image that will allow me to create a web extension that will run on multiple browsers and on android. Then you will understand why the entry point creates a USB group.
+To be honest, when I started writing this post I new very little about docker. The experience I have gained has been my reward. I hope that by following along you have gained the same. If you notice something wrong please create an issue on the [[https://github.com/BloggerBust/nauci_base_init/issues][nauci base entry GitHub issues page]]. If you would like to share some tips for improvements, or just feel like commenting for any other reason, please email me directly, or post a comment on [[https://news.ycombinator.com/item?id=18197162][Show Hacker News]]. In my next post I will use these same techniques to rapidly develop and debug a web-extension, on both a mobile device and desktop, directly from the guest container. Then you will understand why the entry point creates a USB group.
