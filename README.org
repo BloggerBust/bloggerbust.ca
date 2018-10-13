@@ -1,6 +1,6 @@
 #+author: Trevor Wilson
 #+email: trevor.wilson@bloggerbust.ca
-#+title: "Blogger Bust Readme"
+#+title: Blogger Bust Readme
 #+date: 2018-10-13T06:07:13-06:00
 #+startup: showeverything
 
