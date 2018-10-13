@@ -1,9 +1,8 @@
-# bloggerbust.ca
+#+author: Trevor Wilson
+#+email: trevor.wilson@bloggerbust.ca
+#+title: "Blogger Bust Readme"
+#+date: 2018-10-13T06:07:13-06:00
+#+startup: showeverything
 
 * Description
-  A place for me to bust out a blog on programming, infosec, emacs and things that interest me.
-
-* Notice
-  This site is under construction
-
-
+  This is the source for [[https://bloggerbust.ca/][bloggerbust.ca]], a place for me to bust out a blog on programming, infosec, emacs and things that interest me.
