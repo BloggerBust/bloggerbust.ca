@@ -25,11 +25,28 @@ pygmentsCodeFences = true
   identifier = "tag"
   url = "/tags/"
 
-[author]
+[[menu.main]]
+  name = "Categories"
+  weight = -110
+  identifier = "category"
+  url = "/categories"
+
+[[menu.main]]
+  name = "Series"
+  weight = -110
+  identifier = "series"
+  url = "/series"
+
+[Taxonomies]
+  category = "categories"
+  tag = "tags"
+  series = "series"
+
+[Author]
   name = "Trevor Wilson"
 
 [params.meta]
-  keywords = ["programming", "coding", "infosec", "cybersecurity", "webextensions", "blog", "blogger bust"]
+  keywords = ["programming", "coding", "infosec", "cybersecurity", "webextensions", "blog", "blogger bust", "docker", "linux", "emacs", "free software"]
   description = "a place for me to bust out a blog on programming, infosec, emacs and things that interest me."
 
 [params]

@@ -2,7 +2,9 @@
 #+email: trevor.wilson@bloggerbust.ca
 #+title: "Separate Dependencies From Implementation Using Nauci Base Entry Docker Image"
 #+date: 2018-10-11T06:07:13-06:00
-#+HUGO_TAGS: ["nauci", "docker"]
+#+HUGO_CATEGORIES: Programming
+#+HUGO_TAGS: nauci docker
+#+HUGO_SERIES: "Using Docker To Separate Dependencies From Implementation"
 #+HUGO_BASE_DIR: ../../
 #+HUGO_SECTION: post
 #+HUGO_DRAFT: false
@@ -12,13 +14,13 @@
 * The motivation
 I am going to develop a responsive web-extension using angular. The web-extension is for a project that I am starting called /nauci/. I will talk about nauci more in future posts. In this post I intend to introduce the /nauci base entry/ docker image and how I am using it to encapsulate the nauci project dependencies in a docker sub image, but not the source code. The plan is to bind my local nauci source directory to a docker container built with the nauci dependencies image, thereby separating dependency and tooling concerns from project implementation. If someone wants to contribute to nauci, they can simply grab the nauci dependencies image from docker hub once it is available, bind it to their clone of the nauci GitHub repository and contribute to the code base using using their preferred locally installed developer tools. I should mention that the nauci source is not on GitHub yet, but once it is ready to be pushed to the public repository I intend to license the project as free-software.
 
-I personally like to install as few packages on my dev box as possible and the idea of helping others avoid the same is appealing. The [[https://hub.docker.com/r/nauci/nauci_base_entry/][nauci base entry image is publicly available on docker hub]] and everyone is welcome to use it as a base image to encapsulate their own project dependencies. From now on I will refer to the nauci base entry image simply as /base image/. This is my significantfirst post. I hope you enjoy it.
+I personally like to install as few packages on my dev box as possible and the idea of helping others avoid the same is appealing. The [[https://hub.docker.com/r/nauci/nauci_base_entry/][nauci base entry image is publicly available on docker hub]] and everyone is welcome to use it as a base image to encapsulate their own project dependencies. From now on I will refer to the nauci base entry image simply as /base image/. This is my first significant post. I hope you enjoy it.
 
 
 * Preparing for collaboration
 Before a team can work together on a project someone must decide how to facilitate collaboration. Docker can be used in two distinct ways to facilitate collaboration among members of a software development team. The first way requires developers to connect securely over the internet to a centrally hosted development environment encapsulated in a docker container. All of the project dependencies are installed in a single container and made accessible to each user. All of the chosen development tools, including the text editor, are also installed in the container. Typically, everyone on the team is expected to use exactly the same tools. One or more individuals must maintain the hosted environment, and of course, there is a cost associated with this. The advantage is that most team members do not need to take part in the maintenance and management of the development environment. They can simply sign in, do their work and sign out. Another advantage of the hosted approach is that the central development environment is available to collaborators no matter what computer they are on. As long as they have the right client software they can connect to the development environment from almost anywhere. While the advantages of a centrally hosted development environment are appealing, it is not the approach that I wish to take.
 
-I am developing decentralized tools for the public good. I support decentralization and would like to collaborate with others in a decentralized way. I also feel strongly that developers should be granted as much choice as possible in the tools that they use to edit source code. I spend an awful lot of time with computers developing software (insert a =~sigh~= from my wife). Most of that time is spent in front of a text editor. Over the years, I have grown personally attached to a [[https://www.gnu.org/software/emacs/][certain editor]] and would not want to impose restrictions that prevent other devs from using their own beloved coding editor. This brings us to the second approach to collaboration using docker. Instead of every developer connecting to a centrally hosted and maintained docker container, each developer will fetch the same image from Docker Hub and run their own container on their local development box. 
+I am developing decentralized tools for the public good. I support decentralization and would like to collaborate with others in a decentralized way. I also feel strongly that developers should be granted as much choice as possible in the tools that they use to edit source code. I spend an awful lot of time with computers developing software (insert a =~sigh~= from my wife). Most of that time is spent in front of a text editor. Over the years, I have grown personally attached to a [[https://www.gnu.org/software/emacs/][certain editor]] and would not want to impose restrictions that prevent other devs from using their own beloved coding editor. This brings us to the second approach to collaboration using docker. Instead of every developer connecting to a centrally hosted and maintained docker container, each developer will fetch the same image from Docker Hub and run their own container on their local development box.
 
 The base image contains an entry point that [[https://github.com/BloggerBust/nauci_base_init/blob/master/README.md][accepts a number of optional parameters]]. The entry point executes a bash script called [[https://github.com/BloggerBust/nauci_base_init/blob/master/nauci_base_init.sh][base_entry_init.sh]] which is now [[https://github.com/BloggerBust/nauci_base_init/blob/master/nauci_base_init.sh][available on GitHub]]. I designed the base image making as few assumptions as possible. The entry point supports the creation of multiple users and so it is indeed possible to use it in a centralized hosted environment if that suits your needs. To simplify communication I am going to write about a single user environment, but realize that a multiple user environment is supported.
 
@@ -43,7 +45,7 @@ total 1
 drwxr-xr-x 2 dustfinger dustfinger 2 Oct 11 10:41 src
 #+END_EXAMPLE
 
-I am showing you the long listing format of the project directory on purpose. I want to draw your attention to the default ownership and permissions of the src directory for reasons that will become evident in the next section titled [[Creating a bind compatible user][Creating a bind compatible user]]. 
+I am showing you the long listing format of the project directory on purpose. I want to draw your attention to the default ownership and permissions of the src directory for reasons that will become evident in the next section titled [[Creating a bind compatible user][Creating a bind compatible user]].
 
 ** A Simplified look at permissions
 Consider the permissions descriptor =drwxr-xr-x=. We can divide the permissions descriptor into four parts.
@@ -83,17 +85,17 @@ grep -iE ^[^#].*gid /etc/login.defs
 #+RESULTS: grep-gid-ranges
 
 #+BEGIN_EXAMPLE
-SYS_GID_MIN		  101
-SYS_GID_MAX		  999
-SUB_GID_MIN		   100000
+SYS_GID_MIN     101
+SYS_GID_MAX     999
+SUB_GID_MIN      100000
 SUB_GID_MAX		600100000
-SUB_GID_COUNT		    65536
+SUB_GID_COUNT       65536
 #+END_EXAMPLE
 
 The system allocated GIDs range from 101-999. It is important that we do not create a new group within that range. Instead, we should assign our new group a GID within the range GID_MIN to GID_MAX. The constants starting with SUB are reserved for subordinate groups which we will not be using. Normally default user groups have IDs starting at 1000 and have the same value as their paired user ID (UID). In an attempt to avoid conflict with user's default group IDs I decided to create my new group starting from GID 2000.
 
 ** Ensure that your chosen group id has not already been assigned
-First you should verify that you do not already have a group created with your chosen GID. The following command will return 0 if there are no assigned groups registered between 2000 and 2999. 
+First you should verify that you do not already have a group created with your chosen GID. The following command will return 0 if there are no assigned groups registered between 2000 and 2999.
 
 #+NAME: check-chosen-group-id
 #+BEGIN_SRC sh :results output scalar pp :shebang "#!/bin/bash" :wrap EXAMPLE
@@ -151,7 +153,7 @@ getfacl -e src/
 : user::rwx
 : group::rwx
 : other::r-x
-: 
+:
 #+END_EXAMPLE
 
 ** Set default permission for new content
@@ -258,15 +260,15 @@ docker images
 : nauci/nauci_base_entry   latest              82d57770d7cf        4 hours ago         215MB
 #+END_EXAMPLE
 
-Our last step is to run our dependency image interactively passing in our custom parameters to the base entry point. After running the image the shell will switch to an interactive shell inside the docker container. It is now time to set user passwords and any other administration tasks that your project may require. 
+Our last step is to run our dependency image interactively passing in our custom parameters to the base entry point. After running the image the shell will switch to an interactive shell inside the docker container. It is now time to set user passwords and any other administration tasks that your project may require.
 
 #+BEGIN_EXAMPLE
 # docker run -it -p 23:22 my_project_deps -s -n dustfinger -gusers,video,plugdev
 root@3c46128579fc:/# service ssh status
 [[ ok  sshd is running.
 root@3c46128579fc:/# passwd dustfinger
-Enter new UNIX password: 
-Retype new UNIX password: 
+Enter new UNIX password:
+Retype new UNIX password:
 passwd: password updated successfully
 root@3c46128579fc:/# ls -la ~dustfinger
 total 24

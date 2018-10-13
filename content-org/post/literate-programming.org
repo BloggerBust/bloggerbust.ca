@@ -2,12 +2,14 @@
 #+email: trevor.wilson@bloggerbust.ca
 #+title: "Literate Programming"
 #+date: 2018-09-01T12:43:27-06:00
-#+HUGO_TAGS: ["literate programming", "emacs", "org-mode", "org-babel", "hugo", "ox-hugo", "goorgeous"]
+#+HUGO_CATEGORIES: literate-programming
+#+HUGO_TAGS: emacs org-mode hugo
 #+HUGO_BASE_DIR: ../../
 #+HUGO_SECTION: post
 #+HUGO_DRAFT: false
 #+HUGO_AUTO_SET_LASTMOD: true
 #+startup: showeverything
+
 
 * A quick note about my use of Literate Programming
 My blog is generated using a [[https://gohugo.io/about/what-is-hugo/][static site generator called Hugo]]. Hugo naively supports [[https://gohugo.io/content-management/formats/][both Markdown and Org-Mode]] format, so naturally I have chosen to compose my blog posts in [[https://orgmode.org/org.html][emacs Org-Mode]]. Org-mode is similar to Markdown in the sense that it uses a simple plain text markup syntax for formatting documents. However, [[https://www.gnu.org/software/emacs/manual/html_node/org/index.html][Org-Mode has far more features than Markdown]] and has fantastic [[https://orgmode.org/worg/org-contrib/babel/how-to-use-Org-Babel-for-R.html][literate programming support via Org-Babel]]. Every time you see a block of code, or even shell commands, I did not copy and paste them from an editor or terminal. Instead, I actually write both code and shell commands in source blocks embedded in the blog post itself. Org-Babel, a minor mode for emacs, makes this all possible. Sometimes, when I write shell commands, you will notice that I filter the output through a grep regular expression. I do this to strip out any unwanted lines so that the output shows only what I am discussing. If you are following a long you do not need to use the additional regex. If the regex is being used for something other than filtering the output then I will let you know.
