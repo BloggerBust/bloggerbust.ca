@@ -20,18 +20,6 @@ pygmentsCodeFences = true
   url = "/about/"
 
 [[menu.main]]
-  name = "Tags"
-  weight = -110
-  identifier = "tag"
-  url = "/tags/"
-
-[[menu.main]]
-  name = "Categories"
-  weight = -110
-  identifier = "category"
-  url = "/categories"
-
-[[menu.main]]
   name = "Series"
   weight = -110
   identifier = "series"
