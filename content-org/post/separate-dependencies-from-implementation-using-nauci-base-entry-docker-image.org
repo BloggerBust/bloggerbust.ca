@@ -16,6 +16,8 @@ I am going to develop a responsive web-extension using angular. The web-extensio
 
 I personally like to install as few packages on my dev box as possible and the idea of helping others avoid the same is appealing. The [[https://hub.docker.com/r/nauci/nauci_base_entry/][nauci base entry image is publicly available on docker hub]] and everyone is welcome to use it as a base image to encapsulate their own project dependencies. From now on I will refer to the nauci base entry image simply as /base image/. This is my first significant post. I hope you enjoy it.
 
+* Prerequisites
+If you would like to follow along then your host file system must support both [[http://man7.org/linux/man-pages/man5/acl.5.html][POSIX Access Control Lists]] and [[http://man7.org/linux/man-pages/man5/attr.5.html][Extended Attributes]]. It might be possible that other ACL types will work, [[http://wiki.linux-nfs.org/wiki/index.php/ACLs#The_ACL_Interoperability_Problem][ACL Interoperability is not standardized]] and I have not tested its behavior. Extended attributes are necessary to attach ACL rules directly to files and directories making them available to docker via an attached volume. Not all file systems support ACLs, and the ones that do may not have the support enabled by default. [[https://unix.stackexchange.com/questions/176666/how-do-i-know-acls-are-supported-on-my-file-system][This stack exchange]] explains several ways to test if your file system has POSIX ACL support enabled. Most Linux distributions have articles explaining how to install and configure POSIX ACL support for various file systems. i.e. An [[https://wiki.archlinux.org/index.php/Access_Control_Lists][Access Control Lists article]] for Archlinux. I have not tried other ACL types or different access control systems such as Role Based Access Control (RBAC). If you know how to achieve the same end with different prerequisites then please contact me with the details.
 
 * Preparing for collaboration
 Before a team can work together on a project someone must decide how to facilitate collaboration. Docker can be used in two distinct ways to facilitate collaboration among members of a software development team. The first way requires developers to connect securely over the internet to a centrally hosted development environment encapsulated in a docker container. All of the project dependencies are installed in a single container and made accessible to each user. All of the chosen development tools, including the text editor, are also installed in the container. Typically, everyone on the team is expected to use exactly the same tools. One or more individuals must maintain the hosted environment, and of course, there is a cost associated with this. The advantage is that most team members do not need to take part in the maintenance and management of the development environment. They can simply sign in, do their work and sign out. Another advantage of the hosted approach is that the central development environment is available to collaborators no matter what computer they are on. As long as they have the right client software they can connect to the development environment from almost anywhere. While the advantages of a centrally hosted development environment are appealing, it is not the approach that I wish to take.
@@ -47,7 +49,7 @@ drwxr-xr-x 2 dustfinger dustfinger 2 Oct 11 10:41 src
 
 I am showing you the long listing format of the project directory on purpose. I want to draw your attention to the default ownership and permissions of the src directory for reasons that will become evident in the next section titled [[Creating a bind compatible user][Creating a bind compatible user]].
 
-** A Simplified look at permissions
+** A simplified look at permissions
 Consider the permissions descriptor =drwxr-xr-x=. We can divide the permissions descriptor into four parts.
 #+BEGIN_SRC org
   | type | User (u) | Group (g) | Other (o) |
@@ -65,7 +67,6 @@ Now consider the ownership descriptor =dustfinger dustfinger=. The first "dustfi
 I am going to exploit my creative right as a blogger to make up some terminology for the sake of simplifying communication. Or at least, I hope that is what this will achieve. When a host user and guest user have the same file and directory permissions to a bound volume, then we can say that the users are /bind compatible/ with respect to the volume. Please feel free to correct me if there is already a term to describe this concept. The way I have chosen to achieve bind compatibility between the host and guest user is to create a group with the same name and group id (GID) on both the host and guest machines.
 
 I would like to point out that I am aware of Linux name-spaces. In particular, the [[http://man7.org/linux/man-pages/man7/user_namespaces.7.html][user namespace]] could theoretically be used to achieve bind compatibility. Unfortunately, docker's support for [[https://docs.docker.com/engine/security/userns-remap/][container isolation with user namespaces]] is to limited to satisfy my requirements. According to the documentation only the first five sequential UIDS can be remapped.
-
 #+BEGIN_QUOTE
 UID 231072 is mapped within the name space (within the container, in this case) as UID 0 (root). UID 231073 is mapped as UID 1, and so forth.
 #+END_QUOTE
@@ -175,7 +176,7 @@ When a directory has setgit applied by default new files or directories are crea
 You can see that group ownership was correctly set to developer, but group permissions [ - | rw- | r-- | r-- ] are read only. In order change the default behaviour so that group permissions are set to read | write | execute we must apply an appropriate /access control list (ACL)/ to the src directory.
 
 By the way, if your file system is zfs, as mine is, then you must ensure that *xattr property* is set to *sa* and the *acltype* is set to *posixacl*.
-#+BEGIN_SRC sh :results output scalar :shebang "#!/bin/bash" dir /sudo:: :wrap EXAMPLE
+#+BEGIN_SRC sh :results output scalar :shebang "#!/bin/bash" :dir /sudo:: :wrap EXAMPLE
   /sbin/zfs get aclinherit,acltype,xattr tank/root/home
 #+END_SRC
 
@@ -263,7 +264,7 @@ docker images
 Our last step is to run our dependency image interactively passing in our custom parameters to the base entry point. After running the image the shell will switch to an interactive shell inside the docker container. It is now time to set user passwords and any other administration tasks that your project may require.
 
 #+BEGIN_EXAMPLE
-# docker run -it -p 23:22 my_project_deps -s -n dustfinger -gusers,video,plugdev
+# docker run -it -p 23:22 my_project_deps -s -n dustfinger -gusers,sudoer,video,plugdev
 root@3c46128579fc:/# service ssh status
 [[ ok  sshd is running.
 root@3c46128579fc:/# passwd dustfinger
