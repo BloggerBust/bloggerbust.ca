@@ -1,6 +1,6 @@
 #+author: Trevor Wilson
 #+email: trevor.wilson@bloggerbust.ca
-#+title: "Separate Dependencies From Implementation Using Nauci Base Entry Docker Image"
+#+title: "Separate Dependencies From Implementation Using POSIX ACL Extended Attributes & Docker"
 #+date: 2018-10-11T06:07:13-06:00
 #+HUGO_CATEGORIES: Programming
 #+HUGO_TAGS: nauci docker
@@ -30,21 +30,20 @@ The central purpose of the base image is to allow a running container to bind pr
 
 I am going to be talking about the user on the host machine and the user on the dev machine quite a lot throughout this article. From now on I am just going to refer to them as the */host user/* and the */guest user/* respectively.
 
-
 ** Creating a new project
 Suppose that you would like to create a beautiful snowflake of a project uniquely named my_project. You decide to make a source directory on your host machine.
 
 #+BEGIN_SRC sh :results output scalar :shebang "#!/bin/bash" :wrap EXAMPLE
-mkdir -p ~/dev/my_project/src
-cd ~/dev/my_project
-ls -l
+  mkdir -p ~/dev/my_project/src
+  cd ~/dev/my_project
+  ls -l
 #+END_SRC
 
 #+RESULTS:
 
 #+BEGIN_EXAMPLE
-total 1
-drwxr-xr-x 2 dustfinger dustfinger 2 Oct 11 10:41 src
+  total 1
+  drwxr-xr-x 2 dustfinger dustfinger 2 Oct 11 10:41 src
 #+END_EXAMPLE
 
 I am showing you the long listing format of the project directory on purpose. I want to draw your attention to the default ownership and permissions of the src directory for reasons that will become evident in the next section titled [[Creating a bind compatible user][Creating a bind compatible user]].
@@ -68,7 +67,7 @@ I am going to exploit my creative right as a blogger to make up some terminology
 
 I would like to point out that I am aware of Linux name-spaces. In particular, the [[http://man7.org/linux/man-pages/man7/user_namespaces.7.html][user namespace]] could theoretically be used to achieve bind compatibility. Unfortunately, docker's support for [[https://docs.docker.com/engine/security/userns-remap/][container isolation with user namespaces]] is to limited to satisfy my requirements. According to the documentation only the first five sequential UIDS can be remapped.
 #+BEGIN_QUOTE
-UID 231072 is mapped within the name space (within the container, in this case) as UID 0 (root). UID 231073 is mapped as UID 1, and so forth.
+  UID 231072 is mapped within the name space (within the container, in this case) as UID 0 (root). UID 231073 is mapped as UID 1, and so forth.
 #+END_QUOTE
 
 I am also aware that docker supports multiple such mappings, but they would each be constrained by the above limitation.
@@ -80,17 +79,17 @@ As I mentioned in [[file:literate-programming.org][Literate Programming]], somet
 
 #+NAME: grep-gid-ranges
 #+BEGIN_SRC sh :results output scalar pp :shebang "#!/bin/bash" :wrap EXAMPLE
-grep -iE ^[^#].*gid /etc/login.defs
+  grep -iE ^[^#].*gid /etc/login.defs
 #+END_SRC
 
 #+RESULTS: grep-gid-ranges
 
 #+BEGIN_EXAMPLE
-SYS_GID_MIN     101
-SYS_GID_MAX     999
-SUB_GID_MIN      100000
-SUB_GID_MAX		600100000
-SUB_GID_COUNT       65536
+  SYS_GID_MIN     101
+  SYS_GID_MAX     999
+  SUB_GID_MIN      100000
+  SUB_GID_MAX		600100000
+  SUB_GID_COUNT       65536
 #+END_EXAMPLE
 
 The system allocated GIDs range from 101-999. It is important that we do not create a new group within that range. Instead, we should assign our new group a GID within the range GID_MIN to GID_MAX. The constants starting with SUB are reserved for subordinate groups which we will not be using. Normally default user groups have IDs starting at 1000 and have the same value as their paired user ID (UID). In an attempt to avoid conflict with user's default group IDs I decided to create my new group starting from GID 2000.
@@ -100,13 +99,13 @@ First you should verify that you do not already have a group created with your c
 
 #+NAME: check-chosen-group-id
 #+BEGIN_SRC sh :results output scalar pp :shebang "#!/bin/bash" :wrap EXAMPLE
-getent group | cut -d: -f3 | grep -E ^2[[:digit:]]\{3\}$ | sort -n | wc -l
+  getent group | cut -d: -f3 | grep -E ^2[[:digit:]]\{3\}$ | sort -n | wc -l
 #+END_SRC
 
 #+RESULTS: check-chosen-group-id
 
 #+BEGIN_EXAMPLE
-0
+  0
 #+END_EXAMPLE
 
 If the result is 0, as it is for me, then you can pick any GID in the 2000s range. If on the other hand you get a non-zero result, then you can simply remove the final pipe to wc and the list of already assigned group ids will be printed to the screen.
@@ -132,29 +131,29 @@ By default newly created files and directories inherit group ownership from the 
 #+RESULTS:
 
 #+BEGIN_EXAMPLE
-: total 10
-: drwxr-xr-x  3 dustfinger dustfinger  3 Oct 11 10:41 .
-: drwxr-xr-x 37 dustfinger dustfinger 43 Oct 11 10:41 ..
-: drwxrwsr-x  2 dustfinger developer   2 Oct 11 10:41 src
+  : total 10
+  : drwxr-xr-x  3 dustfinger dustfinger  3 Oct 11 10:41 .
+  : drwxr-xr-x 37 dustfinger dustfinger 43 Oct 11 10:41 ..
+  : drwxrwsr-x  2 dustfinger developer   2 Oct 11 10:41 src
 #+END_EXAMPLE
 
 You can see that there is an */s/* in the execute bit position for group ownership. That is how you know setgid mode bit has actually been applied. You  might be also interested in trying out the getfacl to view the effective access control list.
 
 #+BEGIN_SRC sh :results output scalar :shebang "#!/bin/bash" :dir /home/dustfinger/dev/my_project :wrap EXAMPLE
-getfacl -e src/
+  getfacl -e src/
 #+END_SRC
 
 #+RESULTS:
 
 #+BEGIN_EXAMPLE
-: # file: src/
-: # owner: dustfinger
-: # group: developer
-: # flags: -s-
-: user::rwx
-: group::rwx
-: other::r-x
-:
+  : # file: src/
+  : # owner: dustfinger
+  : # group: developer
+  : # flags: -s-
+  : user::rwx
+  : group::rwx
+  : other::r-x
+  :
 #+END_EXAMPLE
 
 ** Set default permission for new content
@@ -167,10 +166,10 @@ When a directory has setgit applied by default new files or directories are crea
 #+RESULTS:
 
 #+BEGIN_EXAMPLE
-: total 2
-: drwxrwsr-x 2 dustfinger developer  3 Oct 11 11:38 .
-: drwxr-xr-x 3 dustfinger dustfinger 3 Oct 11 10:41 ..
-: -rw-r--r-- 1 dustfinger developer  0 Oct 11 11:38 example
+  : total 2
+  : drwxrwsr-x 2 dustfinger developer  3 Oct 11 11:38 .
+  : drwxr-xr-x 3 dustfinger dustfinger 3 Oct 11 10:41 ..
+  : -rw-r--r-- 1 dustfinger developer  0 Oct 11 11:38 example
 #+END_EXAMPLE
 
 You can see that group ownership was correctly set to developer, but group permissions [ - | rw- | r-- | r-- ] are read only. In order change the default behaviour so that group permissions are set to read | write | execute we must apply an appropriate /access control list (ACL)/ to the src directory.
@@ -199,34 +198,34 @@ Now all we need to do is use the setfacl command to set the default ACL for the 
 #+RESULTS:
 
 #+BEGIN_EXAMPLE
-: total 2
-: drwxrwsr-x+ 2 dustfinger developer  4 Oct 11 11:40 .
-: drwxr-xr-x  3 dustfinger dustfinger 3 Oct 11 10:41 ..
-: -rw-r--r--  1 dustfinger developer  0 Oct 11 11:38 example
-: -rw-rw-r--+ 1 dustfinger developer  0 Oct 11 11:40 example2
+  : total 2
+  : drwxrwsr-x+ 2 dustfinger developer  4 Oct 11 11:40 .
+  : drwxr-xr-x  3 dustfinger dustfinger 3 Oct 11 10:41 ..
+  : -rw-r--r--  1 dustfinger developer  0 Oct 11 11:38 example
+  : -rw-rw-r--+ 1 dustfinger developer  0 Oct 11 11:40 example2
 #+END_EXAMPLE
 
 Let's see how that has affected the effective rights of our access control list.
 
 #+BEGIN_SRC sh :results output scalar :shebang "#!/bin/bash" :dir /home/dustfinger/dev/my_project :wrap EXAMPLE
-getfacl -e src/
+  getfacl -e src/
 #+END_SRC
 
 #+RESULTS:
 
 #+BEGIN_EXAMPLE
-# file: src/
-# owner: dustfinger
-# group: developer
-# flags: -s-
-user::rwx
-group::rwx
-other::r-x
-default:user::rwx
-default:group::rwx	#effective:rwx
-default:group:developer:rw-	#effective:rw-
-default:mask::rwx
-default:other::r-x
+  # file: src/
+  # owner: dustfinger
+  # group: developer
+  # flags: -s-
+  user::rwx
+  group::rwx
+  other::r-x
+  default:user::rwx
+  default:group::rwx	#effective:rwx
+  default:group:developer:rw-	#effective:rw-
+  default:mask::rwx
+  default:other::r-x
 #+END_EXAMPLE
 
 Now both the host user and the guest user will have read and write access to all files in the source directory.
@@ -236,10 +235,10 @@ Now both the host user and the guest user will have read and write access to all
 Suppose that our project requires us to developer a web application that is compatible with Firefox, but we don't have Firefox on our host environment because we prefer to browse the web using [[https://www.gnu.org/software/emacs/manual/html_mono/eww.html][Emacs Web Wowser (eww)]]. Create a new docker file in our src directory with the following contents
 
 #+BEGIN_EXAMPLE
-FROM nauci/nauci_base_entry
-MAINTAINER dustfinger@nauci.org
+  FROM nauci/nauci_base_entry
+  MAINTAINER dustfinger@nauci.org
 
-RUN apt-get -qqy install firefox-esr;
+  RUN apt-get -qqy install firefox-esr;
 #+END_EXAMPLE
 
 Don't forget to add docker ignore rules for anything that you do not want to be part of the image. Then build the docker file in the usual way.
@@ -250,45 +249,45 @@ Don't forget to add docker ignore rules for anything that you do not want to be 
 
 You should now have the following images in your local docker repository
 #+BEGIN_SRC sh :results output scalar :shebang "#!/bin/bash" :dir /home/dustfinger/dev/my_project :wrap EXAMPLE
-docker images
+  docker images
 #+END_SRC
 
 #+RESULTS:
 
 #+BEGIN_EXAMPLE
-: REPOSITORY               TAG                 IMAGE ID            CREATED             SIZE
-: my_project_deps          latest              fea6e0093b59        42 seconds ago      601MB
-: nauci/nauci_base_entry   latest              82d57770d7cf        4 hours ago         215MB
+  : REPOSITORY               TAG       IMAGE ID            CREATED             SIZE
+  : my_project_deps          latest    fea6e0093b59        42 seconds ago      601MB
+  : nauci/nauci_base_entry   latest    82d57770d7cf        4 hours ago         215MB
 #+END_EXAMPLE
 
 Our last step is to run our dependency image interactively passing in our custom parameters to the base entry point. After running the image the shell will switch to an interactive shell inside the docker container. It is now time to set user passwords and any other administration tasks that your project may require.
 
 #+BEGIN_EXAMPLE
-# docker run -it -p 23:22 my_project_deps -s -n dustfinger -gusers,sudoer,video,plugdev
-root@3c46128579fc:/# service ssh status
-[[ ok  sshd is running.
-root@3c46128579fc:/# passwd dustfinger
-Enter new UNIX password:
-Retype new UNIX password:
-passwd: password updated successfully
-root@3c46128579fc:/# ls -la ~dustfinger
-total 24
-drwxr-xr-x 4 dustfinger dustfinger    7 Oct 11 18:25 .
-drwxr-xr-x 3 root       root          3 Oct 11 18:25 ..
--rw-r--r-- 1 dustfinger dustfinger  220 May 15  2017 .bash_logout
--rw-r--r-- 1 dustfinger dustfinger 3526 May 15  2017 .bashrc
--rw-r--r-- 1 dustfinger dustfinger  675 May 15  2017 .profile
-drwxr-xr-x 2 dustfinger dustfinger    3 Oct 11 18:25 .ssh
-drwxrwsr-x 2 dustfinger developer     2 Oct 11 18:25 dev
-root@3c46128579fc:/# groups dustfinger
-dustfinger : dustfinger video plugdev users developer usb
-root@3c46128579fc:/# getent group developer
-developer:x:2000:dustfinger
-root@3c46128579fc:/# cat ~dustfinger/.ssh/config | grep -i forward
-#   ForwardAgent no
-ForwardX11 yes
-ForwardX11Trusted yes
-root@3c46128579fc:/# exit
+  # docker run -it -p 23:22 my_project_deps -s -n dustfinger -gusers,sudoer,video,plugdev
+  root@3c46128579fc:/# service ssh status
+  [[ ok  sshd is running.
+  root@3c46128579fc:/# passwd dustfinger
+  Enter new UNIX password:
+  Retype new UNIX password:
+  passwd: password updated successfully
+  root@3c46128579fc:/# ls -la ~dustfinger
+  total 24
+  drwxr-xr-x 4 dustfinger dustfinger    7 Oct 11 18:25 .
+  drwxr-xr-x 3 root       root          3 Oct 11 18:25 ..
+  -rw-r--r-- 1 dustfinger dustfinger  220 May 15  2017 .bash_logout
+  -rw-r--r-- 1 dustfinger dustfinger 3526 May 15  2017 .bashrc
+  -rw-r--r-- 1 dustfinger dustfinger  675 May 15  2017 .profile
+  drwxr-xr-x 2 dustfinger dustfinger    3 Oct 11 18:25 .ssh
+  drwxrwsr-x 2 dustfinger developer     2 Oct 11 18:25 dev
+  root@3c46128579fc:/# groups dustfinger
+  dustfinger : dustfinger video plugdev users developer usb
+  root@3c46128579fc:/# getent group developer
+  developer:x:2000:dustfinger
+  root@3c46128579fc:/# cat ~dustfinger/.ssh/config | grep -i forward
+  #   ForwardAgent no
+  ForwardX11 yes
+  ForwardX11Trusted yes
+  root@3c46128579fc:/# exit
 #+END_EXAMPLE
 
 * Test your image
@@ -296,46 +295,46 @@ If you inspect the final output from the interactive session in [[Create a proje
 
 First let's see what our container is called.
 #+BEGIN_SRC sh :results output scalar :shebang "#!/bin/bash" :dir /home/dustfinger/dev/my_project :wrap EXAMPLE
-docker ps -a
+  docker ps -a
 #+END_SRC
 
 #+RESULTS:
 
 #+BEGIN_EXAMPLE
-: CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS                      PORTS               NAMES
-: 3c46128579fc        my_project_deps     "nauci_base_init.sh …"   17 minutes ago      Exited (0) 12 minutes ago                       hungry_poitras
+  : CONTAINER ID  IMAGE               COMMAND                  CREATED             STATUS                      PORTS   NAMES
+  : 3c46128579fc  my_project_deps     "nauci_base_init.sh …"   17 minutes ago      Exited (0) 12 minutes ago           hungry_poitras
 #+END_EXAMPLE
 
 The status tells us that the container is not running, so let's start it now.
 #+BEGIN_SRC sh :results output scalar :shebang "#!/bin/bash" :dir /home/dustfinger/dev/my_project :wrap EXAMPLE
-docker start hungry_poitras
-docker ps -a
+  docker start hungry_poitras
+  docker ps -a
 #+END_SRC
 
 #+RESULTS:
 
 #+BEGIN_EXAMPLE
-: hungry_poitras
-: CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS                  PORTS                NAMES
-: 3c46128579fc        my_project_deps     "nauci_base_init.sh …"   19 minutes ago      Up Less than a second   0.0.0.0:23->22/tcp   hungry_poitras
+  : hungry_poitras
+  : CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS                  PORTS                NAMES
+  : 3c46128579fc        my_project_deps     "nauci_base_init.sh …"   19 minutes ago      Up Less than a second   0.0.0.0:23->22/tcp   hungry_poitras
 #+END_EXAMPLE
 
 You can see that the local port 23 has been mapped to the container's port 22. I am also running an ssh daemon from my dev machine so port 22 was not free on my host. You are free to map the ports to meet your own requirements. Since I have not done any network configuration in this blog post the container will have an ipv6 veth interface. Let's take a look at that now.
 #+BEGIN_SRC sh :results output scalar :shebang "#!/bin/bash" :dir /home/dustfinger/dev/my_project :wrap EXAMPLE
-ifconfig | grep -A2 -i veth
+  ifconfig | grep -A2 -i veth
 #+END_SRC
 
 #+RESULTS:
 
 #+BEGIN_EXAMPLE
-: vethe6655d7: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
-:         inet6 fe80::2c7a:74ff:feaa:4961  prefixlen 64  scopeid 0x20<link>
-:         ether 2e:7a:74:aa:49:61  txqueuelen 0  (Ethernet)
+  : vethe6655d7: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
+  :         inet6 fe80::2c7a:74ff:feaa:4961  prefixlen 64  scopeid 0x20<link>
+  :         ether 2e:7a:74:aa:49:61  txqueuelen 0  (Ethernet)
 #+END_EXAMPLE
 
 Now let's ssh into our container with x-forwarding and launch Firefox. If you have any problems then turn on verbose output by adding -vv optional params.
 #+BEGIN_EXAMPLE
-ssh -Y -p 23 dustfinger@fe80::2c7a:74ff:feaa:4961%vethe6655d7 firefox
+  ssh -Y -p 23 dustfinger@fe80::2c7a:74ff:feaa:4961%vethe6655d7 firefox
 #+END_EXAMPLE
 
 If it worked, then you should see a Firefox brows GUI popup in your host environment.
