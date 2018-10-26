@@ -868,4 +868,4 @@ That is the end of my first series. I hope you learned something. I sure did, th
 3. Investigate [[https://docs.docker.com/engine/security/userns-remap/][Docker's user namespace remap support]] to see if it is possible to use subordinate GID remapping to replace the current developer / usb group bind compatibility strategy
 4. A NAS device could be mounted as a volume on the container as well as the individual developer machines to help address drawback number 5
 
-If you have any feedback, please either email me or create an issue in my GitHub. For the time being I do not have comments setup for this blog.
+If you have any feedback, please either email me, create an issue in my GitHub or [[https://news.ycombinator.com/edit?id=18309730][post to the HN discussion]]. For the time being I do not have comments setup for this blog.
