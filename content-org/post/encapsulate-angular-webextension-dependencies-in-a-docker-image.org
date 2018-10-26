@@ -7,17 +7,16 @@
 #+HUGO_SERIES: "Using Docker To Separate Dependencies From Implementation"
 #+HUGO_BASE_DIR: ../../
 #+HUGO_SECTION: post
-#+HUGO_DRAFT: true
+#+HUGO_DRAFT: false
 #+HUGO_AUTO_SET_LASTMOD: true
 #+startup: showeverything
 
 * A quick recap
-In the previous article titled [[file:separate-dependencies-from-implementation-using-nauci-base-entry-docker-image.org][Separate Dependencies From Implementation Using Nauci Base Entry Docker Image]], I discussed [[file:separate-dependencies-from-implementation-using-nauci-base-entry-docker-image.org::*Prerequisites][the prerequisites]] to provide read and write access to a volume shared between the host system and guest docker container. My proposal involved encapsulating all of the project dependencies inside of the docker container while keeping the project's source code and development tools on the host. There are clear benefits to this approach. By separating implementation concerns from the project dependencies, the resulting docker dependency image will be reusable in multiple projects. Moreover, on boarding remote collaborators will be easier because they will be able to use implementation tools that they already have installed, customized and are intimately familiar with. Collaborators will be happier because they will not need to install, or configure project dependencies that could cause conflicts on their host environment. In this article, I will build on what was previously covered by encapsulating all of the dependencies required to build an Angular WebExtension into a dependency image. I will then build, simultaneously deploy and run an Angular WebExtension on both desktop and mobile browsers all from the comfort of my host editor.
+In the previous article titled [[file:separate-dependencies-from-implementation-using-nauci-base-entry-docker-image.org][Separate Dependencies From Implementation Using POSIX ACL Extended Attributes & Docker]], I discussed [[file:separate-dependencies-from-implementation-using-nauci-base-entry-docker-image.org::*Prerequisites][the prerequisites]] to provide read and write access to a volume shared between the host system and guest docker container. My proposal involved encapsulating all of the project dependencies inside of the docker container while keeping the project's source code and development tools on the host. There are clear benefits to this approach. By separating implementation concerns from the project dependencies, the resulting docker dependency image will be reusable in multiple projects. Moreover, on boarding remote collaborators will be easier because they will be able to use implementation tools that they already have installed, customized and are intimately familiar with. Collaborators will be happier because they will not need to install, or configure project dependencies that could cause conflicts on their host environment. In this article, I will build on what was previously covered by encapsulating all of the dependencies required to build an Angular WebExtension into a dependency image. I will then build, simultaneously deploy and run an Angular WebExtension on both desktop and mobile browsers all from the comfort of my host editor.
 
 If you are not familiar with [[file:separate-dependencies-from-implementation-using-nauci-base-entry-docker-image.org::*Prerequisites][the prerequisites]] then please read that section now. I also assume that you have [[https://docs.docker.com/engine/reference/builder/][read the Dockerfile reference documentation]] and are familiar with [[https://docs.docker.com/engine/reference/commandline/cli/][the Docker CLI]].
 
 * Build the dependency image
-
 In the previous article of this series I demonstrated [[file:separate-dependencies-from-implementation-using-nauci-base-entry-docker-image.org::*Create%20a%20project%20dependencies%20image][how to create a basic image that inherits from nauci base entry and encapsulates the Firefox browser]]. Now it is time to encapsulate all of the dependencies necessary to create a simple Angular Hello World browser extension. Start by creating a project directory named /hello_angular_webext/.
 
 #+BEGIN_SRC sh :results output silent :shebang "#!/bin/env bash"
@@ -74,7 +73,7 @@ Fire up your favourite editor and replace the content of the Dockerfile with the
       npm install web-ext;
 #+END_EXAMPLE
 
-You may have noticed that we are inheriting from both nauci_base_entry and the official node image. Node does a bunch of work for us and then we copy the results that we need into our image.
+You may have noticed that we are inheriting from both nauci_base_entry and the official node image. The Node image does a bunch of work for us and then we copy the results that we need into our image.
 
 ** Build the image
 From /=~/dev/hello_angular_webext=/ build the image in the usual way.
@@ -86,7 +85,7 @@ From /=~/dev/hello_angular_webext=/ build the image in the usual way.
 You should now have the following images in your local docker repository.
 #+NAME: docker-images
 #+BEGIN_SRC sh :results output scalar :shebang "#!/bin/env bash" :dir /home/dustfinger/dev/hello_angular_webext :wrap EXAMPLE
-docker images
+  docker images
 #+END_SRC
 
 #+RESULTS: docker-images
@@ -103,9 +102,9 @@ docker images
 * Create a shareable file system or directory
 By default the [[https://github.com/BloggerBust/nauci_base_init/blob/master/nauci_base_init.sh][base entry point init script]] expects to find */shared/* with POSIX ACL support enabled. A different path can be provided using the *-v* option. The [[file:separate-dependencies-from-implementation-using-nauci-base-entry-docker-image.org::*Prerequisites][prerequisite section]] of the previous article contains sources that provide guidance on how to determine if your system supports POSIX ACL and how to install and configure POSIX ACL if necessary.
 
-Moving forward, I am going to refer to the /base entry point init script/ simply as /entry point/, which is a [[https://docs.docker.com/glossary/?term=ENTRYPOINT][term defined the Docker glossary]]. While writing this article I decided to provide better support for multi user collaboration. I know that sounds weird, after all what other kind of collaboration is there anyway? If you recall in the [[file:separate-dependencies-from-implementation-using-nauci-base-entry-docker-image.org::*Preparing%20for%20collaboration][Preparing for collaboration]] section of the previous article in this series I drew a distinction between centrally hosted and distributed collaboration. The line I drew dividing these methodologies was too stark since it is perfectly valid for many locally centralized tiny groups to collaborate in a distributed fashion. That is why the [[https://github.com/BloggerBust/nauci_base_init/blob/master/nauci_base_init.sh][entry point]] was designed to accept a CVS of user names in the first place. The trouble I ran into is that the tree structure of the /=/home/=/ directory separates each user's /=~/dev/=/ directory posing a challenge when it comes time to attach volumes to be shared by each host and guest pair. One strategy would be to attach many volumes, one for each pair, but that felt really cumbersome even with only a few users. A much better solution is to create a single shared volume and then create soft links inside each user's directory.
+Moving forward, I am going to refer to the /base entry point init script/ simply as /entry point/, which is a [[https://docs.docker.com/glossary/?term=ENTRYPOINT][term defined in the Docker glossary]]. While writing this article I decided to provide better support for multi user collaboration. I know that sounds weird, after all what other kind of collaboration is there anyway? If you recall in the [[file:separate-dependencies-from-implementation-using-nauci-base-entry-docker-image.org::*Preparing%20for%20collaboration][Preparing for collaboration]] section of the previous article in this series I drew a distinction between centrally hosted and distributed collaboration. The line I drew dividing these methodologies was too stark since it is perfectly valid for many locally centralized tiny groups to collaborate in a distributed fashion. That is why the [[https://github.com/BloggerBust/nauci_base_init/blob/master/nauci_base_init.sh][entry point]] was designed to accept a CVS of user names in the first place. The trouble I ran into is that the tree structure of the /=/home/=/ directory separates each user's /=~/dev/=/ directory posing a challenge when it comes time to attach volumes to be shared by each host and guest pair. One strategy would be to attach many volumes, one for each pair, but that felt really cumbersome even with only a few users. A much better solution is to create a single shared volume and then create soft links inside each user's directory.
 
-Please create a shared directory with POSIX ACL support enabled before proceeding. Don't worry about setting up the default ACL rules yourself. In the previous article, on [[file:separate-dependencies-from-implementation-using-nauci-base-entry-docker-image.org::*Set%20default%20permission%20for%20new%20content][setting up default permissions]], I talked about manually setting up the GID mode bit and ACL rules. Since then I figured out how to pragmatically set those permissions and ACL rules directly from the entry point :-). Originally, I didn't think that was going to be possible due to container isolation.
+Please create a shared directory with POSIX ACL support enabled before proceeding. Don't worry about setting up the default ACL rules yourself. In the previous article, on [[file:separate-dependencies-from-implementation-using-nauci-base-entry-docker-image.org::*Set%20default%20permission%20for%20new%20content][setting up default permissions]], I talked about manually setting the setgid mode bit and ACL rules. Since then I realized that with extended attributes enabled the ACL rules will be available inside the Docker container where the entry point is executed. Initially I didn't think that was going to be possible due to container isolation. I have updated the entry point script to pragmatically set the setgid mode bit and ACL rules directly from within the running container :-).
 
 * A note to ZFS users using altroot
 My drives are fully encrypted. I configured my boot loader to call a custom initramfs which deploys busybox, cryptsetup and all of the ZFS related modules. Since busybox claims normal root, zpool cannot be imported into the same. That is why my pool was created with altroot set to /=/mnt/root/=/ and each dataset was created with a mountpoint to altroot. When I add a new dataset to a running system I have to account for this. It is also convenient to set the acltype at creation time. Recall [[file:separate-dependencies-from-implementation-using-nauci-base-entry-docker-image.org::*Set%20default%20permission%20for%20new%20content][that if the acltype is not set we will not be able to create ACL rules]].
@@ -116,7 +115,7 @@ My drives are fully encrypted. I configured my boot loader to call a custom init
   umount /mnt/root/shared
 #+END_SRC
 
-It is never a bad idea to run a sanity check on the extended attribute (*xattr*) and ACL type (*acltype*) property settings to ensure that they are set accordingly. In case you are not aware, setting *xattr=sa* means that it is stored as a system attribute as apposed to a file attribute. System attributes provide a more efficient storage and retrieval strategies, but not all systems support this feature. If your system lacks support for system attributes then you should set *xattr=on* instead.
+It is never a bad idea to run a sanity check on the extended attribute (*xattr*) and ACL type (*acltype*) property settings to ensure that they are set accordingly. In case you are not aware, setting *xattr=sa* means that it is stored as a system attribute as apposed to a file attribute. System attributes provide a more efficient storage and retrieval strategy, but not all systems support this feature. If your system lacks support for system attributes then you should set *xattr=on* instead.
 #+BEGIN_SRC sh :results output scalar :shebang "#!/bin/env bash" :wrap EXAMPLE
   /sbin/zfs get aclinherit,acltype,xattr tank/root/shared
 #+END_SRC
@@ -196,7 +195,7 @@ If you would like to set the group ownership back to root when you are done then
 #+END_EXAMPLE
 
 * Run the image
-Before you run the image you should make sure that there are no containers listening on port 23. Note that I removed some of the columns of the next command's output so that it would display nicely on the screen.
+Before you run the image you should make sure that there are no containers listening on port 23. Note that I removed some of the columns from the next command's output so that it would display nicely on the screen. I will consider doing a PR for my chosen Hugo theme to make code execution output responsive, but for now shortening the width of the output by removing some columns will have to do.
 
 #+NAME: containers-listening-on-port-23
 #+BEGIN_SRC sh :results output scalar :shebang "#!/bin/env bash" :dir /home/dustfinger/dev/hello_angular_webext :wrap EXAMPLE
@@ -210,7 +209,7 @@ Before you run the image you should make sure that there are no containers liste
   2e233c30ebfa  my_project_deps  Up 21 hours  0.0.0.0:23->22/tcp  goofy_fermat
 #+END_EXAMPLE
 
-Since the container named /goofy_fermat/ is listening on port 23 I must either map my new container to a different port or stop goofy_fermat. I am going to map my new container to port 24 so that I can run both containers at the same time. For your own benefit, you should browse over a [[https://en.wikipedia.org/wiki/List_of_TCP_and_UDP_port_numbers][list of known tcp / udb port mappings]] to avoid present or future conflicts when choosing a port for any of your projects.
+Since the container named /goofy_fermat/ is listening on port 23 I must either map my new container to a different port or stop goofy_fermat. I am going to map my new container to port 24 so that I can run both containers at the same time. For your own benefit, you should browse over this [[https://en.wikipedia.org/wiki/List_of_TCP_and_UDP_port_numbers][list of known tcp / udb port mappings]] to avoid present or future conflicts when choosing a port for any of your projects.
 
 You may want to take an opportunity now to look over the different optional parameters accepted by the [[https://github.com/BloggerBust/nauci_base_init/blob/master/nauci_base_init.sh][entry point]] if you have not already done so. All of the arguments following the name of the image /hello_angular_webext_deps/ are passed to the entry point script. If your USB group name is not /usb/ or the USB GID is not /85/ then you will want to override the defaults with the /-u/ and /-U/ options. Similarly, if your POSIX ACL enabled shared volume is not located at /=/shared/=/ then you will want to override the default path by passing in the /-v/ option. For the sake of copy, paste, modify convenience I will apply the optional parameters /-u/,/-U/ and /-v/ even though the values I pass in are the same as the defaults.
 
@@ -283,7 +282,7 @@ Type exit and hit the enter key to leave the interactive terminal session with o
   dustfinger@galactica ~/dev/hello_angular_webext $
 #+END_EXAMPLE
 
-Now start the container again. It is not a bad idea to take a quick peak at the container status and port mapping to make sure that it is running and mapped to the port that you expect. I removed unimportant columns from the output to make it fit nicely on the page.
+Now start the container again. It is not a bad idea to take a quick peak at the container status and port mapping to make sure that it is running and mapped to the port that you expect. Once again I have removed unimportant columns from the output to make it fit nicely on the page. If you are viewing this from a mobile device the output might wrap and look awful.
 
 #+BEGIN_SRC sh :results output scalar :shebang "#!/bin/env bash" :wrap EXAMPLE
   docker start nauci_dev
@@ -338,7 +337,7 @@ We are going to quickly test a number of different programs using the [[*Setup a
 
 *Test Display Environment Variable:*
 
-Now let's just check that our display for x-forwarding is known to the container. We don't need to actually sign in with an interactive login shell for this test. We can just send the commands to be run on the guest container. The single quotes around the command are important otherwise it will expand the /$DISPLAY/ environment variable before sending resulting the value from host being displayed.
+Now let's just check that our display for x-forwarding is known to the container. We don't need to actually sign in with an interactive login shell for this test. We can just send the commands to be run on the guest container. The single quotes around the command are important. Without them bash will expand the /$DISPLAY/ environment variable, sending the resulting value to the guest.
 
 #+BEGIN_SRC sh :results output scalar :shebang "#!/bin/env bash" :wrap EXAMPLE
   sshnauci_dev echo "host display=$DISPLAY"
@@ -352,11 +351,11 @@ Now let's just check that our display for x-forwarding is known to the container
   guest display=nauci_dev:10.0
 #+END_EXAMPLE
 
-Your display values might not be the same as mine. The important thing is that the guest display has a value. If it does not have a value, then somehow x-forwarding is not working on your system. You can increase verbosity by supplying the /-vv/ optional parameter and then run the test again, but this time look for errors or warnings in the output.
+Your display values might not be the same as mine. The important thing is that the guest display has a value. If it does not have a value, then somehow x-forwarding is not working on your system. You can increase verbosity by supplying the /-vv/ optional parameter and then run the test again, but in that case look for errors or warnings in the output.
 
 *Test Firefox:*
 
-After Firefox opens you may close it.
+The purpose of this test is to ensure that both Firefox and x-forwarding are working. After Firefox opens you may close it.
 
 #+BEGIN_SRC sh :results output silent :shebang "#!/bin/env bash"
   sshnauci_dev firefox
@@ -376,7 +375,7 @@ After Firefox opens you may close it.
 
 *Test chromium:*
 
-I found that I that chromium crashes catastrophically.
+I found that Chromium crashes catastrophically.
 #+BEGIN_SRC sh :results output silent :shebang "#!/bin/env bash"
   sshnauci_dev chromium
   dustfinger@localhost's password:
@@ -425,7 +424,7 @@ I found that I that chromium crashes catastrophically.
 #+END_SRC
 
 * Configure key-based authentication
-We are going to be sending lots of commands to the container via ssh. If you don't want to type in a password following every command then you should setup key-based authentication. However, doing so is less secure. If anyone were to gain access to your host and tried to ssh to the container they would not be asked to authenticate. If you feel the need to have a passphrase that is fine. You can always add or remove your passphrase at any time using =ssh-keygen -p -f ~/.ssh/id_rsa=. Alternatively you can stick with simple password authentication in which case you may skip this step.
+We are going to be sending lots of commands to the container via ssh. If you don't want to type in a password following every command then you should setup key-based authentication. However, doing so is less secure. If anyone were to gain access to your host and tried to ssh to the container they would not be asked to authenticate. If you feel the need to have a passphrase that is fine. You can always add or remove your passphrase at any time using =ssh-keygen -p -f ~/.ssh/id_rsa=. Alternatively, you can stick with simple password authentication, in which case you may skip this step.
 
 If you already have an ssh key pair then skip the next section and proceed to [[*Send the public key to the guest container][Send the public key to the guest container]] unless you wish to [[https://stackoverflow.com/questions/2419566/best-way-to-use-multiple-ssh-private-keys-on-one-client#2419609][manage multiple ssh keys]].
 
@@ -471,7 +470,7 @@ Simply run the command and follow the instructions.
   and check to make sure that only the key(s) you wanted were added.
 #+END_EXAMPLE
 
-Now relish the joys of password-less authentication. Let's test it out.
+Now relish in the joy of password-less authentication. Let's test it out by listing the contents of our guest user's home directory.
 #+BEGIN_SRC shell :results output scalar :var  sshnauci_dev="ssh -Yt -p 24 dustfinger@localhost" :shebang "#!/bin/env bash" :wrap EXAMPLE
  s sshnauci_dev 'ls'
 #+END_SRC
@@ -483,9 +482,11 @@ Now relish the joys of password-less authentication. Let's test it out.
   dev
 #+END_EXAMPLE
 
+You should not have be prompted for a password. If you were, then something has gone wrong. In that case, increase verbosity by adding the =-vv= optional parameter before the /ls/ command like this ~sshnauci_dev -vv ls~
+
 * Build the Angular app
 
-This is not an article about how to build an Angular application. Therefore we are going to cut a very long story short by taking advantage of the ~ng new~ command which creates a new hello-world-style application. The name of the angular app must start with a letter and may contain alphanumeric characters or dashes. [[https://github.com/angular/angular-cli/issues/3816][There is a defect (issue 3816)]] though that causes an error if you end the project name with a number. In the next section we will be converting our Angular application into a WebExtension, so I aptly named it /hello-angular-webext/. When prompted whether or not you would like to add Angular routing, type /y/ and hit return.
+This is not an article about how to build an Angular application. Therefore we are going to cut a very long story short by taking advantage of the ~ng new~ command which creates a new hello-world-style application. The name of the angular app must start with a letter and may contain alphanumeric characters or dashes. [[https://github.com/angular/angular-cli/issues/3816][There is a defect (issue 3816)]] though that causes an error if you end the project name with a number. In the next section we will be converting our Angular application into a WebExtension, so I aptly named the app /hello-angular-webext/. When prompted whether or not you would like to add Angular routing, type /y/ and hit return.
 
 #+BEGIN_SRC sh :results output silent :shebang "#!/bin/env bash" :wrap EXAMPLE
   sshnauci_dev 'cd ~/dev; ng new hello-angular-webext'
@@ -576,7 +577,7 @@ This is not an article about how to build an Angular application. Therefore we a
 #+END_EXAMPLE
 
 * Link the host project src directory to the shared dev directory
-Now that the Angular project source directory exists on the guest we can link it to our project's /src/ directory on the host as a nice convenience.
+Now that the Angular project source directory exists on the guest we can link it to our project's /src/ directory on the host as a nice convenience. After creating the link you may wish to create a [[https://docs.docker.com/engine/reference/builder/#dockerignore-file][.dockerignore file]] in /=~/dev/hello_angular_webext/=/ with a rule to ignore the linked src directory in case you want to rebuild the image in the future.
 
 #+BEGIN_SRC sh :results output scalar :shebang "#!/bin/env bash" :wrap EXAMPLE
   ln -sn /shared/dustfinger/dev/hello-angular-webext /home/dustfinger/dev/hello_angular_webext/src
@@ -629,9 +630,9 @@ This is the directory hierarchy from the /=~/dev/hello_angular_webext=/ director
 9 directories
 #+END_EXAMPLE
 
-At the top most level you can see that the src subdirectory is soft linked to our project's Angular source on the shared file system for the guest user named dustfinger. From now on I will use /=/src/=/ when referring to this soft link.
+At the top most level you can see that the src subdirectory is soft linked to our project's Angular source on the shared file system for the guest user named dustfinger. From now on I will use /=src/=/ when referring to this soft link.
 
-Taking a closer look down the tree you can see a directory named src/dist/hello-angular-webext. The dist folder is where ng build places the transpiled angular app. Do not modify anything under the dist directory because it is replaced with each run of /ng build/. The non-transpiled source code for the Angular app which you can edit is located under /=/src/src/=/ along with the applications static assets located /=/src/src/assets/=/.
+Taking a closer look down the tree you can see a directory named /=src/dist/hello-angular-webext=/. The dist folder is where ng build places the transpiled angular app. Do not modify anything under the dist directory because it is replaced with each run of /ng build/. The non-transpiled source code for the Angular app which you can edit is located under /=src/src/=/ along with the applications static assets located /=src/src/assets/=/.
 
 * Transmogrify the Angular web application into a WebExtension
   A WebExtension needs the following things:
@@ -670,10 +671,10 @@ You may want to refer to [[The project layout][the project layout]] from time to
    #+END_SRC
 
 ** Add an icon
-Our WebExtension will have an Angular view that is accessible from a toolbar button embellished with an icon. For our example I took the [[https://commons.wikimedia.org/w/index.php?curid=68531022][BulbIcon By Respublika Narodnaya - Own work, CC BY-SA 4.0]], a simple SVG courteously uploaded to Wikimedia commons. [[https://upload.wikimedia.org/wikipedia/commons/2/2b/BulbIcon.svg][Download BulbIcon.svg]] and save in /=src/src/assets/hello-angular-icon-48.svg=/.
+Our WebExtension will have an Angular view that is accessible from a toolbar button embellished with an icon. For our example I used the [[https://commons.wikimedia.org/w/index.php?curid=68531022][BulbIcon By Respublika Narodnaya - Own work, CC BY-SA 4.0]], a simple SVG courteously uploaded to Wikimedia commons. [[https://upload.wikimedia.org/wikipedia/commons/2/2b/BulbIcon.svg][Download BulbIcon.svg]] and save it as /=src/src/assets/hello-angular-icon-48.svg=/.
 
 ** Declare the assets
-In order for our Angular application to be a valid WebExtension we need to place the manifest.json in the root directory of the transpiled application. Recall that the Angular transpiler places the application in /=src/dist/hello-angular-webext/=/. Each time the Angular transpiler builds the application the old /=src/dist/hello-angular-webext/=/ is replaced. Thankfully, Angular provides a way of dealing with this behaviour. By declaring our manifest and icon an asset in the angular.json file the transpiler will copy our manifest and icon into the transpiled application for us each time we run a build. Open src/angular.json and locate the /assets/ node located at /projects.hello-angular-webext.architect.build.options.assets/. The assets node will already list the assets directory which contains the hello-angular-icon-48.svg. Add the manifest.json as a root level asset.
+In order for our Angular application to be a valid WebExtension we need to place the manifest.json in the root directory of the transpiled application. Recall that the Angular transpiler places the application in /=src/dist/hello-angular-webext/=/. Each time the Angular transpiler builds the application the old /=src/dist/hello-angular-webext/=/ is replaced. Thankfully, Angular provides a way of dealing with this behaviour. By declaring our manifest and icon an asset in the angular.json file the transpiler will copy our manifest and icon into the transpiled application for us each time we run a build. Open /=src/angular.json=/ and locate the /assets/ node located at /projects.hello-angular-webext.architect.build.options.assets/. The assets node will already list the assets directory which contains the hello-angular-icon-48.svg. Add the manifest.json as a root level asset.
 #+BEGIN_SRC json
   "assets": [
     "src/favicon.ico",
@@ -685,7 +686,7 @@ In order for our Angular application to be a valid WebExtension we need to place
 ** Test the extension in Firefox from your development machine
 You will need to build the app once again so that our assets are deployed to the dist directory.
 #+BEGIN_SRC sh :results output scalar :shebang "#!/bin/env bash" :wrap EXAMPLE
-    sshnauci_dev 'cd dev/hello-angular-webext; ng build; echo "\nlisting content of dist/hello-angular-webext ...\n"; ls dist/hello-angular-webext'
+  sshnauci_dev 'cd dev/hello-angular-webext; ng build; echo "\nlisting content of dist/hello-angular-webext ...\n"; ls dist/hello-angular-webext'
 #+END_SRC
 
 #+RESULTS:
@@ -762,7 +763,7 @@ If you don't have an Android device then you can skip this step. Alternatively, 
 In this section you may refer to [[https://developer.mozilla.org/en-US/Add-ons/WebExtensions/Developing_WebExtensions_for_Firefox_for_Android][Developing WebExtensions for Firefox and Android]] and [[https://developer.mozilla.org/en-US/Add-ons/WebExtensions/Getting_started_with_web-ext][get started with web-ext]] if you run into difficulty. Otherwise, as long as you have an Android device with Firefox installed you may proceed with the sub-section below.
 
 *** Establish an USB Debugging Session With Android Debug Bridge (ADB)
-Web-ext depends on ADB for deployment to Android devices. The hello-angular-webext Dockerfile installed the standalone Android SDK Platform-Tools package named android-tools-adb into the dependency image. The Platform-Tools package contains the ADB CLI which we will now use to establish a USB debugging session with our Android device. First, [[https://developer.android.com/studio/debug/dev-options][follow these instructions to enable USB debugging on your Android device]]. Next, plug your Android device into a USB port on your host machine and test that ADB CLI can detect it. You will need to ensure that your device is not locked while trying to establish a debugging session. If the Android device was not connected to the container with USB debugging enabled at the time that the container was started then the container will need to be restarted in order to pick up the newly assigned USB character device node. As [[*Ensure USB Device Bus Bind Compatibility][mentioned previously]], an important concept to understand is that a new BUS ID will be created each time a device is connected to the host machine even if the device had been previously connected.
+Web-ext depends on ADB for deployment to Android devices. The hello-angular-webext Dockerfile installed the standalone Android SDK Platform-Tools package named android-tools-adb into the dependency image. The Platform-Tools package contains the ADB CLI which we will now use to establish a USB debugging session with our Android device. First, [[https://developer.android.com/studio/debug/dev-options][follow these instructions to enable USB debugging on your Android device]]. Next, plug your Android device into a USB port on your host machine and test that ADB CLI can detect it. You will need to ensure that your device is not locked while trying to establish a debugging session. As [[*Ensure USB Device Bus Bind Compatibility][mentioned previously]], an important concept to understand is that a new BUS ID will be created each time a device is connected to the host machine even if the device had been previously connected. Consequently, if the Android device was not connected to the container with USB debugging enabled at the time that the container was started then the container will need to be restarted in order to pick up the newly assigned USB character device node.
 #+BEGIN_SRC sh :results output scalar :shebang "#!/bin/env bash" :wrap EXAMPLE
   docker container restart nauci_dev
 #+END_SRC
@@ -777,9 +778,9 @@ Send a command to the ADB CLI which will ask the ADB daemon to list all of the d
 
 #+BEGIN_QUOTE
   Allow USB debugging?
-  
+
   The computer's RSA key fingerprint is:
-  
+
   =<your-host-containers-RSA-key-fingerprint>=
 #+END_QUOTE
 
@@ -819,8 +820,9 @@ This is the moment I have been leading up to. From my host, with no Node.js serv
   chunk {vendor} vendor.js, vendor.js.map (vendor) 3.37 MB [initial] [rendered]
 #+END_EXAMPLE
 
+I should warn you that if you have any tabs open in the Android Firefox browser they will disappear without warning once you run the next command. I believe that the command starts a new guest session in Firefox, but I have not investigated. If this does happen then don't panic, if you reboot the device (or probably just exit the guest session), then your lost tabs will return.
 
-I should warn you that if you have any tabs open in the Android Firefox browser they will be closed without warning once you run the next command. In a separate terminal run the following web-ext command.
+In a separate terminal run the following web-ext command.
 #+BEGIN_SRC sh :results output silent :shebang "#!/bin/env bash"
   sshnauci_dev 'web-ext run -s dev/hello-angular-webext/dist/hello-angular-webext/ --target=firefox-desktop --target=firefox-android --android-device 84B7N15A28004543'
 #+END_SRC
