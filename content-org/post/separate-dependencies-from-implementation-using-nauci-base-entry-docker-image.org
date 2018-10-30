@@ -232,16 +232,16 @@ Now both the host user and the guest user will have read and write access to all
 
 * Create a project dependencies image
 
-Suppose that our project requires us to developer a web application that is compatible with Firefox, but we don't have Firefox on our host environment because we prefer to browse the web using [[https://www.gnu.org/software/emacs/manual/html_mono/eww.html][Emacs Web Wowser (eww)]]. Create a new docker file in our src directory with the following contents
+Suppose that our project requires us to develop a web application that is compatible with Firefox, but we don't have Firefox on our host environment because we prefer to browse the web using [[https://www.gnu.org/software/emacs/manual/html_mono/eww.html][Emacs Web Wowser (eww)]]. Create a new Dockerfile in our src directory with the following contents
 
-#+BEGIN_EXAMPLE
+#+BEGIN_SRC docker
   FROM nauci/nauci_base_entry
   MAINTAINER dustfinger@nauci.org
 
   RUN apt-get -qqy install firefox-esr;
-#+END_EXAMPLE
+#+END_SRC docker
 
-Don't forget to add docker ignore rules for anything that you do not want to be part of the image. Then build the docker file in the usual way.
+Don't forget to add docker ignore rules for anything that you do not want to be part of the image. Then build the Dockerfile in the usual way.
 
 #+BEGIN_SRC sh :results output scalar :shebang "#!/bin/bash" :dir /home/dustfinger/dev/my_project
   docker build -t my_project_deps .

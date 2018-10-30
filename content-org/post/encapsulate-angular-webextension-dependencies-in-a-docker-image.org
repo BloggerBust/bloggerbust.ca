@@ -27,7 +27,7 @@ In the previous article of this series I demonstrated [[file:separate-dependenci
 ** Create the Dockerfile
 Fire up your favourite editor and replace the content of the Dockerfile with the following:
 
-#+BEGIN_EXAMPLE
+#+BEGIN_SRC docker
   FROM node as n
   FROM nauci/nauci_base_entry as nbe
   MAINTAINER dustfinger@nauci.org
@@ -71,7 +71,7 @@ Fire up your favourite editor and replace the content of the Dockerfile with the
   RUN mkdir -p /root/.node-gyp; \
       npm install -g @angular/cli; \
       npm install web-ext;
-#+END_EXAMPLE
+#+END_SRC
 
 You may have noticed that we are inheriting from both nauci_base_entry and the official node image. The Node image does a bunch of work for us and then we copy the results that we need into our image.
 
@@ -100,7 +100,7 @@ You should now have the following images in your local docker repository.
 #+END_EXAMPLE
 
 * Create a shareable file system or directory
-By default the [[https://github.com/BloggerBust/nauci_base_init/blob/master/nauci_base_init.sh][base entry point init script]] expects to find */shared/* with POSIX ACL support enabled. A different path can be provided using the *-v* option. The [[file:separate-dependencies-from-implementation-using-nauci-base-entry-docker-image.org::*Prerequisites][prerequisite section]] of the previous article contains sources that provide guidance on how to determine if your system supports POSIX ACL and how to install and configure POSIX ACL if necessary.
+By default the [[https://github.com/BloggerBust/nauci_base_init/blob/master/nauci_base_init.sh][base entry point init script]] expects to find the directory *=/shared/=* with POSIX ACL support enabled. A different path can be provided using the *-v* option. The [[file:separate-dependencies-from-implementation-using-nauci-base-entry-docker-image.org::*Prerequisites][prerequisite section]] of the previous article contains sources that provide guidance on how to determine if your system supports POSIX ACL and how to install and configure POSIX ACL if necessary.
 
 Moving forward, I am going to refer to the /base entry point init script/ simply as /entry point/, which is a [[https://docs.docker.com/glossary/?term=ENTRYPOINT][term defined in the Docker glossary]]. While writing this article I decided to provide better support for multi user collaboration. I know that sounds weird, after all what other kind of collaboration is there anyway? If you recall in the [[file:separate-dependencies-from-implementation-using-nauci-base-entry-docker-image.org::*Preparing%20for%20collaboration][Preparing for collaboration]] section of the previous article in this series I drew a distinction between centrally hosted and distributed collaboration. The line I drew dividing these methodologies was too stark since it is perfectly valid for many locally centralized tiny groups to collaborate in a distributed fashion. That is why the [[https://github.com/BloggerBust/nauci_base_init/blob/master/nauci_base_init.sh][entry point]] was designed to accept a CVS of user names in the first place. The trouble I ran into is that the tree structure of the /=/home/=/ directory separates each user's /=~/dev/=/ directory posing a challenge when it comes time to attach volumes to be shared by each host and guest pair. One strategy would be to attach many volumes, one for each pair, but that felt really cumbersome even with only a few users. A much better solution is to create a single shared volume and then create soft links inside each user's directory.
 
