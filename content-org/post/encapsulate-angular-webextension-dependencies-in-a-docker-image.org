@@ -12,9 +12,60 @@
 #+startup: showeverything
 
 * A quick recap
-In the previous article titled [[file:separate-dependencies-from-implementation-using-nauci-base-entry-docker-image.org][Separate Dependencies From Implementation Using POSIX ACL Extended Attributes & Docker]], I discussed [[file:separate-dependencies-from-implementation-using-nauci-base-entry-docker-image.org::*Prerequisites][the prerequisites]] to provide read and write access to a volume shared between the host system and guest docker container. My proposal involved encapsulating all of the project dependencies inside of the docker container while keeping the project's source code and development tools on the host. There are clear benefits to this approach. By separating implementation concerns from the project dependencies, the resulting docker dependency image will be reusable in multiple projects. Moreover, on boarding remote collaborators will be easier because they will be able to use implementation tools that they already have installed, customized and are intimately familiar with. Collaborators will be happier because they will not need to install, or configure project dependencies that could cause conflicts on their host environment. In this article, I will build on what was previously covered by encapsulating all of the dependencies required to build an Angular WebExtension into a dependency image. I will then build, simultaneously deploy and run an Angular WebExtension on both desktop and mobile browsers all from the comfort of my host editor.
+The purpose of this article is to provide a concrete example detailing precisely how to encapsulate the dependencies of an Angular WebExtension inside of a docker container whilst keeping the source code and optional tooling on the host system, thereby separating the dependencies from the implementation. In order for the two systems to work in tandem, files that are written to from within the container must remain writable outside of the container and vice versa. The mechanism that makes this possible is a combination of /POSIX ACL/ rules with /extended attributes/ enabled and /setgit mode bit/ applied to a volume shared between the host and the container. In the previous article, titled [[file:separate-dependencies-from-implementation-using-nauci-base-entry-docker-image.org][Separate Dependencies From Implementation Using POSIX ACL Extended Attributes & Docker]], I discussed [[file:separate-dependencies-from-implementation-using-nauci-base-entry-docker-image.org::*Prerequisites][these prerequisites]] in detail. There are clear benefits to this approach. By separating implementation concerns from the project dependencies, the resulting docker dependency image will be reusable in multiple projects. Moreover, on boarding remote collaborators will be made easier because the new recruits will be able to use implementation tools that they already have installed, customized and are intimately familiar with. The new recruits will be happier because they will not need to install or configure project dependencies that could cause conflicts in their host environment. By the end of this article you will be able to simultaneously build, deploy, and run an Angular WebExtension on both desktop and mobile browsers all from the comfort of your home directory.
 
 If you are not familiar with [[file:separate-dependencies-from-implementation-using-nauci-base-entry-docker-image.org::*Prerequisites][the prerequisites]] then please read that section now. I also assume that you have [[https://docs.docker.com/engine/reference/builder/][read the Dockerfile reference documentation]] and are familiar with [[https://docs.docker.com/engine/reference/commandline/cli/][the Docker CLI]].
+
+* Steps for the impatient
+This section provides less verbose instructions for those knowledgeable enough to not need further explanation. It also provides an overview of the steps we will be taking throughout the rest of the article. For a deeper look into each step please continue to the next section titled -- [[*Build the dependency image][Build the dependency image]].
+1. Read the [[file:separate-dependencies-from-implementation-using-nauci-base-entry-docker-image.org::*Prerequisites][prerequisite section]] and ensure that you have a directory setup with POSIX ACL support and extended attributes enabled. We will refer to this directory as /=/shared/=/
+2. run ~ls -la /dev/bus/usb/*/~ and note the USB character device nodes group ownership. If your USB character device nodes do not have /usb/ group ownership then:
+   1. [[*Create the USB group if needed][create the USB group if needed]] 
+      #+BEGIN_SRC sh :results output scalar :shebang "#!/bin/bash" :dir /home/dustfinger/dev/my_project
+        groupadd -g 85 usb
+        usermod -aG usb dustfinger
+      #+END_SRC
+   2. [[*Set USB character device node group ownership][set USB character device node group ownership]].
+      #+BEGIN_SRC sh :results silent
+        find /dev/bus/usb/ -type c -group root -exec chown :usb '{}' \;
+      #+END_SRC
+3. Create the Dockerfile
+   #+BEGIN_SRC sh
+     mkdir -p ~/dev/hello_angular_webext/src/ && touch ~/dev/hello_angular_webext/Dockerfile
+   #+END_SRC
+4. copy [[*Create the Dockerfile][the Dockerfile]] contents to /=~/dev/hello_angular_webext/Dockerfile=/
+5. Build the dependency image
+   #+BEGIN_SRC sh
+     cd ~/dev/hello_angular_webext/ && docker build -qt hello_angular_webext_deps .
+   #+END_SRC
+6. [[*Run the image][Run the image]] with
+   #+BEGIN_SRC sh
+     docker run -it -p 127.0.0.1:24:22 --name nauci_dev -h nauci_dev --device=/dev/bus/usb -v /shared:/shared hello_angular_webext_deps -s -n dustfinger,cenedra -u usb -U 85 -v /shared -gusers,sudo,video,plugdev,staff
+   #+END_SRC
+7. Set each user's passwords with ~passwd <user name>~ and [[*Restart the container][restart the container]]
+8. [[*Setup an alias for x-forwarding][Setup an alias]] for X-Forwarding (optional)
+   #+BEGIN_SRC sh :results output silent :shebang "#!/bin/env bash"
+     echo "alias sshnauci_dev='ssh -Yt -p 24 dustfinger@localhost'" >> ~/.bashrc
+     source ~/.bashrc
+   #+END_SRC
+9. Configure key-based authentication
+   1. If you don't have an RSA key at /=~/.ssh/id_rsa=/ then generate one. Leave the password blank if you want passwordless authentication (less secure, but more convenient)
+      #+BEGIN_SRC sh
+        ssh-keygen
+      #+END_SRC
+   2. Send the public RSA id to the container
+      #+BEGIN_SRC sh
+        ssh-copy-id -p 24 dustfinger@localhost
+      #+END_SRC
+10. [[*Build the Angular app][Build the Angular App]]
+    #+BEGIN_SRC sh :results output silent :shebang "#!/bin/env bash" :wrap EXAMPLE
+      sshnauci_dev 'cd ~/dev; ng new hello-angular-webext'
+    #+END_SRC
+11. [[*Link the host project src directory to the shared dev directory][Link project src with shared directory]]
+    #+BEGIN_SRC sh :results output scalar :shebang "#!/bin/env bash" :wrap EXAMPLE
+      ln -sn /shared/dustfinger/dev/hello-angular-webext /home/dustfinger/dev/hello_angular_webext/src
+    #+END_SRC
+12. follow the steps in [[*Transmogrify the Angular web application into a WebExtension][Transmogrify the Angular web application into a WebExtension]] through to the end.
 
 * Build the dependency image
 In the previous article of this series I demonstrated [[file:separate-dependencies-from-implementation-using-nauci-base-entry-docker-image.org::*Create%20a%20project%20dependencies%20image][how to create a basic image that inherits from nauci base entry and encapsulates the Firefox browser]]. Now it is time to encapsulate all of the dependencies necessary to create a simple Angular Hello World browser extension. Start by creating a project directory named /hello_angular_webext/.
@@ -184,15 +235,15 @@ Below is an example of the command you should run if you need to create the grou
 ** Set USB character device node group ownership
 The following command will set group ownership to /usb/ on all of the device nodes where the group ownership is /root/.
 
-#+BEGIN_EXAMPLE
+#+BEGIN_SRC sh :results silent
   find /dev/bus/usb/ -type c -group root -exec chown :usb '{}' \;
-#+END_EXAMPLE
+#+END_SRC
 
 If you would like to set the group ownership back to root when you are done then run the following command:
 
-#+BEGIN_EXAMPLE
+#+BEGIN_SRC sh :results silent
   find /dev/bus/usb/ -type c -group usb -exec chown :root '{}' \;
-#+END_EXAMPLE
+#+END_SRC
 
 * Run the image
 Before you run the image you should make sure that there are no containers listening on port 23. Note that I removed some of the columns from the next command's output so that it would display nicely on the screen. I will consider doing a PR for my chosen Hugo theme to make code execution output responsive, but for now shortening the width of the output by removing some columns will have to do.
