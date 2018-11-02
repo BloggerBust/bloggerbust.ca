@@ -8,7 +8,7 @@
 #+startup: showeverything
 
 * About Me
-  I am a software developer and independent contractor residing in Edmonton Alberta, Canada. I have been developing software professionally since 2001 and graduated from the [[https://www.ualberta.ca][University of Alberta]] in 2005 with a major mathematics and minor in computing science. One thing that I love about being an independent contractor, is that over the years I have worked for lots of different companies which has allowed me to contribute to a large variety of exciting projects written in many different languages. I have had the pleasure of working with so many wonderful teams who's members have taught me a great deal.
+  My name is Trevor Wilson. I am a software developer and independent contractor residing in Edmonton Alberta, Canada. I have been developing software professionally since 2001 and graduated from the [[https://www.ualberta.ca][University of Alberta]] in 2005 with a major mathematics and minor in computing science. One thing that I love about being an independent contractor, is that over the years I have worked for lots of different companies which has allowed me to contribute to a large variety of exciting projects written in many different languages. I have had the pleasure of working with so many wonderful teams who's members have taught me a great deal.
 
 * About This Blog
   This blog is not new. Previously it was hosted by WordPress, but then I discovered the wonderful world of static site generators such as [[https://jekyllrb.com][Jekyll]] and [[https://gohugo.io][Hugo]]. I loved the idea of blogging directly in [[http://orgmode.org][Emacs org-mode]] and managing my [[https://github.com/BloggerBust/bloggerbust.ca][blog in GitHub]]. I chose Hugo over Jekyll only because with Hugo I did not need to install Ruby, which I have no other need for at the moment. I considered migrating my old blog from WordPress to Hugo, but in the end I decided to just start fresh.
@@ -26,3 +26,7 @@
 * Blogs I enjoy reading
   - [[http://nullprogram.com][null program]]
   - [[https://jvns.ca][Julia Evans]]
+
+* My public key
+My public key is available [[http://keys.gnupg.net/pks/lookup?search=0x44A2CE8D9112645DA86FE25FC78B92389E8BE566&fingerprint=on&op=index][on hkp://keys.gnupg.net]]. You may also [[/about/trevor.wilson_signature.asc][download it here]], or copy the public key block below.
+#+INCLUDE: "../static/about/trevor.wilson_signature.asc" EXAMPLE
