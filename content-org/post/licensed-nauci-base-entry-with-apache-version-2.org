@@ -1,0 +1,16 @@
+#+author: Trevor Wilson
+#+email: trevor.wilson@bloggerbust.ca
+#+title: "Licensed Nauci Base Entry With Apache Version 2"
+#+date: <2018-11-09>
+#+HUGO_CATEGORIES: Programming
+#+HUGO_TAGS: nauci docker
+#+HUGO_BASE_DIR: ../../
+#+HUGO_SECTION: post
+#+HUGO_DRAFT: false
+#+HUGO_AUTO_SET_LASTMOD: true
+#+startup: showeverything
+
+Today I [[https://github.com/BloggerBust/nauci_base_init/blob/master/README.md][released the nauci base init source]] under Apache version 2.0.
+
+* Broken Links
+I noticed that all of my cross post anchor links are broken. They no longer link to anchors within the post, but instead link to the post itself. I will resolve this issue over the weekend.
