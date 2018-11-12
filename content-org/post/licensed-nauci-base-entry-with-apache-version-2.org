@@ -10,7 +10,7 @@
 #+HUGO_AUTO_SET_LASTMOD: true
 #+startup: showeverything
 
-Today I [[https://github.com/BloggerBust/nauci_base_init/][released the nauci base init source]] under Apache version 2.0.
+Today I [[https://tinyurl.com/y9fprpf7][released the nauci base init source]] under Apache version 2.0.
 
 * Broken Links
 I noticed that all of my cross post anchor links are broken. They no longer link to anchors within the post, but instead link to the post itself. I will resolve this issue over the weekend.
