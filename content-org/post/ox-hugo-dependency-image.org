@@ -1,0 +1,466 @@
+#+author: Trevor Wilson
+#+email: trevor.wilson@bloggerbust.ca
+#+title: "ox-hugo Dependency Image"
+#+date: <2018-12-22>
+#+HUGO_CATEGORIES: Programming
+#+HUGO_TAGS: docker ox-hugo
+#+HUGO_BASE_DIR: ../../
+#+HUGO_SECTION: post
+#+HUGO_DRAFT: false
+#+HUGO_AUTO_SET_LASTMOD: true
+#+startup: showeverything
+
+* Motivation
+I decided that I would like to contribute to the ox-hugo project from time to time. I do not have pandoc or pandoc-citeproc installed locally nor have never used either before. I did consider emerging pandoc, but when I saw the list of dependencies being pulled from portage I immediately cancelled the install.
+
+This command displays the number of packages, including pandoc itself, that would have been emerged. Most of those dependencies are from Haskell.
+#+BEGIN_SRC sh :results output scalar :shebang "#!/bin/env bash" :wrap EXAMPLE
+  emerge -putDN pandoc | grep 'ebuild  N' | wc -l
+#+END_SRC
+
+#+RESULTS:
+
+#+BEGIN_EXAMPLE
+98
+#+END_EXAMPLE
+
+Egad! That is a lot of dependencies. What if I need to test against multiple versions of pandoc which together depend on multiple versions of one or more of those 98 dependencies? I really don't like polluting my local environment with a ton of packages if I can avoid it; hence, my motivation to encapsulate ox-hugo dependencies into a dependency container.
+
+* Initial setup
+You might find it useful to refer to the following repositories during the initial setup:
+- [[https://github.com/BloggerBust/nauci_base_init][Blogger Bust GitHub nauci_base_entry]] :: Contains the entry point source used by the nauci/ox-hugo_deps image. The readme contains documentation on usage.
+- [[https://github.com/BloggerBust/ox-hugo_deps][Blogger Bust GitHub ox-hugo_deps]] :: Contains the Dockerfile used to create the ox-hugo_deps image. It also contains a number of important shell scripts in the bin directory that you will need
+- [[https://cloud.docker.com/u/nauci/repository/docker/nauci/ox-hugo_deps][nauci Docker Hub nauci/ox-hugo_deps]] :: Contains the latest pre-built nauci/ox-hugo_deps image
+
+** Create a shared directory with POSIX ACL support
+Before you begin, you will need a file system with POSIX ACL support and extended attributes enabled as described in - [[file:encapsulate-angular-webextension-dependencies-in-a-docker-image.org::*Create%20a%20shareable%20file%20system%20or%20directory][Create a shareable file system or directory]]. Once you have a file system with POSIX ACL support enabled you can simply create a directory for sharing projects between your host and any future dependency containers you create. I named this directory /=/shared/=/, but ultimately you can name it anything you like.
+
+** Create a developer group
+Your host user must be a member of the developer group as described in [[file:separate-dependencies-from-implementation-using-nauci-base-entry-docker-image.org::*Create%20a%20new%20group%20named%20developer][Create a new group named developer]].
+
+#+BEGIN_SRC sh :results output scalar :shebang "#!/bin/bash"
+  groupadd -g 2000 developer
+  usermod -aG developer dustfinger
+#+END_SRC
+
+** Pull nauci/ox-hugo_deps image
+If you have not already done so, please [[https://docs.docker.com/glossary/][install docker for your platform]]. Docker has no dependencies and uninstalls cleanly, therefore you can install it just to try out this example and uninstall it afterwards if you wish. Once Docker has been installed, you may proceed by pulling the ox-hugo_deps image from Docker Hub.
+#+BEGIN_SRC sh :results output scalar :shebang "#!/bin/env bash" :wrap EXAMPLE
+  docker pull nauci/ox-hugo_deps
+#+END_SRC
+
+#+RESULTS:
+
+#+BEGIN_EXAMPLE
+Using default tag: latest
+latest: Pulling from nauci/ox-hugo_deps
+54f7e8ac135a: Pulling fs layer
+c63217f7ef68: Pulling fs layer
+dfd98676afbf: Pulling fs layer
+33204c21b26d: Pulling fs layer
+5b0628993196: Pulling fs layer
+5df98747341b: Pulling fs layer
+3f2bb18273d2: Pulling fs layer
+33204c21b26d: Waiting
+5b0628993196: Waiting
+3f2bb18273d2: Waiting
+5df98747341b: Waiting
+dfd98676afbf: Verifying Checksum
+dfd98676afbf: Download complete
+33204c21b26d: Verifying Checksum
+33204c21b26d: Download complete
+54f7e8ac135a: Verifying Checksum
+54f7e8ac135a: Download complete
+5df98747341b: Verifying Checksum
+5df98747341b: Download complete
+54f7e8ac135a: Pull complete
+c63217f7ef68: Verifying Checksum
+c63217f7ef68: Download complete
+c63217f7ef68: Pull complete
+dfd98676afbf: Pull complete
+33204c21b26d: Pull complete
+5b0628993196: Verifying Checksum
+5b0628993196: Download complete
+3f2bb18273d2: Verifying Checksum
+3f2bb18273d2: Download complete
+5b0628993196: Pull complete
+5df98747341b: Pull complete
+3f2bb18273d2: Pull complete
+Digest: sha256:054a0365d144c2ee6942a74c0511723182a81a0bfb4c8e1207c6b4f0f0f06556
+Status: Downloaded newer image for nauci/ox-hugo_deps:latest
+#+END_EXAMPLE
+
+You can list your local copy of nauci/ox-hugo_deps using the /docker images/ command.
+#+BEGIN_SRC sh :results output scalar :shebang "#!/bin/env bash" :wrap EXAMPLE
+  docker images nauci/ox-hugo_deps
+#+END_SRC
+
+#+RESULTS:
+
+#+BEGIN_EXAMPLE
+REPOSITORY           TAG                 IMAGE ID            CREATED             SIZE
+nauci/ox-hugo_deps   latest              e0190fa60a02        46 hours ago        925MB
+#+END_EXAMPLE
+
+** Run the nauci/ox-hugo_deps image and install Go
+Docker images are immutable, therefore the ~docker run~ command cannot actually run a Docker image. Instead, ~docker run~ creates a new container with an initial state exactly matching the Docker image being passed to it. To be honest, I am still learning a lot about the ~docker run~ command. It is complex, so let's simplify our mental model by accepting that its ultimate responsibility is to create an environment in which to run the image's entry point. This environment includes its own file system, its own networking, and its own isolated process tree. In the case of the nauci/ox-hugo_deps image, the entry point is the nauci_base_init.sh script as defined in the base image nauci/nauci_base_entry.
+
+The last argument that is processed by ~docker-run~ is the name of the image. All of the arguments following the name of the image are passed to the entry point as additional options to its default behaviour. In particular, the ~-s~ optional parameter will cause the image to enter an interactive bash shell provided that the docker run command is run interactively and provides a pseudo terminal via the ~-it~ optional parameters. It is important that we enter the interactive shell because we need to perform two manual steps:
+
+1. Set a password for our guest user
+2. install hugo as a Go module
+
+#+BEGIN_SRC sh
+  docker run -it -p 127.0.0.1:23:22 -p 127.0.0.1:1313:1313 --name ox-hugo_deps -h ox-hugo_deps -v /shared:/shared nauci/ox-hugo_deps -s -n dustfinger -v /shared -gusers,sudo,video,plugdev,staff
+#+END_SRC
+
+#+BEGIN_EXAMPLE
+[[ ok  Starting OpenBSD Secure Shell server: sshd.
+
+##########################################################################
+# Welcome. You have entered an interactive shell. This is a good time to #
+# set user passwords. When you are finished, run the exit command to     #
+# continue with the init script. Any trailing commands that you entered  #
+# will then execute.                                                     #
+##########################################################################
+
+root@ox-hugo_deps:/# passwd dustfinger
+Enter new UNIX password: 
+Retype new UNIX password: 
+passwd: password updated successfully
+root@ox-hugo_deps:/# su dustfinger
+Password: 
+dustfinger@ox-hugo_deps:~$ go get github.com/gohugoio/hugo
+dustfinger@ox-hugo_deps:~$ exit
+root@ox-hugo_deps:/# exit
+exit
+#+END_EXAMPLE
+
+My motivation for installing hugo as a Go module was to provide an easy way to install the latest release from GitHub source. Hopefully they [[https://stackoverflow.com/questions/30188499/how-to-do-go-get-on-a-specific-tag-of-a-github-repository][add the ability to use /go get/ to install a module by git tag]] in the future. You might also be wondering why the ~docker run~ command includes the port mapping 1313 --> 1313. This is so that we can run the hugo server inside of the container while working on a blog. For this to work correctly it is important that the hugo port mapping is one-to-one. If instead you provide two different ports then the browser will fail to download site resources and links since the respective URIs will contain the remote port known to the hugo server rather than the local port reachable by your local browser.
+
+If you take a look at the nauci/ox-hugo_deps container you will notice that it is not running.
+#+BEGIN_SRC sh :results output scalar :shebang "#!/bin/env bash" :wrap EXAMPLE
+  docker container ls -a -f name=ox-hugo_deps
+#+END_SRC
+
+#+RESULTS:
+
+#+BEGIN_EXAMPLE
+CONTAINER ID        IMAGE                COMMAND                  CREATED             STATUS                          PORTS               NAMES
+8b17a78e93e3        nauci/ox-hugo_deps   "nauci_base_init.sh …"   12 minutes ago      Exited (0) About a minute ago                       ox-hugo_deps
+#+END_EXAMPLE
+
+That is because we were running an interactive bash session from our entry_point and when we exited bash the rest of the entry point executed and then exited leaving no process to keep the container in a running state. Use ~docker start~ to start the container again without an interactive session.
+#+BEGIN_SRC sh :results output scalar :shebang "#!/bin/env bash" :wrap EXAMPLE
+  docker start ox-hugo_deps
+  docker container ls -a -f name=ox-hugo_deps
+#+END_SRC
+
+#+RESULTS:
+
+#+BEGIN_EXAMPLE
+ox-hugo_deps
+CONTAINER ID        IMAGE                COMMAND                  CREATED             STATUS                  PORTS                                            NAMES
+8b17a78e93e3        nauci/ox-hugo_deps   "nauci_base_init.sh …"   12 minutes ago      Up Less than a second   127.0.0.1:1313->1313/tcp, 127.0.0.1:23->22/tcp   ox-hugo_deps
+#+END_EXAMPLE
+
+** Fork the ox-hugo repository in the shared volume
+If you would like to [[https://github.com/kaushalmodi/ox-hugo/blob/master/CONTRIBUTING.org][contribute to the ox-hugo project]] then you will need to fork ox-hugo in your own GitHub repository. In my example I will be using my own fork of ox-hugo. Once you have ox-hugo forked you should clone the repository in your shared directory. If you have never forked a project before then see the [[https://help.github.com/articles/fork-a-repo/][GitHub documentation on forking a repository]]. If you do not wish to make a fork at this time that is fine, you may simply clone the official repository.
+
+#+BEGIN_SRC sh :results silent :shebang "#!/bin/bash"
+  cd /shared/dustfinger/dev/
+  git clone https://github.com/BloggerBust/ox-hugo.git
+  ln -sn /shared/dustfinger/dev/ox-hugo /home/dustfinger/dev/ox-hugo
+  cd ~/dev/ox-hugo
+#+END_SRC
+
+At this point you should have a link named ox-hugo in your home dev directory to the ox-hugo git repository located in your shared dev directory and your user should be a member of the developer group.
+#+BEGIN_SRC sh :results output scalar :shebang "#!/bin/env bash" :wrap EXAMPLE  
+  ls -la ~/dev/ | grep -iE 'ox-hugo$'
+  getent group developer
+#+END_SRC
+
+#+RESULTS:
+
+#+BEGIN_EXAMPLE
+lrwxrwxrwx  1 dustfinger dustfinger      30 Dec 17 12:56 ox-hugo -> /shared/dustfinger/dev/ox-hugo
+developer:x:2000:dustfinger
+#+END_EXAMPLE
+
+** Install and configure the ox-hugo_deps shell scripts
+
+The [[https://github.com/BloggerBust/ox-hugo_deps/tree/master/bin][ox-hugo_deps GitHub repository bin directory]] has a number of bash shell scripts that you must install and configure. These shell scripts act as proxies for the ~go~, ~hugo~, ~pandoc~ and ~pandoc-citeproc~ commands within the nauci/ox-hugo_deps running container.
+
+
+#+BEGIN_SRC sh :results output scalar :shebang "#!/bin/env bash" :wrap EXAMPLE
+  mkdir -p ~/bin
+  cd ~/bin
+  curl --remote-name-all -JL https://raw.githubusercontent.com/BloggerBust/ox-hugo_deps/master/bin/{go,hugo,ox-hugo_deps,pandoc,pandoc-citeproc}
+  chmod 700 {go,hugo,ox-hugo_deps,pandoc,pandoc-citeproc}
+  ls -la {go,hugo,ox-hugo_deps,pandoc,pandoc-citeproc}
+#+END_SRC
+
+#+RESULTS:
+
+#+BEGIN_EXAMPLE
+-rwx------ 1 dustfinger dustfinger 152 Dec 20 05:47 go
+-rwx------ 1 dustfinger dustfinger 212 Dec 20 05:47 hugo
+-rwx------ 1 dustfinger dustfinger 368 Dec 20 05:47 ox-hugo_deps
+-rwx------ 1 dustfinger dustfinger 164 Dec 20 05:47 pandoc
+-rwx------ 1 dustfinger dustfinger 191 Dec 20 05:47 pandoc-citeproc
+#+END_EXAMPLE
+
+Now open /=~/bin/ox-hugo_deps=/ and set /USER/ to your guest username. Depending on how and where you ran the image you may also need to change /PORT/ and /HOST/.
+#+BEGIN_SRC sh
+  # The username, host and port used to connect to a running ox-hugo_deps container
+  readonly USER=dustfinger
+  readonly PORT=23
+  readonly HOST="localhost"
+#+END_SRC
+
+Save your changes and then test that the script works.
+#+BEGIN_EXAMPLE
+  $ ~/bin/ox-hugo_deps
+  dustfinger@localhost's password: 
+  Linux ox-hugo_deps 4.14.12-gentoo #20 SMP Sun Nov 11 04:46:14 MST 2018 x86_64
+  
+  The programs included with the Debian GNU/Linux system are free software;
+  the exact distribution terms for each program are described in the
+  individual files in /usr/share/doc/*/copyright.
+  
+  Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
+  permitted by applicable law.
+  Last login: Thu Dec 20 12:57:22 2018 from 172.17.0.1
+  dustfinger@ox-hugo_deps:~$ exit
+  logout
+  Connection to localhost closed.
+#+END_EXAMPLE
+
+** Configure key-based authentication
+If you don't have an RSA key at /=~/.ssh/id_rsa=/ then generate one by running the next command. Leave the password blank if you want password-less authentication (less secure, but more convenient)
+#+BEGIN_SRC sh
+  ssh-keygen
+#+END_SRC
+ Once you have an RSA key, send the public RSA id to the container.
+ #+BEGIN_SRC sh :results output scalar :shebang "#!/bin/env bash" :wrap EXAMPLE
+   ssh-copy-id -p 23 dustfinger@localhost
+ #+END_SRC
+
+#+RESULTS:
+
+#+BEGIN_EXAMPLE
+  /usr/bin/ssh-copy-id: INFO: Source of key(s) to be installed: "/home/dustfinger/.ssh/id_rsa.pub"
+  /usr/bin/ssh-copy-id: INFO: attempting to log in with the new key(s), to filter out any that are already installed
+  /usr/bin/ssh-copy-id: INFO: 1 key(s) remain to be installed -- if you are prompted now it is to install the new keys
+  dustfinger@localhost's password: 
+  
+  Number of key(s) added: 1
+  
+  Now try logging into the machine, with:   "ssh -p '23' 'dustfinger@localhost'"
+  and check to make sure that only the key(s) you wanted were added.
+#+END_EXAMPLE
+
+** Add bin to PATH
+This step is environment specific. We want to add the /=~/bin/=/ directory to our path. I will show you how to do this for bash, but if you are not using bash then you will need to look up how to do this for your host environment.
+
+Edit =~/.bash_profile= and set the PATH after =~/.bashrc= has been loaded.
+#+BEGIN_SRC sh
+  # /etc/skel/.bash_profile
+
+  # This file is sourced by bash for login shells.  The following line
+  # runs your .bashrc and is recommended by the bash info pages.
+  if [[ -f ~/.bashrc ]] ; then
+      . ~/.bashrc
+  fi
+
+  PATH=$PATH:~/bin/
+#+END_SRC
+
+My preference is to append /=~/bin/=/ to the end of the path so that it does not overwrite any global equivalents. If I want to run a script that needs to use my local bin then I simply use ~env~ to set the path for that command instance. We will be doing this shortly.
+
+Now source your changes so that they apply to the current environment
+#+BEGIN_SRC sh :results output scalar :shebang "#!/bin/env bash" :wrap EXAMPLE
+  source ~/.bash_profile
+#+END_SRC
+
+** Test each of the binaries
+This is the last step of the setup. We want to ensure that ~~/bin/go~, ~/bin/hugo~, ~/bin/pandoc~ and ~/bin/pandoc-citeproc~ are all actually working.
+
+#+BEGIN_SRC sh :results output scalar :shebang "#!/bin/env bash" :wrap EXAMPLE
+  STAY=true ~/bin/go version
+  STAY=true pandoc --version | grep -E ^pandoc
+  STAY=true pandoc-citeproc --version
+  STAY=true hugo version
+#+END_SRC
+
+#+RESULTS:
+
+#+BEGIN_EXAMPLE
+go version go1.11.3 linux/amd64
+pandoc 2.2.1
+pandoc-citeproc 0.14.3.1
+Hugo Static Site Generator v0.53-DEV linux/amd64 BuildDate: unknown
+#+END_EXAMPLE
+
+By default, when a proxy is invoked it will cd to the current working directory that matches the host's. This is necessary so that when building and testing ox-hugo commands that use relative paths are run from the expected directory. If you want to be able to run an ad hoc command without changing the container's current working directory then you set the environment variable ~STAY=true~.
+* Build ox-hugo
+You might want to refer to the ox-hugo [[https://ox-hugo.scripter.co/doc/contributing-guide/][Contributing Guide]]. Step 3. of the guide instructs the reader to run ~make md doc~. A lot of output is produced during the build so I won't include the full results below. To ensure that we run our proxy binaries we will use the ~env~ command to modify ~$PATH~ so that ~~/bin~ is searched first. By not providing a PATH override bash will find host installed versions of the commands rather than the proxies.
+
+#+BEGIN_SRC sh :results output scalar :shebang "#!/bin/env bash" :wrap EXAMPLE
+  cd ~/dev/ox-hugo
+  env - PATH=~/bin:$PATH make md doc && test 0 -eq $? && echo "BUILD PASSED" || echo "BUILD FAILED"
+#+END_SRC
+
+#+RESULTS:
+
+#+BEGIN_EXAMPLE
+# A lot more output above this point... 
+
+                   | EN  
++------------------+----+
+  Pages            |  8  
+  Paginator pages  |  0  
+  Non-page files   |  0  
+  Static files     | 14  
+  Processed images |  0  
+  Aliases          |  0  
+  Sitemaps         |  1  
+  Cleaned          |  0  
+
+Total in 53 ms
+Connection to localhost closed.
+[GitHub Docs] Generating README.org and CONTRIBUTING.org for GitHub ..
+
+./doc/github-files.org ::
+Loading /shared/dustfinger/dev/ox-hugo/test/setup-ox-hugo.el (source)...
+Debug on Error enabled globally
+Mark set
+Replaced 3 occurrences
+[GitHub Docs] Done
+BUILD PASSED
+#+END_EXAMPLE
+
+If you see the summary at the end with the last line of text reading /TESTS PASSED/ then that means that the markdown was generated and the docs were built successfully. If on the other hand the last line of text reads "TESTS FAILED" then the error should be reported in the standard output. In that case, you might also want to check the log files in your shared dev directory for each of the proxy commands. Both stdout and stderr from the proxy commands are sent to these log files.
+#+BEGIN_SRC sh :results output scalar :shebang "!#/bin/env bash" :wrap EXAMPLE
+ls -la /shared/dustfinger/dev/*.out
+#+END_SRC
+
+#+RESULTS:
+
+#+BEGIN_EXAMPLE
+-rw-rw-r--+ 1 dustfinger developer    32 Dec 27 06:41 /shared/dustfinger/dev/go.out
+-rw-rw-r--+ 1 dustfinger developer 13053 Dec 27 06:46 /shared/dustfinger/dev/hugo.out
+-rw-rw-r--+ 1 dustfinger developer     0 Dec 27 06:53 /shared/dustfinger/dev/pandoc.out
+#+END_EXAMPLE
+
+Finally, follow step 6 by running the tests.
+#+BEGIN_SRC sh :results output scalar :shebang "#!/bin/env bash" :wrap EXAMPLE
+env - PATH=~/bin:$PATH make -j1 test && test 0 -eq $? && echo "TESTS PASSED" || echo "TESTS FAILED"
+#+END_SRC
+
+#+RESULTS:
+
+#+BEGIN_EXAMPLE
+/shared/dustfinger/dev/ox-hugo/test/site/content-org/deep-nesting.org ::
+Loading /shared/dustfinger/dev/ox-hugo/test/setup-ox-hugo.el (source)...
+Debug on Error enabled globally
+[ox-hugo] 1/ Exporting `Index' ..
+[ox-hugo] 2/ Exporting `Chapter 1 Index' ..
+[ox-hugo] 3/ Exporting `sub section 1' ..
+[ox-hugo] 4/ Exporting `sub section 2' ..
+[ox-hugo] 5/ Exporting `Chapter 2 Index' ..
+[ox-hugo] 6/ Exporting `sub section 1' ..
+[ox-hugo] 7/ Exporting `sub section 2' ..
+[ox-hugo] Exported 7 subtrees from deep-nesting.org
+TESTS PASSED
+#+END_EXAMPLE
+
+Again, you will know that the tests have failed if the last line reads /TESTS FAILED/. In that case there should be an error reported to standard output. As mentioned previously, you can check the proxy command log files for additional insight.
+
+* Using the hugo proxy server
+If you find yourself contributing to ox-hugo it is probably because you found a defect while working on your own blog. Or perhaps you are adding a brand new feature that you would like to be able to use while composing your own blog. In either case, you probably have a Hugo generated blog. It makes sense that you will want to test your code changes against your own blog from your host environment. If a different version of any one of the proxy binaries (~hugo~, ~go~, ~pandoc~, ~pandoc-citeproc~) is installed on the host, then you will need to configure ox-hugo to invoke the proxy binaries. I actually only have ~go~ installed on my host, so I will use that to illustrate how to change the exec-path in emacs to point to the proxy binaries:
+
+#+BEGIN_SRC emacs-lisp :results output scalar :wrap EXAMPLE
+  (setq exec-path (split-string (getenv "PATH") path-separator))
+  (print (format "before inserting ~/bin at head of exec-path: %s" (executable-find "go")))
+  (setq exec-path (append `("~/bin") (split-string (getenv "PATH") path-separator)))       
+  (print (format "after inserting ~/bin at head of exec-path: %s" (executable-find "go")))
+#+END_SRC
+
+#+RESULTS:
+
+#+BEGIN_EXAMPLE
+"
+\"before inserting ~/bin at head of exec-path: /usr/bin/go\"
+
+\"after inserting ~/bin at head of exec-path: /home/dustfinger/bin/go\"
+"
+#+END_EXAMPLE
+
+Now when you run ~org-hugo-export-to-md~ it will invoke the proxy binaries.
+
+It should be clear by now that whenever you are sharing content between your host and dependency container, that content must reside as a child of /=/shared/dev/=/. Blog content is no exception, otherwise the ~hugo~ proxy binary will not be able to cd to the root directory of your blog from within the Docker container.
+#+BEGIN_SRC sh :results silent :shebang "#!/bin/bash"
+  mkdir /shared/dustfinger/dev/org-publish
+  ln -sn /shared/dustfinger/dev/org-publish/ /home/dustfinger/dev/org-publish
+  cd ~/dev/org-publish/
+  git clone https://github.com/BloggerBust/bloggerbust.ca
+  cd bloggerbust.ca/
+#+END_SRC
+
+Now let's test hugo server and verify that we can use a local browser to view edits in real-time. When we run hugo server we will need to make sure that it is bound to the correct interface. This is why we mapped port 1313 back in [[*Run the nauci/ox-hugo_deps image and install Go][Run the nauci/ox-hugo_deps image and install Go]].
+
+#+BEGIN_SRC sh :results output scalar :shebang "#!/bin/env bash" :wrap EXAMPLE
+  ox-hugo_deps ip addr show
+#+END_SRC
+
+#+RESULTS:
+
+#+BEGIN_EXAMPLE
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+2: sit0@NONE: <NOARP> mtu 1480 qdisc noop state DOWN group default qlen 1000
+    link/sit 0.0.0.0 brd 0.0.0.0
+24: eth0@if25: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default 
+    link/ether 02:42:ac:11:00:02 brd ff:ff:ff:ff:ff:ff link-netnsid 0
+    inet 172.17.0.2/16 brd 172.17.255.255 scope global eth0
+       valid_lft forever preferred_lft forever
+#+END_EXAMPLE
+
+Since the only external interface my container has configured is eth0 I know that I need to bind to IP /172.17.0.2/.
+#+BEGIN_SRC sh
+  hugo server --bind 172.17.0.2 -D
+#+END_SRC
+
+#+RESULTS:
+
+#+BEGIN_EXAMPLE
+Building sites … 
+                   | EN  
++------------------+----+
+  Pages            | 35  
+  Paginator pages  |  1  
+  Non-page files   |  0  
+  Static files     |  5  
+  Processed images |  0  
+  Aliases          |  1  
+  Sitemaps         |  1  
+  Cleaned          |  0  
+
+Total in 62 ms
+Watching for changes in /shared/dustfinger/dev/org-publish/bloggerbust.ca/{content,data,layouts,static,themes}
+Watching for config changes in /shared/dustfinger/dev/org-publish/bloggerbust.ca/config.toml
+Environment: "development"
+Serving pages from memory
+Running in Fast Render Mode. For full rebuilds on change: hugo server --disableFastRender
+Web Server is available at //localhost:1313/ (bind address 172.17.0.2)
+Press Ctrl+C to stop
+#+END_EXAMPLE
+
+Now you should be able to browse your blog from localhost:1313 and the request will be mapped to the container through port 1313 with the hugo server listening on bind address /172.17.0.2/. Any edits that you make using ox-hugo should be noticed by the hugo server running inside of the container and the change should be pushed to the local browser automatically.
+
+[[/post/ox-hugo-dependency-image/20190101-ox-hugo-deps-browse-hugo-server.jpg]]
+
+Sorry, but I have not yet decided on a good screen capture tool so for now I took a picture with my phone. I tried [[https://github.com/tarsius/frameshot][frameshot]], but it is not capturing the content in Firefox. The frame containing Firefox just shows up blank.
