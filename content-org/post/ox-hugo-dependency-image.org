@@ -463,4 +463,7 @@ Now you should be able to browse your blog from localhost:1313 and the request w
 
 [[/post/ox-hugo-dependency-image/20190101-ox-hugo-deps-browse-hugo-server.jpg]]
 
-Sorry, but I have not yet decided on a good screen capture tool so for now I took a picture with my phone. I tried [[https://github.com/tarsius/frameshot][frameshot]], but it is not capturing the content in Firefox. The frame containing Firefox just shows up blank.
+Sorry, but I have not yet decided on a good screen capture tool, so for now I took a picture with my phone. I tried [[https://github.com/tarsius/frameshot][frameshot]], but it is not capturing the rendered content in the Firefox buffer. The window containing Firefox just shows up blank in the screen capture.
+
+* Want to leave a comment?
+To leave a comment, please [[https://github.com/BloggerBust/bloggerbust.github.io/issues][create an issue in GitHub]] labelled /article comment/ linking back to this article in the opening paragraph.
