@@ -1,7 +1,7 @@
 #+author: Trevor Wilson
 #+email: trevor.wilson@bloggerbust.ca
 #+title: "ox-hugo Dependency Image"
-#+date: <2018-12-22>
+#+date: <2019-01-01>
 #+HUGO_CATEGORIES: Programming
 #+HUGO_TAGS: docker ox-hugo
 #+HUGO_BASE_DIR: ../../
