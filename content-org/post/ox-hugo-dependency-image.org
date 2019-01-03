@@ -11,9 +11,9 @@
 #+startup: showeverything
 
 * Motivation
-I decided that I would like to contribute to [[https://ox-hugo.scripter.co/doc/why-ox-hugo/][the ox-hugo project]] from time to time. I do not have pandoc or pandoc-citeproc installed locally nor have never used either before. I did consider emerging pandoc, but when I saw the list of dependencies being pulled from portage I immediately cancelled the install.
+I decided that I would like to contribute to [[https://ox-hugo.scripter.co/doc/why-ox-hugo/][the ox-hugo project]] from time to time. I do not have pandoc or pandoc-citeproc installed locally nor have I ever used either before. I did consider emerging pandoc, but when I saw the list of dependencies being pulled from portage I immediately cancelled the install.
 
-This command displays the number of packages, including pandoc itself, that would have been emerged. Most of those dependencies are from Haskell.
+For those that are unfamiliar with Gentoo, [[https://wiki.gentoo.org/wiki/Portage][Portage is Gentoo's package manager]] and [[https://wiki.gentoo.org/wiki/Portage#emerge][emerge is Portage's command-line interface]]. The following command displays the number of packages, including pandoc itself, that would have been emerged as new packages to the world set. Most of those dependencies are from Haskell.
 #+BEGIN_SRC sh :results output scalar :shebang "#!/bin/env bash" :wrap EXAMPLE
   emerge -putDN pandoc | grep 'ebuild  N' | wc -l
 #+END_SRC
@@ -30,7 +30,7 @@ Egad! That is a lot of dependencies. What if I need to test against multiple ver
 You might find it useful to refer to the following repositories during the initial setup:
 - [[https://github.com/BloggerBust/nauci_base_init][Blogger Bust GitHub nauci_base_entry]] :: Contains the entry point source used by the nauci/ox-hugo_deps image. The readme contains documentation on usage.
 - [[https://github.com/BloggerBust/ox-hugo_deps][Blogger Bust GitHub ox-hugo_deps]] :: Contains the Dockerfile used to create the ox-hugo_deps image. It also contains a number of important shell scripts in the bin directory that you will need
-- [[https://cloud.docker.com/u/nauci/repository/docker/nauci/ox-hugo_deps][nauci Docker Hub nauci/ox-hugo_deps]] :: Contains the latest pre-built nauci/ox-hugo_deps image
+- [[https://hub.docker.com/r/nauci/ox-hugo_deps][nauci Docker Hub nauci/ox-hugo_deps]] :: Contains the latest pre-built nauci/ox-hugo_deps image
 
 ** Create a shared directory with POSIX ACL support
 Before you begin, you will need a file system with POSIX ACL support and extended attributes enabled as described in - [[file:encapsulate-angular-webextension-dependencies-in-a-docker-image.org::*Create%20a%20shareable%20file%20system%20or%20directory][Create a shareable file system or directory]]. Once you have a file system with POSIX ACL support enabled you can simply create a directory for sharing projects between your host and any future dependency containers you create. I named this directory /=/shared/=/, but ultimately you can name it anything you like.
