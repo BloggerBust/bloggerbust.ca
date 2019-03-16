@@ -40,6 +40,7 @@ pygmentsCodeFences = true
 [params]
   email = "trevor.wilson@bloggerbust.ca"
   github = "bloggerbust"
+  custom_css = ["css/site.css"]
 
 [params.colors]
   background = "#26282A"

@@ -1,0 +1,14 @@
+
+/*****************************/
+/* Blogger Bust - custom CSS */
+/*****************************/
+
+pre {
+    overflow-x: auto;
+}
+
+pre code {
+    overflow-wrap: normal;
+    word-wrap: normal;
+    white-space: pre;
+}
