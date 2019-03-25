@@ -1,0 +1,27 @@
+#+author: Trevor Wilson
+#+email: trevor.wilson@bloggerbust.ca
+#+title: "Mount /tmp as Non Executable"
+#+date: 2019-03-20T10:27:43Z
+#+HUGO_BASE_DIR: ../../
+#+HUGO_SECTION: post
+#+HUGO_DRAFT: true
+#+HUGO_AUTO_SET_LASTMOD: true
+#+startup: showeverything
+
+* Mounting /tmp as non executable improves security and increases awareness
+
+For security reasons I mount my /=/tmp=/ directory as non executable. Since I use the zfs file system, I accomplish this by turning off the exec property:
+#+begin_src sh :results output scalar :shebang "#!/bin/env bash" :wrap EXAMPLE
+  /sbin/zfs get exec tank/tmp/root
+#+end_src
+
+#+RESULTS:
+
+#+begin_EXAMPLE
+NAME           PROPERTY  VALUE  SOURCE
+tank/tmp/root  exec      off    local
+#+end_EXAMPLE
+
+It is easy to search online how to accomplish the same for other file systems. I highly recommend mounting =/tmp= as none executable. If any process tries to execute an executable file it will immediately fail no matter what the effective user or group is. As you can imagine, this causes problems from time to time. For example, in emacs I have set /temporary-file-directory/ to =~/.emacs.d.tmp= since it is =/tmp/= by default. I discovered this when I was not able to use tramp to execute org-babel exported code with sudo. There have been countless other hiccups that I have run into, which is why I have created this short blog post. Now when I encounter execution failure in =/tmp= I can link to this post whenever I have to do something strange to get around the issue.
+
+Another benefit is that when a process fails due to not being able to execute in /=/tmp=/ I learn about what that process was trying to execute in and why. In this way it increases my awareness of my local ecosystem. It is enlightening.
