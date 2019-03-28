@@ -69,7 +69,7 @@ The purpose of the sha256 hash validation is to ensure that subsequent downloads
   rm a3593905f73ce19c09d21f9968f1d3f5bc115157.zip
 #+end_src
 
-e#+RESULTS:
+#+RESULTS:
 
 #+begin_EXAMPLE
 6f3484eacc172c90d605e79130f9f01ec827a98b99c499c396eddc597a9c219d  a3593905f73ce19c09d21f9968f1d3f5bc115157.zip
@@ -201,5 +201,3 @@ If anything goes wrong then add ~--verbose_failures --sandbox_debug~ optional fl
 
 * Conclusion
 Thanks to the rules_foreign_cc project adding Libsodium as a dependency was easy. For GNU configure/make Autotools based projects with foreign dependencies of their own additional work would be needed. Also, keep in mind that the project is experimental and is unlikely to maintain backwards compatibility until it is deemed stable. I hope that you found this post useful.
-
-Want to comment? I will be adding comment support soon via [[https://staticman.net/][Static Man]].
