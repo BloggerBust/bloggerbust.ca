@@ -2,8 +2,8 @@
 #+email: trevor.wilson@bloggerbust.ca
 #+title: "Literate Programming"
 #+date: 2018-09-01T12:43:27-06:00
-#+HUGO_CATEGORIES: literate-programming
-#+HUGO_TAGS: emacs org-mode hugo
+#+HUGO_CATEGORIES: Blogging
+#+HUGO_TAGS: emacs org-mode hugo literate-programming
 #+HUGO_BASE_DIR: ../../
 #+HUGO_SECTION: post
 #+HUGO_DRAFT: false

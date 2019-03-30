@@ -1,0 +1,177 @@
+#+author: Trevor Wilson
+#+email: trevor.wilson@bloggerbust.ca
+#+title: "Staticman with GitHub and Zeit Now - part 1"
+#+date: 2019-03-28T04:36:51Z
+#+HUGO_CATEGORIES: Blogging
+#+HUGO_TAGS: hugo staticman serverless git
+#+HUGO_SERIES: "Staticman With GitHub and Zeit Now"
+#+HUGO_BASE_DIR: ../../
+#+HUGO_SECTION: post
+#+HUGO_DRAFT: false
+#+HUGO_AUTO_SET_LASTMOD: true
+#+startup: showeverything
+#+options: d:(not "steps")
+
+* Why Staticman?
+
+I would like to add comment support to my Blog. The trouble is that I don't trust comment engines to respect the privacy of my readers. Do I even have any readers? Who can tell! None of my posts have a comment section and I don't collect analytics. Clearly this is a problem worth solving.
+
+I recently came across the [[https://staticman.net/][Staticman comment engine]] which uses pull requests to update static blogs with static user comments. Fantastic! Finally an open source comment engine that I can trust to respect my readers' privacy. There is just one issue, the [[https://staticman.net/docs/][Staticman - Getting Started documentation]] provides instructions to add the GitHub app named /staticmanapp/ to your repository; however, [[https://github.com/eduardoboucas/staticman/issues/279][GitHub limits the number of requests that staticmanapp can service]] and it is constantly exceeding its limit. The solution is to self-host an instance and for that I turned to [[https://zeit.co/now][Zeit Now]].
+
+* Why Zeit Now?
+Simply because it provides global serverless deployments with built in support for GitHub. Zeit Now directly supports GitLab as well, and to be honest, you could rig something up with any source control system that supports [[https://git-scm.com/book/en/v2/Customizing-Git-Git-Hooks][Git hooks]]. Also, the [[https://zeit.co/pricing][free plan provides 100GB / month]] which is much more than adequate for a blog comment engine.
+
+* Create a GitHub bot account
+The plan is to have the Zeit Now hosted Staticman application make pull requests for user comments to my static blog. GitHub pull requests can only be made from GitHub accounts. That means that the Staticman application will need its own GitHub account. If you are currently signed in to GitHub you will need to sign out now if you wish to follow along.
+
+Now go ahead and create [[https://github.com/join?source=header-home][a new GitHub account]] for your Staticman instance. Unfortunately, you will not be able to use the same email address for your bot account as you do for your blog account. Thankfully, you won't need to create a new email address either. If you find that confusing, then you probably have not heard of [[https://www.cs.rutgers.edu/~watrous/plus-signs-in-email-addresses.html][dynamic email address aliases]], a feature supported by most email service providers today. If your email address is first.last@example.com, then append a tag such as 'bot' or 'staticman' to the end of your username and your service provider will treat it as an email alias.
+#+begin_table
+| email                  | alias                     |
+|------------------------+---------------------------|
+| first.last@example.com | fist.last+bot@example.com |
+#+end_table
+
+Next, follow the instructions to [[https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line][Create a personal access token for the command line]] from your bot account. In step 7 you will be presented with a long list of permissions that you can grant your access token. Since I am not sure yet how this access token will be used I chose to not grant it any permissions at all. This decision might cause me problems, but I can always edit these permissions later if the need arises.
+
+* Create a GitHub SSH key for the bot account
+Please follow these [[https://help.github.com/en/articles/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent][instructions to generate a new SSH Key]]. If you do not wish to enter a passphrase then simply hit /ENTER/ without typing anything when prompted, but be aware that having no passphrase is not as secure. If you are choosing not to enter a passphrase because you do not wish to be frequently interrupted with passphrase prompts, then please note that the recommended solution is to use the ssh-agent daemon which caches your credentials for short periods of time. If you are not familiar with using an SSH key to access GitHub then you might want to read over their documentation on [[https://help.github.com/en/articles/connecting-to-github-with-ssh][connecting to GitHub with SSH]]. I skipped the section on adding the SSH key to the ssh-agent daemon since I do not run ssh-agent. I don't mind typing my passphrase frequently. On the other hand, if you already have an SSH key that you use for accessing GitHub and you are unfamiliar with managing multiple SSH keys, then you might want to read up on [[https://gist.github.com/jexchan/2351996/][managing multiple SSH keys with multiple GitHub accounts]]. The information contained in that article is actually valid for any account used with SSH, not just GitHub.
+
+Once you have your sparkling new SSH key, follow these instructions to [[https://help.github.com/en/articles/adding-a-new-ssh-key-to-your-github-account][add the SSH key to your GitHub account]].
+* Clone the staticman repo
+Now that you have created [[*Create a GitHub bot account][a GitHub bot account]] and [[*Create a GitHub SSH key for the bot account][a GitHub SSH key for the bot account]] please clone the official staticman repository.
+#+begin_src sh :results out scalar :shebang "#!/bin/env bash" :wrap EXAMPLE
+  cd ~/dev
+  git clone https://github.com/BloggerBust-bot/staticman.git
+#+end_src
+
+By default your repo will be using your global git config, but that is not what we want. Instead, we want the local git config to override these settings with your bot username and email address.
+#+begin_src sh :results out scalar :shebang "#!/bin/env bash" :wrap EXAMPLE :dir ~/dev/staticman
+  git config --local user.name "BloggerBust-bot"
+  git config --local user.email "trevor.wilson+bot@bloggerbust.ca"  
+  git config --local --list
+#+end_src
+
+#+RESULTS:
+
+#+begin_EXAMPLE
+core.repositoryformatversion=0
+core.filemode=true
+core.bare=false
+core.logallrefupdates=true
+remote.origin.url=https://github.com/BloggerBust-bot/staticman.git
+remote.origin.fetch=+refs/heads/*:refs/remotes/origin/*
+branch.master.remote=origin
+branch.master.merge=refs/heads/master
+user.email=trevor.wilson+bot@bloggerbust.ca
+user.name=BloggerBust-bot
+#+end_EXAMPLE
+
+* Authorize Now GitHub App
+
+Visit the [[https://zeit.co/signup?next=%252Fgithub-setup][Sign Up for Zeit]] page and click the /CONTINUE WITH GITHUB/ button. A list of resources that Zeit Now needs access to will be displayed. At the time of writing only /read/ access permission for your email address is requested. Once you have granted the Zeit Now GitHub app with the requested permission a tiny notice stating that your request is pending moderation and that you should contact support@zeit.co will appear at the bottom of the page. Within moments the GitHub notification service will send you an email similar to the following:
+
+#+begin_quote
+From: GitHub <noreply@github.com>
+
+Subject: [GitHub] A third-party GitHub application has been added to your account
+
+To: BloggerBust-bot <trevor.wilson+bot@bloggerbust.ca>
+
+Hey BloggerBust-bot!
+
+A third-party GitHub Application (Now) with the following permissions:
+- View your email addresses
+
+Was recently authorized to access your account.
+
+Visit https://github.com/settings/connections/applications/Iv1.9d7d662ea00b8481 for more information.
+
+To see this and other security events for your account, visit https://github.com/settings/security
+
+If you run into problems, please contact support by visiting https://github.com/contact
+
+Thanks,
+Your friends at GitHub
+#+end_quote
+
+I followed the instructions from Zeit Now by sending this email to support@zeit.co:
+#+begin_quote
+To: support@zeit.co
+
+Subject: account pending moderation - please activate
+
+Hi,
+
+I just granted Zeit now _read_ access to my email address resource on my
+BloggerBust-bot GitHub account. After doing so, I was notified that my
+Zeit Now account is pending moderation and that I should contact
+support. I am doing so now. Please activate my Zeit Now account as soon
+as possible.
+
+Thank you kindly,
+
+Trevor Wilson
+#+end_quote
+
+They responded a short while later with the following email:
+
+#+begin_quote
+From: support@zeit.co
+
+Subject: Re: account pending moderation - please activate
+
+Thank you for reaching out to ZEIT support. Our abuse system has flagged your account and we need to validate a few more details in order to continue with your signup.
+Can you kindly provide me with the following:
+
+ * GitHub account name.
+ * Twitter or any social media with your name.
+ * The company that you work for (optional).
+ * What are your plans when using the platform?
+
+Thanks for your cooperation and your patience is appreciated.
+#+end_quote
+
+Wow, that is a lot of personal information they are asking for. This was my response:
+#+begin_quote
+To: support@zeit.co
+
+Subject: Re: account pending moderation - please activate
+
+Hi,
+
+Thank you for your quick response. Here is the information that you
+requested:
+
+ * GitHub account name.
+   
+   A: BloggerBust-bot
+
+ * Twitter or any social media with your name.
+
+   A: Sorry, but I care about my privacy and refuse to provide you with this information
+
+ * The company that you work for (optional).
+
+   A: Sorry, I won't provide you with that information
+
+ * What are your plans when using the platform?
+
+   A: I plan on running a Nodejs application
+
+Sincerely,
+
+Trevor Wilson
+#+end_quote
+
+After a while they responded with this email stating that they have whitelisted my GitHub account.
+#+begin_quote
+From: support@zeit.co
+
+Subject: Re: account pending moderation - please activate
+
+Thank you for the information.
+After reviewing your information, I have whitelisted your GitHub account.
+You should be able to register again with it in 24 hours.
+#+end_quote
+
+I guess I will have to wait 24 hours before continuing...
