@@ -66,7 +66,7 @@ user.email=trevor.wilson+bot@bloggerbust.ca
 user.name=BloggerBust-bot
 #+end_EXAMPLE
 
-* Authorize Now GitHub App
+* Authorize the Zeit Now GitHub app
 
 Visit the [[https://zeit.co/signup?next=%252Fgithub-setup][Sign Up for Zeit]] page and click the /CONTINUE WITH GITHUB/ button. A list of resources that Zeit Now needs access to will be displayed. At the time of writing only /read/ access permission for your email address is requested. Once you have granted the Zeit Now GitHub app with the requested permission a tiny notice stating that your request is pending moderation and that you should contact support@zeit.co will appear at the bottom of the page. Within moments the GitHub notification service will send you an email similar to the following:
 
