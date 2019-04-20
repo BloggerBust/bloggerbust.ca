@@ -7,3 +7,4 @@
 #+HUGO_DRAFT: true
 #+HUGO_AUTO_SET_LASTMOD: true
 #+startup: showeverything
+#+options: d:(not "notes")
