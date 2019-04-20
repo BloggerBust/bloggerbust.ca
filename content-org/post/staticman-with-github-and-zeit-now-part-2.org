@@ -1,0 +1,249 @@
+#+author: Trevor Wilson
+#+email: trevor.wilson@bloggerbust.ca
+#+title: "Staticman with GitHub and Zeit Now - part 2"
+#+date: 2019-03-30T07:25:30Z
+#+HUGO_CATEGORIES: Blogging
+#+HUGO_TAGS: hugo staticman serverless git
+#+HUGO_SERIES: "Staticman With GitHub and Zeit Now"
+#+HUGO_BASE_DIR: ../../
+#+HUGO_SECTION: post
+#+HUGO_DRAFT: true
+#+HUGO_AUTO_SET_LASTMOD: true
+#+startup: showeverything
+#+options: d:(not "notes")
+
+* A quick recap
+
+In [[file:staticman-with-github-and-zeit-now.org][part 1 of this series]] we rationalized our choice to use Staticman as a comment engine for Blogger Bust, and [[https://zeit.co/now][Zeit Now]] to host [[https://staticman.net][Staticman]]. We also discussed how to [[file:staticman-with-github-and-zeit-now.org::*Create%20a%20GitHub%20bot%20account][create a GitHub bot account]] and began the process of [[file:staticman-with-github-and-zeit-now.org::*Authorize%20the%20Zeit%20Now%20GitHub%20app][authorizing the Zeit Now GitHub app]], but we ran into some trouble when our account was flagged by the Zeit abuse system. After answering a few of their questions they whitelisted our account, a process that takes 24 hours to propagate through their system. We may now continue our quest to setup Staticman via Zeit Now.
+
+* Re-register with Zeit Now
+Hopefully enough time has passed for registration to complete successfully. The first step is to sign in to GitHub using your [[file:staticman-with-github-and-zeit-now.org::*Create%20a%20GitHub%20bot%20account][GitHub bot account that we created in part 1]] of this series. Next, revisit the [[https://zeit.co/signup?next=%252Fgithub-setup][Zeit Now GitHub setup page]] and click /CONTINUE WITH GITHUB/. For me, the page redirected to itself. I decided to try their [[https://zeit.co/login][sign-in page instead]]. After clicking the /CONTINUE WITH GITHUB/ link I was presented with a view containing the text "/Are you BloggerBust-bot?:/". Since I am, I clicked the /CONTINUE AS BloggerBust-bot/ link and I was finally signed in to their dashboard.
+
+If you ever want to revoke the Zeit Now app from your GitHub bot account you can visit the [[https://github.com/settings/apps/authorizations][Authorized GitHub Apps view]] and click the /Revoke/ link.
+
+* Install Now for GitHub
+Please refer to the official [[https://zeit.co/docs/v2/integrations/now-for-github/][Zeit Now documentation to install Now for GitHub]] if you have any trouble following these instructions. From your [[https://zeit.co/account][Zeit Account Settings view]] find the card with the heading *GitHub Integration* and click the /INSTALL NOW FOR GITHUB/ link. You will then be prompted to pick between authorizing the Zeit Now GitHub app for all repositories or limit authorization to a whitelist. The choice is yours to make. I decided to grant the Now app access to a whitelist of repositories despite the fact that, at the time of this writing, this account has but a single repository. Once you have made your choice, read over the permissions that it is requesting and if you are okay granting it those permissions then go ahead and click the /Install/ button at the bottom of the view.
+
+Later, if you decide that you want to uninstall the Zeit Now GitHub account, simply visit your GitHub account's [[https://github.com/settings/installations][Installed GitHub Apps view]], then click the /Configure/ button followed by the /Uninstall/ button that will be visible on the app's configuration view. From the configuration view you can also review the permissions that the app has been granted and update the repository access settings.
+
+* Install the Now CLI
+The Now CLI is [[https://github.com/zeit/now-cli][open source on GitHub]]. Please follow their instructions to install the CLI. If you choose to install the CLI with /npm/ then you must have [[https://www.npmjs.com/get-npm][Node.js installed]]. Alternatively, you may choose to [[https://github.com/zeit/now-desktop][install the Now Desktop]] which includes the Now CLI. I choose not to install "/desktop/" applications of this nature because I do not like how tightly they integrate my development environment with the provider's service infrastructure.
+
+* Install npm
+
+If you [[*Install the Now CLI][installed the Now CLI]] with the Now Desktop app then you can technically skip this section. Otherwise, you will need to install npm to install the Now CLI. Even if you did install the Now Desktop app, you may want to be able to contribute to Staticman.net, or just run the unit tests as a sanity check, in which case you should install npm.
+
+Npm is the default JavaScript package manager for Node.js. Staticman.net was designed to be hosted by Node.js. Zeit Now was designed to host serverless Node applications. My preference is to install npm with a custom prefix so that I can avoid installing global packages in a location that would require root privileges.
+#+begin_src sh :results output scalar :shebang "!#/bin/env bash" :wrap EXAMPLE
+mkdir ~/.npm-global
+npm config set prefix "~/.npm-global"
+npm install now -g
+#+end_src
+
+#+RESULTS:
+
+#+begin_EXAMPLE
+/home/dustfinger/.npm-global/bin/now -> /home/dustfinger/.npm-global/lib64/node_modules/now/download/dist/now
+
+> now@14.2.4 postinstall /home/dustfinger/.npm-global/lib64/node_modules/now
+> node download/install.js
+
+> For the source code, check out: https://github.com/zeit/now-cli
+
+
+
++ now@14.2.4
+added 2 packages from 2 contributors in 10.423s
+#+end_EXAMPLE
+
+If you choose to change your npm global prefix then you will also need to update your path environment variable to include =~/.npm-global/bin= or you won't be able to run now without providing the path to the binary. I simply add the following to my =~/.bash_profile=
+#+begin_src sh
+  PATH=$PATH:~/.npm-global/bin
+#+end_src
+
+and then source it.
+#+begin_src sh :results silent :shebang "#!/bin/env bash"
+  source ~/.bash_profile
+#+end_src
+
+* Generate RSA PEM Private & Public Keys
+Staticman uses a [[http://fileformats.archiveteam.org/wiki/PEM_encoded_RSA_private_key][PEM encoded RSA private key]] to decrypt a select set of sensitive configuration parameters using the [[https://www.npmjs.com/package/node-rsa][node-rsa npm package]]. The private key must be generated using one of the [[https://www.npmjs.com/package/node-rsa#format-string-syntax][format schemes supported by node-rsa]]. The corresponding public key is kept in a file named /staticman_key.pub/ and is checked into the Git repository. The public key is meant to be used by the end user to [[https://staticman.net/docs/configuration][encrypt sensitive parameters]] that need to be stored in the /staticman.yml/ of a pregenerated GitHub or GitLab repository. As you will soon see, I am not going to be using this approach. None the less, I will show you how to generate both the public and private RSA keys. The git ignore rules exclude a file named staticman_key, so that seems like a good place to store our private key for later use. Let's create an RSA private key for this purpose now. Remember -- Keep it secret, keep it safe.
+#+begin_src sh :results output scalar :shebang "#!/bin/env bash" :dir ~/dev/staticman :wrap EXAMPLE
+  openssl genpkey -outform PEM -algorithm RSA > staticman_key
+  openssl pkey -inform PEM -in staticman_key -pubout > staticman_key.pub
+#+end_src
+
+* Keep our secrets safe for Now
+The [[https://github.com/eduardoboucas/staticman#setting-up-the-server][Staticman Readme - Setting up the server]] documentation instructs us to copy the [[https://github.com/eduardoboucas/staticman/blob/master/config.sample.json][config.sample.json]], to config.{environment}.json, as a starting place when configuring the Staticman server. However, Now GitHub deployments are immutable, therefore we would be required to push a commit containing our config.production.json. Under these circumstances, if we thoughtlessly followed instructions, then our GitHub bot repository would contain our GitHub token and private RSA key within the config.production.json resulting in a fallible deployment strategy. I have decided to improve security by taking advantage of Zeit Now's support for [[https://zeit.co/docs/v2/deployments/environment-variables-and-secrets/#securing-environment-variables-using-secrets][securing environment variables using secrets]]. It so happens that the [[https://staticman.net/docs/api#githubToken][githubToken]] and [[https://staticman.net/docs/api#rsaPrivateKey][rsaPrivateKey]] config properties have corresponding environment variables. Moreover, all of the config properties correspond to an environment variable, so we could get rid of config.production.json entirely. In fact, that is what we are going to do.
+
+** Sign into Now using the CLI
+The Now CLI requires an authentication token in order to operate on your account. To that end, we simply call the login verb from a terminal.
+#+NAME: now-login
+#+begin_src sh :results output scalar :shebang "#!/bin/env bash" :wrap EXAMPLE
+  now login
+#+end_src
+
+The protocol will instruct the Zeit Now service to send you a confirmation email. The email will contain a link that when opened in your browser will present a CAPTCHA. I hate CAPTCHAs. As soon as you answer the CAPTCHA, the Now CLI will store the authentication token.
+
+For your amusement I will tell you that I had opened this CAPTCHA in a separate /EXWM/ workspace and did not notice when the Now CLI had validated the email confirmation. As a result, I answered several CAPTCHAs before I got annoyed and flipped back to the workspace containing my terminal with the CLI output, only to find that it had already validated.
+#+RESULTS: now-login
+
+#+begin_EXAMPLE
+  > We sent an email to trevor.wilson+bot@bloggerbust.ca. Please follow the steps provided
+    inside it and make sure the security code matches Handsome Snowshoe.
+  ✔ Email confirmed
+  > Ready! Authentication token and personal details saved in "~/.now"
+#+end_EXAMPLE
+
+Be warned, the CAPTCHA may continue to present you with new CAPTCHAs without end. Although, on subsequent trials I was instead presented with the following confirmation message directly in the browser immediately after passing the CAPTCHA. I guess the behaviour may vary:
+#+begin_center
+Email Address Confirmed
+
+You have been correctly authenticated. You may now close this window!
+#+end_center
+
+** Create the RSA private key secret
+After looking over the node-rsa [[https://www.npmjs.com/package/node-rsa#importexport-keys][Import/Export keys example]] I was under the impression that end-of-line delimiters need to be removed from the key data. In retrospective, removing end-of-line delimiters is probably not necessary, but since I have not tested it otherwise I will leave the bash pipeline transformation as is. For convenience we will use the ~tr~ (translate) command to delete carriage returns and newline characters, then pipe the result to ~xargs~ which will invoke ~sh~ with our private key as a positional argument. The ~sh~ command will read our ~now secret~ command from a string, perform positional parameter substitution using the parameters passed to it by ~xargs~ and evaluate the resulting expression. The final product will be a Now Secret, named /staticman-rsa-private-key/, saved in your Now account and readable only by the code that is running it.
+
+#+begin_src sh :results output scalar :shebang "#!/bin/env bash" :dir ~/dev/staticman :wrap EXAMPLE
+  tr -d ['\r','\n'] < staticman_key | xargs -0 sh -c 'now secret add -- staticman-rsa-private-key "$0"'
+#+end_src
+
+#+RESULTS:
+
+#+begin_EXAMPLE
+> UPDATE AVAILABLE The latest version of Now CLI is 15.0.1
+> Read more about how to update here: https://zeit.co/update-cli
+> Changelog: https://github.com/zeit/now-cli/releases/tag/15.0.1
+> Success! Secret staticman-rsa-private-key added (trevorwilsonbot) [289ms]
+#+end_EXAMPLE
+
+** Create the GitHub token secret
+Copy the GitHub access token that you created for Staticman and add it as a Now secret just as we did with the RSA private key.
+#+begin_src sh :results output scalar :shebang "#!/bin/env bash" :wrap EXAMPLE
+  now secret add staticman-github-token "6GhMuCvs9AXS3XCxxozUSIYGwuTKTHdUFcHYIm2d"
+#+end_src
+
+#+RESULTS:
+
+#+begin_EXAMPLE
+> Success! Secret staticman-github-token added (trevorwilsonbot) [290ms]
+#+end_EXAMPLE
+
+* Prepare Staticman for Now
+
+In part 1 of this series we [[file:staticman-with-github-and-zeit-now.org::*Clone%20the%20staticman%20repo][cloned the staticman repo]]. However, I found [[https://github.com/eduardoboucas/staticman/issues/283][some issues]] with the Staticman master branch and have since made a few pull requests -- [[https://github.com/eduardoboucas/staticman/pull/285][PR #285]], [[https://github.com/eduardoboucas/staticman/pull/288][PR #288]], [[https://github.com/eduardoboucas/staticman/pull/289][PR #289]]. For now, you might want to just clone [[https://github.com/BloggerBust-bot/staticman/tree/now_master][my working branch]] until upstream stabilizes. Or [[https://github.com/login?return_to=%252FBloggerBust-bot%252Fstaticman][fork it]] and then switch to your forked copy of my working branch if you wish to take advantage of automatic serverless deployments.
+
+** Configuration for Now
+The Now GitHub app requires a /now.json/ configuration file to exist in the *root directory* of any app that we wish to configure for automatic serverless deployment. It is in the Now configuration that we can set Staticman environment variables to either hard coded values or our Now secrets as discussed in [[*Keep our secrets safe for Now][Keep our secrets safe for Now]]. Let's create that configuration file now.
+
+#+begin_src json
+  {
+    "version": 2,
+    "env": {
+      "NODE_ENV": "development",
+      "GITHUB_TOKEN": "@staticman-github-token",
+      "RSA_PRIVATE_KEY": "@staticman-rsa-private-key"
+    },
+    "builds": [
+      { "src": "index.js", "use": "@now/node-server" }
+    ],
+    "routes": [
+      { "src": "/(.*)", "dest": "/index.js" }
+    ]
+  }
+#+end_src
+
+The point of /serverless/ hosting is to host one lambda per route so that server resource utilization is minimized. It also frees up developers from having to concern themselves with server-side resource management. If you have been sitting there this whole time with your hand up, squirming in your seat, desperately wanting to point out that [[https://github.com/eduardoboucas/staticman/blob/master/server.js][Staticman has server code]] and isn't designed for serverless, then you may put your hand down now. You are correct -- sort of.
+
+Zeit Now provides the [[https://zeit.co/docs/v2/deployments/official-builders/node-js-server-now-node-server/][@now/node-server official builder]] for Node.js applications that manage their own server-side resources. If you thought that Staticman is not designed for serverless, then you are right, but if you thought that our deployment of Staticman is not serverless, then you are wrong. You see, Staticman uses [[https://expressjs.com/][Express]] web framework which the @now/node-server builder then wraps in a single lambda named /index.js/. This is why we route everything to /index.js in the /routes/ property of the now.json pasted above. As soon as the route has been resolved to the one and only lambda, Staticman Express routing takes over and handles application level routing internally.
+
+If you are curious what else you can add to the now.json configuration, then on your quest for more details, I refer you to the Now [[https://zeit.co/docs/v2/deployments/configuration/][Deployment Configuration documentation]]. You might also be interested in this article on [[https://zeit.co/blog/customizable-lambda-sizes][customizable lambda sizes]].
+
+** Ignore things for Now
+Just like Git, Zeit Now has [[https://zeit.co/guides/prevent-uploading-sourcepaths-with-nowignore][an ignore file]] called /.nowignore/. The syntax is identical to /.gitignore/. It is best to ignore everything that is being ignored in .gitignore. You wouldn't want to accidentally deploy your /staticman_key/ to be served up publicly now would you. Also, the node_modules directory can be quite large, it would be nice to not have that as part of the deployment. npm can install the node modules on the Zeit Now instance as part of the build procedure.
+
+#+begin_src sh :results output scalar :shebang "#!/bin/env bash" :wrap EXAMPLE
+  cp .gitignore .nowignore
+#+end_src
+
+Let's edit our .nowignore to ignore a few more things explicitly.
+
+#+begin_example
+  .idea/
+  ,*.iml
+
+  config.json
+  config.*.json
+  !config.test.json
+  !config.example.json
+  coverage/
+  node_modules/
+  staticman_key
+  test/
+  docs/
+  **/*.md
+  !LICENSE.md
+  Dockerfile
+#+end_example
+
+* Deploy our Staticman instance
+*IMPORTANT:* As I mentioned in [[*Prepare Staticman for Now][Prepare Staticman for Now]] I found some issues in the upstream master branch. I have a working branch named [[https://github.com/BloggerBust-bot/staticman/tree/now_master][now_master]] in my fork of the Staticman repository that has already been prepared for Now deployments. I recommend that you use my working branch until the upstream master branch has stabilized.
+
+Once I felt that my fork of Staticman was ready for deployment I pushed my changes to my remote expecting the GitHub Now App to automatically deploy my modified Staticman app and provide me with the details. That did not seem to happen though. I looked around both my GitHub and Now dashboards for a while. After trying quite a few different things I finally resolved myself to just use the now CLI and deploy it manually.
+
+#+begin_src sh :results output scalar :shebang "#!/bin/env bash" :dir "~/dev/staticman" :wrap EXAMPLE
+  now
+#+end_src
+
+#+RESULTS:
+
+#+begin_EXAMPLE
+> UPDATE AVAILABLE The latest version of Now CLI is 15.0.1
+> Read more about how to update here: https://zeit.co/update-cli
+> Changelog: https://github.com/zeit/now-cli/releases/tag/15.0.1
+> Deploying ~/dev/staticman under bloggerbust-bot
+> Using project staticman
+> https://staticman-ol2ejawgs.now.sh [v2] [2s]
+┌ index.js        Ready               [1m]
+└── λ index.js (12.36MB) [sfo1]
+> Ready! Aliased to https://staticman.bloggerbust-bot.now.sh [1m]
+#+end_EXAMPLE
+
+That worked! I will mess around with automatic serverless deployment using the Now GitHub app another time. For now, I am happy to manually deploy.
+
+* Invite Staticman to be your collaborator
+In order for Staticman to push comments to my blog, its GitHub account must be registered as a collaborator with my GitHub account, and it must be given write access to my blog's GitHub Pages repository. After registering the Staticman GitHub bot account an invitation will be issued that Staticman must accept. However, Staticman is not aware that the invitation has been created; therefore, we must ask Staticman to accept the invitation by sending the invitation details to our Staticman instance using a RESTful request. It is true that we could accept the invitation on behalf of Staticman since we have access to both accounts, but we want to make sure that things are working correctly, so no cheating!
+
+Now, sign into your blogging GitHub account. Navigate to the settings profile and click on /Repositories/ under the /Personal settings/ menu. In the right hand pane you will see a list of repositories, each repository has a /collaborators/ link. Click the collaborators link next to your GitHub pages repository. The list of repositories will be replaced with a form to add a collaborator. To get there quickly fill out the following URI pattern in your browser's address bar and hit enter:
+#+begin_example
+  https://github.com/{YOUR-GITHUB-USERNAME}/{YOUR-PREGENERATED-BLOG-REPOSITORY}/settings/collaboration
+#+end_example
+
+You should now be looking at the Collaborators form. In the search field type the name of your bot account and click the /Add collaborator/ button. Your bot account should now be listed above the /Add collaborator/ search field with a status label similar to:
+#+begin_quote
+  Awaiting BloggerBust-bot's response
+#+end_quote
+
+It is time to send a request to our Staticman instance and ask it to accept the invitation. The request requires three pieces of information.
+- YOUR-DEPLOYMENT-ALIAS :: The alias was printed to the terminal when we [[*Deploy our Staticman instance][deployed our Staticman instance]]. If you forgot the name of your instance then go to your [[https://zeit.co/dashboard][Zeit Now dashboard]] and click the deployment details for /staticman/
+- YOUR-GITHUB-USERNAME  :: The username containing your GitHub pages.
+- YOUR-REPOSITORY-NAME :: The name of your GitHub pages repository
+- STATICMAN-API-VERSION :: The number representing the Staticman API version. We are using API version 2.
+
+Then all you need to do is open a new browser tab and compose the following URI filled in with the correct information and then hit enter:
+ #+begin_quote
+ =https://{YOUR-DEPLOYMENT-ALIAS}/{API-VERSION}/connect/{YOUR-GitHub-USERNAME}/{YOUR-REPOSITORY-NAME}=
+ #+end_quote
+
+If everything goes right then you will receive the message *OK!*. If on the other-hand, something goes wrong, you can access your logs like this:
+#+begin_quote
+ =https://{YOUR-DEPLOYMENT-ALIAS}/_logs=
+#+end_quote
+and your source files like this:
+#+begin_quote
+ =https://{YOUR-DEPLOYMENT-ALIAS}/_src=
+#+end_quote
+
+* Conclusion
+That covers the basis of what you need to do to setup staticman with Zeit Now. In the third and final part of [[https://bloggerbust.ca/series/staticman-with-github-and-zeit-now/][this series]] I will talk a about how I configured Blogger Bust to interopt with my instance of Staticman the end result being functional static comments on all of my posts.

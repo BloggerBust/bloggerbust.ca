@@ -1,0 +1,1 @@
+This is where user comment data templates are stored.
