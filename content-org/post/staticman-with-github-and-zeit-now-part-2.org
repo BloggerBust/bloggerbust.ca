@@ -212,38 +212,5 @@ Once I felt that my fork of Staticman was ready for deployment I pushed my chang
 
 That worked! I will mess around with automatic serverless deployment using the Now GitHub app another time. For now, I am happy to manually deploy.
 
-* Invite Staticman to be your collaborator
-In order for Staticman to push comments to my blog, its GitHub account must be registered as a collaborator with my GitHub account, and it must be given write access to my blog's GitHub Pages repository. After registering the Staticman GitHub bot account an invitation will be issued that Staticman must accept. However, Staticman is not aware that the invitation has been created; therefore, we must ask Staticman to accept the invitation by sending the invitation details to our Staticman instance using a RESTful request. It is true that we could accept the invitation on behalf of Staticman since we have access to both accounts, but we want to make sure that things are working correctly, so no cheating!
-
-Now, sign into your blogging GitHub account. Navigate to the settings profile and click on /Repositories/ under the /Personal settings/ menu. In the right hand pane you will see a list of repositories, each repository has a /collaborators/ link. Click the collaborators link next to your GitHub pages repository. The list of repositories will be replaced with a form to add a collaborator. To get there quickly fill out the following URI pattern in your browser's address bar and hit enter:
-#+begin_example
-  https://github.com/{YOUR-GITHUB-USERNAME}/{YOUR-PREGENERATED-BLOG-REPOSITORY}/settings/collaboration
-#+end_example
-
-You should now be looking at the Collaborators form. In the search field type the name of your bot account and click the /Add collaborator/ button. Your bot account should now be listed above the /Add collaborator/ search field with a status label similar to:
-#+begin_quote
-  Awaiting BloggerBust-bot's response
-#+end_quote
-
-It is time to send a request to our Staticman instance and ask it to accept the invitation. The request requires three pieces of information.
-- YOUR-DEPLOYMENT-ALIAS :: The alias was printed to the terminal when we [[*Deploy our Staticman instance][deployed our Staticman instance]]. If you forgot the name of your instance then go to your [[https://zeit.co/dashboard][Zeit Now dashboard]] and click the deployment details for /staticman/
-- YOUR-GITHUB-USERNAME  :: The username containing your GitHub pages.
-- YOUR-REPOSITORY-NAME :: The name of your GitHub pages repository
-- STATICMAN-API-VERSION :: The number representing the Staticman API version. We are using API version 2.
-
-Then all you need to do is open a new browser tab and compose the following URI filled in with the correct information and then hit enter:
- #+begin_quote
- =https://{YOUR-DEPLOYMENT-ALIAS}/{API-VERSION}/connect/{YOUR-GitHub-USERNAME}/{YOUR-REPOSITORY-NAME}=
- #+end_quote
-
-If everything goes right then you will receive the message *OK!*. If on the other-hand, something goes wrong, you can access your logs like this:
-#+begin_quote
- =https://{YOUR-DEPLOYMENT-ALIAS}/_logs=
-#+end_quote
-and your source files like this:
-#+begin_quote
- =https://{YOUR-DEPLOYMENT-ALIAS}/_src=
-#+end_quote
-
 * Conclusion
 That covers the basis of what you need to do to setup Staticman with Zeit Now. In the third and final part of [[https://bloggerbust.ca/series/staticman-with-github-and-zeit-now/][this series]] I will talk a about how I configured Blogger Bust to interopt with my instance of Staticman the end result being functional static comments on all of my posts.
