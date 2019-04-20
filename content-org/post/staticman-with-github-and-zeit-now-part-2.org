@@ -1,13 +1,13 @@
 #+author: Trevor Wilson
 #+email: trevor.wilson@bloggerbust.ca
 #+title: "Staticman with GitHub and Zeit Now - part 2"
-#+date: 2019-03-30T07:25:30Z
+#+date: 2019-04-19T07:25:30Z
 #+HUGO_CATEGORIES: Blogging
 #+HUGO_TAGS: hugo staticman serverless git
 #+HUGO_SERIES: "Staticman With GitHub and Zeit Now"
 #+HUGO_BASE_DIR: ../../
 #+HUGO_SECTION: post
-#+HUGO_DRAFT: true
+#+HUGO_DRAFT: false
 #+HUGO_AUTO_SET_LASTMOD: true
 #+startup: showeverything
 #+options: d:(not "notes")
@@ -246,4 +246,4 @@ and your source files like this:
 #+end_quote
 
 * Conclusion
-That covers the basis of what you need to do to setup staticman with Zeit Now. In the third and final part of [[https://bloggerbust.ca/series/staticman-with-github-and-zeit-now/][this series]] I will talk a about how I configured Blogger Bust to interopt with my instance of Staticman the end result being functional static comments on all of my posts.
+That covers the basis of what you need to do to setup Staticman with Zeit Now. In the third and final part of [[https://bloggerbust.ca/series/staticman-with-github-and-zeit-now/][this series]] I will talk a about how I configured Blogger Bust to interopt with my instance of Staticman the end result being functional static comments on all of my posts.

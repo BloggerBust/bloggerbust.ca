@@ -3,8 +3,7 @@
 #+title: "Broken links"
 #+date: 2019-03-30T10:20:23Z
 #+HUGO_CATEGORIES: Blogging
-#+HUGO_TAGS: 
-#+HUGO_SERIES: "Staticman With GitHub and Zeit Now"
+#+HUGO_TAGS: notice
 #+HUGO_BASE_DIR: ../../
 #+HUGO_SECTION: post
 #+HUGO_DRAFT: false
