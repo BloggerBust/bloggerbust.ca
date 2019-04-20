@@ -1,0 +1,17 @@
+#+author: Trevor Wilson
+#+email: trevor.wilson@bloggerbust.ca
+#+title: "Broken links"
+#+date: 2019-03-30T10:20:23Z
+#+HUGO_CATEGORIES: Blogging
+#+HUGO_TAGS: 
+#+HUGO_SERIES: "Staticman With GitHub and Zeit Now"
+#+HUGO_BASE_DIR: ../../
+#+HUGO_SECTION: post
+#+HUGO_DRAFT: false
+#+HUGO_AUTO_SET_LASTMOD: true
+#+startup: showeverything
+#+options: d:(not "steps")
+
+
+* What is going on?
+A while back I noticed that all of my [[file:licensed-nauci-base-entry-with-apache-version-2.org::*Broken%20Links][cross post anchor links are broken]]. They no longer link to anchors within the post, but instead link to the post itself. I planned on resolving this quickly, but it turned out to be more involved then I had hopped. In order to resolve the issue I needed to first register as a contributor of GNU emacs [[file:ox-hugo-dependency-image.org::*Motivation][which I discussed here]]. I also need to become [[https://en.wikipedia.org/wiki/Emacs_Lisp][fluent in Elisp]], and comfortable with both [[https://code.orgmode.org/bzg/org-mode/commits/master][org-mode]] and [[https://github.com/kaushalmodi/ox-hugo][ox-hugo]]. I really like ox-hugo and so contributing to that project is on my TODO list :-P
