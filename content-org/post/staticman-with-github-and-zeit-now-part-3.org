@@ -101,7 +101,7 @@ You should read through the official [[https://staticman.net/docs/configuration]
 
     # The format of the generated data files. Accepted values are "json", "yaml"
     # or "frontmatter"
-    format: "json"
+    format: "yaml"
 
     # List of fields to be populated automatically by Staticman and included in
     # the data file. Keys are the name of the field. The value can be an object
@@ -113,7 +113,7 @@ You should read through the official [[https://staticman.net/docs/configuration]
         options:
           format: "timestamp-seconds"
 
-    # Whether entries need to be approved before they are published to the main
+    # Whether entries need to be appproved before they are published to the main
     # branch. If set to `true`, a pull request will be created for your approval.
     # Otherwise, entries will be published to the main branch automatically.
     moderation: true
