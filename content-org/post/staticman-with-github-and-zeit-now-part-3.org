@@ -1,0 +1,247 @@
+#+author: Trevor Wilson
+#+email: trevor.wilson@bloggerbust.ca
+#+title: "Staticman With GitHub and Zeit Now - part 3"
+#+date: 2019-04-21T10:14:27Z
+#+HUGO_CATEGORIES: Blogging
+#+HUGO_TAGS: hugo staticman serverless git
+#+HUGO_SERIES: "Staticman With GitHub and Zeit Now"
+#+HUGO_BASE_DIR: ../../
+#+HUGO_SECTION: post
+#+HUGO_DRAFT: false
+#+HUGO_AUTO_SET_LASTMOD: true
+#+startup: showeverything
+#+options: d:(not "notes")
+
+* A quick recap
+In [[file:staticman-with-github-and-zeit-now-part-2.org][part 2]] of [[https://bloggerbust.ca/series/staticman-with-github-and-zeit-now/][this series]] we created a Staticman GitHub bot account and walked through all of the steps required to deploy an instance of Staticman to Zeit Now. In this final post of the series we are going to invite our Staticman instance to be a collaborator of our unpublished GitHub blog repository. Then we will prepare our blog to send RESTful requests to our Staticman instance. So let's get started!
+
+* Invite Staticman to be your collaborator
+I have two repositories associated with my blog.
+- [[https://github.com/BloggerBust/bloggerbust.ca][bloggerbust.ca]] :: This is where I write my content prior to it being published. We may refer to this as the /unpublished repository/
+- [[https://github.com/BloggerBust/bloggerbust.github.io][bloggerbust.github.io]] :: Hugo reads content from the unpublished site and writes the result to the this repository. We may simply refer to this as the /published repository/. The unpublished repository actually has the published repository as a Git sub-module
+
+Staticman writes comments in data files that need to be processed by a static site generator. Therefore Staticman needs to somehow get those data files committed to my unpublished repository for processing. Rather than forking my unpublished repository, Staticman keeps things simple by creating a branch directly in my repository. This is accomplished by registering its GitHub account as a collaborator with my GitHub account. As a collaborator, it must be given write access to my unpublished repository.
+
+Sign into your blogging GitHub account. Navigate to the settings profile and click on /Repositories/ under the /Personal settings/ menu. In the right hand pane you will see a list of repositories, each repository has a /collaborators/ link. Click the collaborators link next to your unpublished repository. The list of repositories will be replaced with a form to add a collaborator. You may navigate to this form directly by filling out the following URI pattern in your browser's address bar then hit enter:
+#+begin_example
+  https://github.com/{YOUR-GITHUB-USERNAME}/{YOUR-UNPUBLISHED-BLOG-REPOSITORY}/settings/collaboration
+#+end_example
+
+You should now be looking at the Collaborators form. In the search field type the name of your bot account and click the /Add collaborator/ button. Your bot account should now be listed above the /Add collaborator/ search field with a status label similar to:
+#+begin_quote
+  Awaiting BloggerBust-bot's response
+#+end_quote
+
+After registering the Staticman GitHub bot account an invitation will be issued that Staticman must accept. However, Staticman is not aware that the invitation has been created; therefore, we must ask Staticman to accept the invitation by sending the invitation details to our Staticman instance using a RESTful request. It is true that we could accept the invitation on behalf of Staticman since we have direct access to the bot account, but we want to make sure that things are working correctly, so no cheating!
+
+The request requires three pieces of information.
+- YOUR-DEPLOYMENT-ALIAS :: The alias was printed to the terminal when we [[file:staticman-with-github-and-zeit-now-part-2.org::*Deploy%20our%20Staticman%20instance][deploy our Staticman instance]]. If you forgot the name of your instance then go to your [[https://zeit.co/dashboard][Zeit Now dashboard]] and click the deployment details for /staticman/
+- YOUR-GITHUB-USERNAME  :: The username you use to push content to the unpublished repository
+- YOUR-REPOSITORY-NAME :: The name of your unpublished repository
+- STATICMAN-API-VERSION :: The number representing the Staticman API version. We are using API version 2.
+
+Now all you need to do is enter following URI in your browser's address bar filled in with the correct information and then hit enter:
+ #+begin_quote
+ =https://{YOUR-DEPLOYMENT-ALIAS}/{API-VERSION}/connect/{YOUR-GitHub-USERNAME}/{YOUR-REPOSITORY-NAME}=
+ #+end_quote
+
+If everything goes right then you will receive the message *OK!*. If on the other-hand, something goes wrong, you can access your logs like this:
+#+begin_quote
+ =https://{YOUR-DEPLOYMENT-ALIAS}/_logs=
+#+end_quote
+and your source files like this:
+#+begin_quote
+ =https://{YOUR-DEPLOYMENT-ALIAS}/_src=
+#+end_quote
+
+* Prepare your Blog for Staticman
+The last thing you need to do before you can bask in the glory of victoriously adding static comments to your GitHub pages is five things :-P
+1. Add a configuration file named /staticman.yml/ to the /root directory/ of your blog's repository
+2. Add site parameters for Staticman to your site's configuration file
+3. Add a partial view to your layout that will allow your readers to create a new comment
+4. Add a partial view to your layout that will allow your readers to view existing comments
+5. Update your post footer partial to include the create / view comment partials
+
+Exactly how you should go about doing this depends on a number of factors, such as:
+- which [[https://staticsitegenerators.net/][static site generator]] you are using :: Yes, I know, there are lots.
+- which static site generator theme you are using :: I am using a simple theme named [[https://github.com/gyorb/hugo-dusk][Hugo Dusk]].
+- which Git forge you are using :: Staticman currently only supports GitHub and GitLab so if you are using [[https://en.wikipedia.org/wiki/Comparison_of_source-code-hosting_facilities][a different forge]] then you will need to be prepared to implement support yourself. If you do, be sure to make a pull request so the rest of the community can benefit.
+- Whether or not your unpublished content is in a separate repository from your published content :: My preference is to maintain two separated repositories
+
+Based on these considerations I hope it is apparent that the following steps will require further customization on your part if you choose to integrate them into your own site.
+
+** Add Staticman.yml
+You should read through the official [[https://staticman.net/docs/configuration][documentation discussing the staticman.yml configuration file]] as I am not going to go into detail here. There is one thing that is important to understand before you move on to adding a /create comment/ partial. The configuration file can have a root property, but it is not necessary. Take a look at the [[https://github.com/BloggerBust/bloggerbust.ca/blob/master/staticman.yml][staticman.yml for Blogger Bust]] and notice that the root property is named /comments/.
+
+#+begin_src yaml
+  # Name of the property. You can have multiple properties with completely
+  # different config blocks for different sections of your site.
+  # For example, you can have one property to handle comment submission and
+  # another one to handle posts.
+  comments:
+    # (*) REQUIRED
+    #
+    # Names of the fields the form is allowed to submit. If a field that is
+    # not here is part of the request, an error will be thrown.
+    allowedFields: ["name", "email", "message"]
+
+    # (*) REQUIRED
+    #
+    # Name of the branch being used. Must match the one sent in the URL of the
+    # request.
+    branch: "master"
+
+    # Text to use as the commit message or pull request title. Accepts placeholders.
+    commitMessage: "Add Staticman reader comment"
+
+    # (*) REQUIRED
+    #
+    # Destination path (filename) for the data files. Accepts placeholders.
+    filename: "{@id}"
+
+    # The format of the generated data files. Accepted values are "json", "yaml"
+    # or "frontmatter"
+    format: "json"
+
+    # List of fields to be populated automatically by Staticman and included in
+    # the data file. Keys are the name of the field. The value can be an object
+    # with a `type` property, which configures the generated field, or any value
+    # to be used directly (e.g. a string, number or array)
+    generatedFields:
+      date:
+        type: date
+        options:
+          format: "timestamp-seconds"
+
+    # Whether entries need to be approved before they are published to the main
+    # branch. If set to `true`, a pull request will be created for your approval.
+    # Otherwise, entries will be published to the main branch automatically.
+    moderation: true
+
+    # Name of the site. Used in notification emails.
+    name: "staticman -> bloggerbust.ca"
+
+    # (*) REQUIRED
+    #
+    # Destination path (directory) for the data files. Accepts placeholders.
+    path: "data/comments/{options.slug}"
+
+    # Names of required fields. If any of these isn't in the request or is empty,
+    # an error will be thrown.
+    requiredFields: ["name", "email", "message"]
+
+    # List of transformations to apply to any of the fields supplied. Keys are
+    # the name of the field and values are possible transformation types.
+    transforms:
+      email: md5
+#+end_src
+
+You can name the root property anything you like, or remove it entirely, as long as the result is valid YAML. The root serves as a lookup key to a named configuration. If it is absent, then that means you can have only a single configuration. Otherwise, you can have one or many named configurations. If you read the comments in the header that were written by the original author it essentially explains this very concept. You could have a configuration for your comments, and a completely different configuration named /posts/ for a forum. Honestly, you could get really creative with this.
+
+The other thing I want to point out is that the configuration let's you decide which fields are allowed to be posted to Staticman. This is accomplished through the /allowedFields/ property. Thank you [[https://eduardoboucas.com/about/][Eduardo]] for designing Staticman to be generic. Now take a moment to read up on things before moving on. Feel free to download my staticman.yml as a starting place if you wish. Remember that white space matters in YAML, so no mixing tabs and spaces inconsistently. You might want to run your configuration through a YAML linter if you hare having difficulty.
+
+** Add Staticman site parameters to config.toml
+When our site posts content to Staticman for processing there are a number of parameters that must be passed. It is a good idea to keep the values for these parameters in your sites configuration file. The exact notation will depend on the static site generator that you are using. Here is what I added to the [[https://github.com/BloggerBust/bloggerbust.ca/blob/master/config.toml][Hugo TOML configuration for Blogger Bust]]. If you are using [[https://jekyllrb.com/docs/variables/][Jekyll]], or another static site generator, then you will have to look up for your self how to configure it correctly.
+
+#+begin_src toml
+[params.staticman]
+  domain = "staticman.bloggerbust-bot.now.sh"
+  api_version = "2"
+  username = "BloggerBust"
+  repository = "bloggerbust.ca"
+  branch = "master"
+#+end_src
+
+This is what each parameter is for:
+- domain :: the domain name of our Staticman Zeit Now instance.
+- api_version :: valid versions are 1 and 2. Version 3 is partially implemented, but not working at the moment.
+- username :: The username of the blog's account
+- repository :: The name of the repository that contains the Staticman.yml configuration
+- branch :: the target branch for your GitHub Staticman bot account's pull requests
+
+** Add Create comments partial
+Please refer to hugo-dusk [[https://github.com/gyorb/hugo-dusk/pull/31/files#diff-558257d0b9749ee771c7c53329732306][PR #31 create-comment partial]].
+
+#+begin_src html
+<form class="comment" method="POST" action="https://{{ .Site.Params.staticman.domain }}/v{{ .Site.Params.staticman.api_version }}/entry/{{ .Site.Params.staticman.username }}/{{ .Site.Params.staticman.repository }}/{{ .Site.Params.staticman.branch }}/comments" class="flex-container flex-column">
+  <input type="hidden" name="options[redirect]" value="{{ .Permalink }}#comment-submitted">
+  <input type="hidden" name="options[slug]" value="{{ .Page.File.ContentBaseName }}">
+  <div class="flex-container flex-row">
+    <input name="fields[name]" type="text" placeholder="Your name" class="flex-item">
+    <input name="fields[email]" type="email" placeholder="Your email address" class="flex-item">
+  </div>
+  <div class="flex-container flex-row">
+    <textarea name="fields[message]" placeholder="Your message. Feel free to use Markdown." rows="10" class="flex-item"></textarea>
+  </div>
+  <div class="flex-container flex-row">
+    <input type="submit" value="Submit" class="flex-item">
+  </div>
+</form>
+#+end_src
+Take a close look at the form's action. Notice, that at the end of URI, there is a URI path component segment named =/comments=. That segment must match the name of the Staticman.yml configuration key intended for this view. If you choose to not name your configuration, then you must remove the segment =/comments= from the end of the URI. Similarly, if you choose to name your configuration differently, then you must name the segment the same. I think the rest is self explanatory. Again, I have only tested this template with the Hugo static site generator. If you are using a different static site template engine, then you may need to access site parameters differently, but the required parameters and general structure of the form can remain the same.
+
+** Add View comments partial
+Please refer to hugo-dusk [[https://github.com/gyorb/hugo-dusk/pull/31/files#diff-36aaf01e18f562918d919ac6e0283fc0][PR #31 view-comment partial]].
+
+#+begin_src html
+{{ $comments := readDir "data/comments" }}
+{{ $.Scratch.Add "hasComments" 0 }}
+{{ $entryId := .Page.File.ContentBaseName }}
+
+{{ range $comments }}
+  {{ if eq .Name $entryId }}
+    {{ $.Scratch.Add "hasComments" 1 }}
+    {{ range $index, $comments := (index $.Site.Data.comments $entryId ) }}
+<blockquote class="comment">
+  <p>{{ .message | markdownify }}</p>
+  <cite class="flex-container flex-row flex-end">
+    <img class="flex-item avatar" src="https://www.gravatar.com/avatar/{{ .email }}?s=50&d=retro">
+    <div class="flex-container flex-column flex-item flex-center">
+      <strong>{{ .name }}</strong><br>{{ dateFormat "02/01/2006" .date }}
+    </div>
+  </cite>
+</blockquote>
+    {{ end }}
+  {{ end }}
+{{ end }}
+
+{{ if eq ($.Scratch.Get "hasComments") 0 }}
+<p>Be the first to comment on this article.</p>
+{{ end }}
+#+end_src
+In the first line you can see that the comments are being read from the =data/comments= directory. The Hugo static site generator uses [[https://gohugo.io/templates/data-templates/][the data directory]] to store static template data in YAML files. Jekyll has an [[https://jekyllrb.com/docs/datafiles/][equivalent directory named _data]]. Exactly where the comment data is written to by Staticman is specified by the ~path~ property of [[*Add Staticman.yml][the Staticman.yml]]. Make sure that the Staticman.yml comments ~path~ property and the relative path passed to ~readDir~ in comment-view are the same. Everything has to be consistent for the machine to work.
+
+** Update post footer with comments
+Please refer to hugo-dusk [[https://github.com/gyorb/hugo-dusk/pull/31/files#diff-344be16bd473773132ed4cbc881b83fc][PR #31 postfooter partial]].
+#+begin_src html
+  <footer class="post-footer">
+
+    <div class="post-footer-data">
+      {{ partial "tags.html" . }}
+      <div class="date"> {{ .Date.Format "Jan 2, 2006" }} </div>
+    </div>
+
+  </footer>
+
+  {{ if eq .Type "post" }}
+
+    {{ if ne (default "undefined" .Site.Params.staticman) "undefined" }}
+  <hr>
+  <h2 id="Comments">
+    Comments
+  </h2>
+      {{ partial "staticman/create-comment" . }}
+      {{ partial "staticman/view-comments" . }}
+    {{ else }}
+      {{ template "_internal/disqus.html" . }}
+    {{ end }}
+  {{ end }}
+#+end_src
+
+In the postfooter partial of the hugo-dusk, theme I added logic to include the create and view comment partials. The logic works as follows: If the site parameter named ~staticman~ is ~undefined~, then the default /disqus/ internal template will be loaded; otherwise, a header named /Comments/ will be rendered along with the create and view comment partials.
+
+Again, if you are using a different static site generator, or a different theme, then exactly how you include the create and view comment partials will differ in some way. This is a problem that you will have to solve for yourself.
+
+* Conclusion
+
+That is it! If you followed along and were able to add a form for creating comments, as well as a template for viewing existing comments, in a way that is compatible with your static site generator and chosen theme, then your blog should now support static comments. Congratulations, you may now bask in the glory of victoriously adding static comment support to your GitHub pages. I hope you appreciate and enjoy the freedom of keeping your data where it belongs.
