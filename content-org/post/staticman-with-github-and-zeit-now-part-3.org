@@ -163,20 +163,23 @@ This is what each parameter is for:
 Please refer to hugo-dusk [[https://github.com/gyorb/hugo-dusk/pull/31/files#diff-558257d0b9749ee771c7c53329732306][PR #31 create-comment partial]].
 
 #+begin_src html
-<form class="comment" method="POST" action="https://{{ .Site.Params.staticman.domain }}/v{{ .Site.Params.staticman.api_version }}/entry/{{ .Site.Params.staticman.username }}/{{ .Site.Params.staticman.repository }}/{{ .Site.Params.staticman.branch }}/comments" class="flex-container flex-column">
-  <input type="hidden" name="options[redirect]" value="{{ .Permalink }}#comment-submitted">
-  <input type="hidden" name="options[slug]" value="{{ .Page.File.ContentBaseName }}">
-  <div class="flex-container flex-row">
-    <input name="fields[name]" type="text" placeholder="Your name" class="flex-item">
-    <input name="fields[email]" type="email" placeholder="Your email address" class="flex-item">
+  <form class="comment" method="POST" action="https://{{ .Site.Params.staticman.domain }}/v{{ .Site.Params.staticman.api_version }}/entry/{{ .Site.Params.staticman.username }}/{{ .Site.Params.staticman.repository }}/{{ .Site.Params.staticman.branch }}/comments" class="flex-container flex-column">
+    <input type="hidden" name="options[redirect]" value="{{ .Permalink }}#comment-submitted">
+    <input type="hidden" name="options[slug]" value="{{ .Page.File.ContentBaseName }}">
+    <div class="flex-container flex-row">
+      <input name="fields[name]" type="text" placeholder="Your name" class="flex-item">
+      <input name="fields[email]" type="email" placeholder="Your email address" class="flex-item">
+    </div>
+    <div class="flex-container flex-row">
+      <textarea name="fields[message]" placeholder="Your message. Feel free to use Markdown." rows="10" class="flex-item"></textarea>
+    </div>
+    <div class="flex-container flex-row">
+      <input type="submit" value="Submit" class="flex-item">
+    </div>
+  </form>
+  <div id="comment-submitted">
+    Your comment has been submitted and is now pending moderation
   </div>
-  <div class="flex-container flex-row">
-    <textarea name="fields[message]" placeholder="Your message. Feel free to use Markdown." rows="10" class="flex-item"></textarea>
-  </div>
-  <div class="flex-container flex-row">
-    <input type="submit" value="Submit" class="flex-item">
-  </div>
-</form>
 #+end_src
 Take a close look at the form's action. Notice, that at the end of URI, there is a URI path component segment named =/comments=. That segment must match the name of the Staticman.yml configuration key intended for this view. If you choose to not name your configuration, then you must remove the segment =/comments= from the end of the URI. Similarly, if you choose to name your configuration differently, then you must name the segment the same. I think the rest is self explanatory. Again, I have only tested this template with the Hugo static site generator. If you are using a different static site template engine, then you may need to access site parameters differently, but the required parameters and general structure of the form can remain the same.
 
