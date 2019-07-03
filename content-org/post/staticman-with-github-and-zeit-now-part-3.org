@@ -194,7 +194,7 @@ Please refer to hugo-dusk [[https://github.com/gyorb/hugo-dusk/pull/31/files#dif
 {{ range $comments }}
   {{ if eq .Name $entryId }}
     {{ $.Scratch.Add "hasComments" 1 }}
-    {{ range $index, $comments := (index $.Site.Data.comments $entryId ) }}
+    {{ range $index, $comments := sort (index $.Site.Data.comments $entryId ) "date" "asc"}}
 <blockquote class="comment">
   <p>{{ .message | markdownify }}</p>
   <cite class="flex-container flex-row flex-end">
