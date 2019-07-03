@@ -1,0 +1,5 @@
+_id: 63e99c20-9d8b-11e9-aaa4-bf35f3c1f774
+name: Trevor Wilson
+email: 79ad80bd825ee2d3d91b885caa22bf1f
+message: "Hi Vincent,\r\n\r\nThank you for posting on my blog :-) The SSH key is not required, as mentioned in <a href=\"https://github.com/eduardoboucas/staticman/issues/291#issuecomment-507585352\">your comment to #291</a>. The section on creating an SSH key may therefore be skipped. Creating an SSH key is useful for those that wish to manually send git commands that authenticate as the bot account.\r\n\r\nCheers!\r\n\r\nTrevor."
+date: 1562155761
