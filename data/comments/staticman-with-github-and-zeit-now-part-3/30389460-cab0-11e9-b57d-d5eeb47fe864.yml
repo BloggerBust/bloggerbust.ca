@@ -1,0 +1,12 @@
+_id: 30389460-cab0-11e9-b57d-d5eeb47fe864
+name: Ricardo
+email: 84a9685a83496b95a8f48f0baf96e9b7
+message: >-
+  I was able to follow your guide successfully until (and including) the
+  "connect" part where the bot account accepts the collaborator invitation.
+  Unfortunately, I have not been able to post comments since I am getting a 500
+  error without any details on the response or in the logs. I am puzzled, since
+  I had v2 working with the staticman service before it went bad, so the client
+  code should be ok (with the only change being the endpoint). Any hints as to
+  where to begin looking? Thanks.
+date: 1567119368
