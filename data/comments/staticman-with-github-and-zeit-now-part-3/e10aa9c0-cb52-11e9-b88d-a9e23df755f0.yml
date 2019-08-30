@@ -1,0 +1,5 @@
+_id: e10aa9c0-cb52-11e9-b88d-a9e23df755f0
+name: Ricardo Morin
+email: 84a9685a83496b95a8f48f0baf96e9b7
+message: "Hi, thanks for taking the time to answer.\r\n\r\nActually I only see two deprecation messages for each try: \r\n\r\nWARN    { Deprecation: [@octokit/rest] new Octokit({headers}) is deprecated. Use {userAgent, previews} instead.\r\nWARN    { Deprecation: [@octokit/rest] octokit.authenticate() is deprecated. Use \"auth\" constructor option instead.\r\n\r\nOther than that, not even the 500 status is showing in the log.\r\n\r\nRicardo"
+date: 1567189243
