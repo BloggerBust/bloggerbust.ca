@@ -1,0 +1,5 @@
+_id: 5da0bd50-cbe7-11e9-9c2a-398ec7a33832
+name: Trevor Wilson
+email: 79ad80bd825ee2d3d91b885caa22bf1f
+message: "That is great news Ricardo! You are right that Staticman could use improved error logging. When I merge upstream and get things working I will add better error logging unless someone beats me to it.\r\n\r\n> cat staticman_key | xargs -0 sh -c ‘now secret add – staticman-rsa-private-key “$0”’\r\n\r\nThanks for the tip, that simplifies things a bit.\r\n\r\n> Thank you very much for your time and for pointing me in the right direction. BTW, that Zeit product looks pretty good! Thanks for sharing the info!\r\n\r\nYour welcome. I am glad that you enjoyed this introduction to Zeit. I feel that they have done a good job simplifying the user experience of app deployment making it an easy platform to work with.\r\n\r\nCheers!\r\n\r\nTrevor"
+date: 1567253018
