@@ -1,0 +1,5 @@
+_id: 483d2220-cb7c-11e9-b082-abbaf3f9e5c2
+name: Ricardo
+email: 84a9685a83496b95a8f48f0baf96e9b7
+message: "Hi Trevor:\r\n\r\nYay!! I am finally basking in the glory of victoriously adding static comments to my blogs!\r\n\r\nIt took me a while to track it down (lots of console.logs, since the app logs where not very helpful), but in the end it was, of course, my mistake. I forgot to re-encrypt my reCaptcha secret with the new service, so the decrypt was failing (silently).\r\n\r\nAlso, I decided not to strip the \\r and \\n characters from the private key sent to \"now secret\" (in one of my trial/error runs). Instead, I am doing the following:\r\n\r\ncat staticman_key | xargs -0 sh -c 'now secret add -- staticman-rsa-private-key \"$0\"'\r\n\r\nAnd it works fine.\r\n\r\nThank you very much for your time and for pointing me in the right direction. BTW, that Zeit product looks pretty good! Thanks for sharing the info!\r\n\r\nBest regards,\r\n\r\nRicardo"
+date: 1567207026
