@@ -29,7 +29,7 @@ In order for the text to be censored it must contain the exact words, /secure co
 | Message                                    | Censored? | Comment                        |
 |--------------------------------------------+-----------+--------------------------------|
 | secure communication                       | True      |                                |
-| secure  communication                      | False     | two spaces seperating keywords |
+| secure  communication                      | False     | two spaces separating keywords |
 | secure communication.                      | True      | trailing period                |
 | Secure communication                       | False     |                                |
 | secure Communication                       | False     |                                |
@@ -42,12 +42,13 @@ In order for the text to be censored it must contain the exact words, /secure co
 | leadingsecure communicationtrailing        | True      |                                |
 
 
-My testing methedology was manual and far from comprehensive. Someone needs to automate a test that sends random combinations of words from various devices and carrier services to get a better picture of the nature of the censorship.
+My testing methodology was manual and far from comprehensive. Someone needs to automate a test that sends random combinations of words from various devices and carrier services to get a better picture of the nature of the censorship.
 
 * This poses some questions
 At this point all I have been able to determine is that the words, /secure communication/, are being censored by something when sent using the SMS protocol. I do not know if the censorship is taking place on the devices themselves, the local short message service centre, or something else. I am now wondering:
 1. Who is behind the censorship?
 2. Do they have a publicly accessible disclaimer stating exactly what they are censoring and why?
 3. Is this censorship legal in Canada?
+4. What else is being censored?
 
 Censorship in Canada affects all Canadian citizens as well as all citizens of other countries that correspond with Canadian citizens. If you are concerned by this act against our civil liberties, then consider [[https://lop.parl.ca/sites/Parlinfo/default/en_CA][writing your MLA]] and [[https://ccla.org/contact][the Canadian Civil Liberties Association]].
