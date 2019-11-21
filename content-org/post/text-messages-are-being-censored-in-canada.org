@@ -1,0 +1,53 @@
+#+author: Trevor Wilson
+#+email: trevor.wilson@bloggerbust.ca
+#+title: "Text Messages Are Being Censored in Canada"
+#+date: 2019-11-21T10:18:04Z
+#+HUGO_BASE_DIR: ../../
+#+HUGO_SECTION: post
+#+HUGO_DRAFT: false
+#+HUGO_AUTO_SET_LASTMOD: true
+#+startup: showeverything
+#+options: d:(not "notes")
+
+* What is this about?
+Yesterday, I discovered that if I send a text containing the words: /secure communication/, it will never arrive at the recipients text messaging client. Something is censoring text messages in Canada. 
+
+
+* What devices and carrier services are affected?
+I do not have much data on this. I only discovered this at the very end of the day yesterday. Here is what I have been able to manually verify so far:
+
+| Sender Make | Receiver Make | Sender Carrier | Receiver Carrier | censored |
+|-------------+---------------+----------------+------------------+----------|
+| Android     | Android       | Koodo          | Koodo            | yes      |
+| Android     | iphone        | Koodo          | Bell             | yes      |
+| iphone      | Android       | Bell           | Koodo            | yes      |
+| iphone      | iphone        | Bell           | Bell             | yes      |
+
+* Exactly what is censored?
+In order for the text to be censored it must contain the exact words, /secure communication/, anywhere within the message. It is also important that the words, /secure communication/, are separated by no more than a single space and are lowercase. The censorship prevents the entire message from being delivered. I have only tested this using SMS and MMS protocols and found that MMS is not affected by this particular censorship. Here are some examples:
+
+| Message                                    | Censored? | Comment                        |
+|--------------------------------------------+-----------+--------------------------------|
+| secure communication                       | True      |                                |
+| secure  communication                      | False     | two spaces seperating keywords |
+| secure communication.                      | True      | trailing period                |
+| Secure communication                       | False     |                                |
+| secure Communication                       | False     |                                |
+| SECURE COMMUNICATION                       | False     |                                |
+| Any Leading Text secure communication      | True      |                                |
+| secure communication any trailing text     | True      |                                |
+| Appended leading textsecure communication  | True      |                                |
+| secure communicationappended trailing text | True      |                                |
+| securecommunication                        | False     |                                |
+| leadingsecure communicationtrailing        | True      |                                |
+
+
+My testing methedology was manual and far from comprehensive. Someone needs to automate a test that sends random combinations of words from various devices and carrier services to get a better picture of the nature of the censorship.
+
+* This poses some questions
+At this point all I have been able to determine is that the words, /secure communication/, are being censored by something when sent using the SMS protocol. I do not know if the censorship is taking place on the devices themselves, the local short message service centre, or something else. I am now wondering:
+1. Who is behind the censorship?
+2. Do they have a publicly accessible disclaimer stating exactly what they are censoring and why?
+3. Is this censorship legal in Canada?
+
+Censorship in Canada affects all Canadian citizens as well as all citizens of other countries that correspond with Canadian citizens. If you are concerned by this act against our civil liberties, then consider [[https://lop.parl.ca/sites/Parlinfo/default/en_CA][writing your MLA]] and [[https://ccla.org/contact][the Canadian Civil Liberties Association]].
