@@ -9,6 +9,8 @@
 #+startup: showeverything
 #+options: d:(not "notes")
 
+*UPDATE:* This might not be an act of censorship. There might be another explanation. I started to look at the source code and RFCs this morning to better understand. I am very short on time at the moment and I probably will continue to be short on time until after Christmas unfortunately. If you would like to help, please contact me. 
+
 * What is this about?
 Yesterday, I discovered that if I send a text containing the words: /secure communication/, it will never arrive at the recipients text messaging client. Something is censoring text messages in Canada. 
 
@@ -52,3 +54,37 @@ At this point all I have been able to determine is that the words, /secure commu
 4. What else is being censored?
 
 Censorship in Canada affects all Canadian citizens as well as all citizens of other countries that correspond with Canadian citizens. If you are concerned by this act against our civil liberties, then consider [[https://lop.parl.ca/sites/Parlinfo/default/en_CA][writing your MLA]] and [[https://ccla.org/contact][the Canadian Civil Liberties Association]].
+
+* Discussed on Hacker News
+I [[https://news.ycombinator.com/item?id=21593276#21593444][linked this article on Hacker News]] and a couple of commenters' have independently reproduced the issue. I copied some details in the table below. The first 3 are my own tests.
+|           | Make      | OS            | Protocol   | Carrier | Region          | Text                                                         | Comment    |
+|-----------+-----------+---------------+------------+---------+-----------------+--------------------------------------------------------------+------------|
+| Sender    | Nexus 6P  | Android 8.1.0 | SMS        | Koodo   | Alberta, Canada | [[*Exactly what is censored?][see above]]                                                    | my test    |
+|-----------+-----------+---------------+------------+---------+-----------------+--------------------------------------------------------------+------------|
+| Recipient | Nexus 6P  | Android 8.1.0 | SMS        | Koodo   | Alberta, Canada |                                                              |            |
+|-----------+-----------+---------------+------------+---------+-----------------+--------------------------------------------------------------+------------|
+|           |           |               |            |         |                 |                                                              |            |
+|-----------+-----------+---------------+------------+---------+-----------------+--------------------------------------------------------------+------------|
+| Sender    | Nexus 6P  | Android 8.1.0 | SMS        | Koodo   | Alberta, Canada | [[*Exactly what is censored?][see above]]                                                    | my test    |
+|-----------+-----------+---------------+------------+---------+-----------------+--------------------------------------------------------------+------------|
+| Recipient | iPhone    | ios           | SMS        | Bell    | Alberta, Canada |                                                              |            |
+|-----------+-----------+---------------+------------+---------+-----------------+--------------------------------------------------------------+------------|
+|           |           |               |            |         |                 |                                                              |            |
+|-----------+-----------+---------------+------------+---------+-----------------+--------------------------------------------------------------+------------|
+| Sender    | iPhone    | Android 8.1.0 | SMS        | Koodo   | Alberta, Canada | [[*Exactly what is censored?][see above]]                                                    | my test    |
+|-----------+-----------+---------------+------------+---------+-----------------+--------------------------------------------------------------+------------|
+| Recipient | iPhone    | ios           | SMS        | Bell    | Alberta, Canada |                                                              |            |
+|-----------+-----------+---------------+------------+---------+-----------------+--------------------------------------------------------------+------------|
+|           |           |               |            |         |                 |                                                              |            |
+|-----------+-----------+---------------+------------+---------+-----------------+--------------------------------------------------------------+------------|
+| Sender    | iPhone XR | iOS 13.2.3    | SMS        | Fizz    | Québec, Canada  | "test", "secure communication" "test"                        |            |
+|-----------+-----------+---------------+------------+---------+-----------------+--------------------------------------------------------------+------------|
+| Recipient | LG G7     | Android       | SMS        | Koodo   | Québec, Canada  | "test", "test"                                               |            |
+|-----------+-----------+---------------+------------+---------+-----------------+--------------------------------------------------------------+------------|
+|           |           |               |            |         |                 |                                                              |            |
+|-----------+-----------+---------------+------------+---------+-----------------+--------------------------------------------------------------+------------|
+|           |           |               | SMS        | Telus   | Alberta, Canada | "secure communication", "secure communication does not work" | vice versa |
+|-----------+-----------+---------------+------------+---------+-----------------+--------------------------------------------------------------+------------|
+|           |           |               | SMS & VOIP | [[https://www.voip.ms][voip.ms]] |                 |                                                              |            |
+
+
