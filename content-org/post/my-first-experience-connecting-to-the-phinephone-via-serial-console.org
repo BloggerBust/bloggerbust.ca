@@ -1,6 +1,6 @@
 #+author: Trevor Wilson
 #+email: trevor.wilson@bloggerbust.ca
-#+title: "How to connect to the PinePhone via Serial Console"
+#+title: "My First Experience Connecting to the PinePhone via Serial Console"
 #+date: 2020-03-07T05:08:47Z
 #+HUGO_BASE_DIR: ../../
 #+HUGO_SECTION: post
