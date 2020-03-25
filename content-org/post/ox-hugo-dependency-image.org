@@ -341,7 +341,7 @@ BUILD PASSED
 #+END_EXAMPLE
 
 If you see the summary at the end with the last line of text reading /TESTS PASSED/ then that means that the markdown was generated and the docs were built successfully. If on the other hand the last line of text reads "TESTS FAILED" then the error should be reported in the standard output. In that case, you might also want to check the log files in your shared dev directory for each of the proxy commands. Both stdout and stderr from the proxy commands are sent to these log files.
-#+BEGIN_SRC sh :results output scalar :shebang "!#/bin/env bash" :wrap EXAMPLE
+#+BEGIN_SRC sh :results output scalar :shebang "#!/bin/env bash" :wrap EXAMPLE
 ls -la /shared/dustfinger/dev/*.out
 #+END_SRC
 

@@ -34,7 +34,7 @@ The Now CLI is [[https://github.com/zeit/now-cli][open source on GitHub]]. Pleas
 If you [[*Install the Now CLI][installed the Now CLI]] with the Now Desktop app then you can technically skip this section. Otherwise, you will need to install npm to install the Now CLI. Even if you did install the Now Desktop app, you may want to be able to contribute to Staticman.net, or just run the unit tests as a sanity check, in which case you should install npm.
 
 Npm is the default JavaScript package manager for Node.js. Staticman.net was designed to be hosted by Node.js. Zeit Now was designed to host serverless Node applications. My preference is to install npm with a custom prefix so that I can avoid installing global packages in a location that would require root privileges.
-#+begin_src sh :results output scalar :shebang "!#/bin/env bash" :wrap EXAMPLE
+#+begin_src sh :results output scalar :shebang "#!/bin/env bash" :wrap EXAMPLE
 mkdir ~/.npm-global
 npm config set prefix "~/.npm-global"
 npm install now -g
