@@ -1,0 +1,705 @@
+#+author: Trevor Wilson
+#+email: trevor.wilson@bloggerbust.ca
+#+title: "How to connect to the PinePhone via Serial Console"
+#+date: 2020-03-07T05:08:47Z
+#+HUGO_BASE_DIR: ../../
+#+HUGO_SECTION: post
+#+HUGO_DRAFT: false
+#+HUGO_AUTO_SET_LASTMOD: true
+#+startup: showeverything
+#+options: d:(not "notes")
+
+* My PinePhone Arrived
+My [[https://wiki.pine64.org/index.php/PinePhone][PinePhone]] (BraveHeart edition) arrived a few weeks ago, but I have not had time play with it. Over the weekend I had an epic snowball fight with my wife and children while we were on a nature walk. My [[https://en.wikipedia.org/wiki/Nexus_6P][Nexus 6p]] had been neglectfully left in my back pocket and during the escapade it succumbed to fatal injuries. It is time to breath life into my new PinePhone, but first I wanted to have a look around. I am going to connect to the PinePhone using the UART serial console that is integrated into the audio jack of the PinePhone. My client of choice is of course the venerable [[https://www.gnu.org/software/emacs/manual/html_node/emacs/Serial-Terminal.html][Emacs serial-term]].
+
+* What is a serial console and UART
+For our purposes, a console is a program connected to a serial port on the host computer providing a textual interface to a Linux shell. Of course, this is an over simplification, if you are not familiar with serial communication and would like to learn about it in depth, then I think you will be interested in reading through this [[http://www.tldp.org/HOWTO/Text-Terminal-HOWTO.html][Text Terminal HOWTO]] and [[http://www.tldp.org/HOWTO/Serial-HOWTO.html][Serial HOWTO]]. 
+
+The UART (Universal Asynchronous Receiver Transmitter) receives bits sequentially, reconstructs them into bytes, then stores those bytes in a buffer where they can be read by a computer. Conversely, a transmitting UART converts parallel data from bytes to bits and then transmits those bits in serial to a receiving UART. In that respect, UART is bidirectional, allowing the host computer to both send and receive messages over a serial connection. The Serial HOWTO mentioned earlier contains this short [[http://www.tldp.org/HOWTO/Serial-HOWTO-18.html][introduction to UARTs]] as well as a list of [[http://www.tldp.org/HOWTO/Serial-HOWTO-14.html][serial communication programs and utilities]].
+
+* Connect to the PinePhone over UART
+The PinePhone has [[https://wiki.pine64.org/index.php/PinePhone#Serial_console][a serial port integrated with the headphone audio jack socket]]. I purchased a [[https://www.amazon.ca/Cordable-Serial-Adapter-Converter-TTL-232R-3V3-AJ/dp/B07JD7YZP4/][3.3V TTL-232R Serial UART cable that adapts USB to a 3.5mm audio jack]] from Amazon, but you can also purchase one [[https://store.pine64.org/?product=pinebook-serial-console][from the Pine Store]]. Any USB to 3.3V TTL converter that uses RS-232 for serial communication transmission and adapts to a 3.5mm audio jack will do. To put PinePhone's audio jack socket into UART mode, place the 6th contact on the dipswitch into the off position. Next, insert the serial connector's jack plug into the phone's jack socket and plug the USB end of the connector into your dev box.
+
+To confirm that your computer has detected the UART console simply run the [[https://linux.die.net/man/1/usb-devices][usb-devices]] command and filter the output for the text /"UART"/.
+#+begin_src sh :results output scalar :shebang "#!/bin/bash" :wrap example
+  usb-devices | grep -C4 -i uart
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+T:  Bus=01 Lev=01 Prnt=01 Port=01 Cnt=02 Dev#= 57 Spd=12  MxCh= 0
+D:  Ver= 2.00 Cls=00(>ifc ) Sub=00 Prot=00 MxPS= 8 #Cfgs=  1
+P:  Vendor=0403 ProdID=6001 Rev=06.00
+S:  Manufacturer=FTDI
+S:  Product=FT232R USB UART
+S:  SerialNumber=<REDACTED>
+C:  #Ifs= 1 Cfg#= 1 Atr=a0 MxPwr=90mA
+I:  If#=0x0 Alt= 0 #EPs= 2 Cls=ff(vend.) Sub=ff Prot=ff Driver=ftdi_sio
+
+#+end_example
+
+The first line tells us the bus number, port and device number, which is useful, but what we would actually like is the TTY device name. Looking further down the list we can see that the manufacturer is =FTDI=. We can now filter the ~dmesg~ output by the manufacturer name to get the name of the device.
+
+#+begin_src sh :results output scalar :shebang "#!/bin/bash" :wrap example
+  dmesg | grep -i FTDI
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+[1458143.861386] usb 1-2: Manufacturer: FTDI
+[1458143.864821] ftdi_sio 1-2:1.0: FTDI USB Serial Device converter detected
+[1458143.865597] usb 1-2: FTDI USB Serial Device converter now attached to ttyUSB0
+#+end_example
+
+Now that we know that the name of the device is ~ttyUSB0~, we can look up the group membership required to attach to it.
+#+begin_src sh :results output scalar :shebang "#!/bin/bash" :wrap example
+ls -lah /dev/ttyUSB0
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+crw-rw---- 1 root uucp 188, 0 Mar 24 06:16 /dev/ttyUSB0
+#+end_example
+
+The output from ~ls~ tells us that we need to be in the ~uucp~ group. We will use the ~groups~ command to find out if my user is already of member of ~uucp~.
+#+begin_src sh :results output scalar :shebang "#!/bin/bash" :wrap example
+  groups dustfinger
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+  wheel audio video usb users dustfinger plugdev libvirt docker developer
+#+end_example
+
+Since my user is not a member of the ~uucp~ group, I will add the group membership using ~gpasswd~.
+#+begin_src sh :results output scalar :shebang "#!/bin/bash" :wrap example
+sudo gpasswd -a dustfinger uucp
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+Adding user dustfinger to group uucp
+#+end_example
+
+Now that we have the right group membership, we can establish a serial connection.
+
+* Connect with Emacs serial-mode
+
+If you are an Emacs user, like me, then the easiest way to connect to a device over UART is to use the built in Emacs serial-term. The documentation for Emacs serial-term can be found by typing ~C-h i d m emacs <RET> m Serial Terminal <RET>~. If you are using any other serial terminal program, then you will need to pass it the same parameters as shown below, but exactly how the parameters are passed and what the defaults of those parameters are, will likely be different. Please take a moment and read the man page of your chosen serial terminal program so that you understand how to pass it the required parameters.
+
+If you would like to watch the output while your PinePhone boots up, then turn the PinePhone off before making the serial connection. To invoke /Serial Terminal/ in Emacs, type: ~M-x serial-term <RET>~. Emacs Serial Terminal will prompt for the following parameters:
+| Parameter | Value to enter |
+|-----------+----------------|
+| Port      | /dev/ttyUSB0   |
+| Speed     | 115200         |
+
+The speed is in bits per second and is called the /baud rate/. The connection will fail to establish if you do not enter the correct baud rate.
+
+Other terminal programs may require that you explicitly enter the /parity/, /data bits/ and /stopbit time/ parameters. As it turns out, the Emacs defaults for these these parameters are compatible with the PinePhone's UART, so they do not need to be set explicitly:
+| Parameter    | Value to enter |
+|--------------+----------------|
+| Parity       | n              |
+| data bits    | 8              |
+| stopbit time | 1              |
+
+Once the required parameters have been passed to Emacs Serial Terminal, Emacs should open a new buffer that is named after the device. In my case the buffer is named =/dev/ttyUSB0/=. If your PinePhone is powered off, then turn it on and you will see output similar to the following as it boots:
+
+#+begin_example
+U-Boot SPL 2020.01 (Jan 09 2020 - 12:17:54 +0000)
+DRAM: 2048 MiB
+Trying to boot from MMC2
+NOTICE:  BL31: v2.1(release):v3.10.0_rc3-151-ga4b61dc7d9
+NOTICE:  BL31: Built : 16:21:59, Jun 12 2019
+NOTICE:  BL31: Detected Allwinner A64/H64/R18 SoC (1689)
+NOTICE:  BL31: Found U-Boot DTB at 0x408e1a8, model: Pine64 LTS
+NOTICE:  BL31: PMIC: Detected AXP803 on RSB.
+
+
+U-Boot 2020.01 (Jan 09 2020 - 12:17:54 +0000) Allwinner Technology
+
+CPU:   Allwinner A64 (SUN50I)
+Model: Pine64 LTS
+DRAM:  2 GiB
+MMC:   mmc@1c0f000: 0, mmc@1c11000: 1
+Loading Environment from FAT... Unable to use mmc 1:1... In:    serial
+Out:   serial
+Err:   serial
+Net:   phy interface7
+Could not get PHY for ethernet@1c30000: addr 1
+No ethernet found.
+
+starting USB...
+Bus usb@1c1a000: USB EHCI 1.00
+Bus usb@1c1a400: USB OHCI 1.0
+Bus usb@1c1b000: USB EHCI 1.00
+Bus usb@1c1b400: USB OHCI 1.0
+scanning bus usb@1c1a000 for devices... 1 USB Device(s) found
+scanning bus usb@1c1a400 for devices... 1 USB Device(s) found
+scanning bus usb@1c1b000 for devices... 1 USB Device(s) found
+scanning bus usb@1c1b400 for devices... 1 USB Device(s) found
+       scanning usb for storage devices... 0 Storage Device(s) found
+Hit any key to stop autoboot:  0 
+switch to partitions #0, OK
+mmc1(part 0) is current device
+Scanning mmc 1:1...
+Found U-Boot script /boot.scr
+919 bytes read in 2 ms (448.2 KiB/s)
+## Executing script at 4fc00000
+gpio: pin 114 (gpio 114) value is 1
+Booting from eMMC
+arch=arm
+baudrate=115200
+board=sunxi
+board_name=sunxi
+boot_a_script=load ${devtype} ${devnum}:${distro_bootpart} ${scriptaddr} ${prefix}${script}; source ${scriptaddr}
+boot_efi_binary=if fdt addr ${fdt_addr_r}; then bootefi bootmgr ${fdt_addr_r};else bootefi bootmgr ${fdtcontroladdr};fi;load ${devtype} ${devnum}:${distro_bootpart} ${kernel_
+addr_r} efi/boot/bootaa64.efi; if fdt addr ${fdt_addr_r}; then bootefi ${kernel_addr_r} ${fdt_addr_r};else bootefi ${kernel_addr_r} ${fdtcontroladdr};fi                     
+boot_extlinux=sysboot ${devtype} ${devnum}:${distro_bootpart} any ${scriptaddr} ${prefix}${boot_syslinux_conf}
+boot_net_usb_start=usb start
+boot_prefixes=/ /boot/
+boot_script_dhcp=boot.scr.uimg
+boot_scripts=boot.scr.uimg boot.scr
+boot_syslinux_conf=extlinux/extlinux.conf
+boot_targets=fel mmc_auto usb0 pxe dhcp 
+bootargs=init=/init.sh rw console=tty0 console=ttyS0,115200 no_console_suspend earlycon=uart,mmio32,0x01c28000 panic=10 consoleblank=0 loglevel=1 cma=256M PMOS_NO_OUTPUT_REDI
+RECT pmos_boot=/dev/mmcblk2p1 pmos_root=/dev/mmcblk2p2                                                                                                                       
+bootcmd=run distro_bootcmd
+bootcmd_dhcp=run boot_net_usb_start; if dhcp ${scriptaddr} ${boot_script_dhcp}; then source ${scriptaddr}; fi;setenv efi_fdtfile ${fdtfile}; setenv efi_old_vci ${bootp_vci};s
+etenv efi_old_arch ${bootp_arch};setenv bootp_vci PXEClient:Arch:00011:UNDI:003000;setenv bootp_arch 0xb;if dhcp ${kernel_addr_r}; then tftpboot ${fdt_addr_r} dtb/${efi_fdtfi
+le};if fdt addr ${fdt_addr_r}; then bootefi ${kernel_addr_r} ${fdt_addr_r}; else bootefi ${kernel_addr_r} ${fdtcontroladdr};fi;fi;setenv bootp_vci ${efi_old_vci};setenv bootp
+_arch ${efi_old_arch};setenv efi_fdtfile;setenv efi_old_arch;setenv efi_old_vci;                                                                                             
+bootcmd_fel=if test -n ${fel_booted} && test -n ${fel_scriptaddr}; then echo '(FEL boot)'; source ${fel_scriptaddr}; fi
+bootcmd_mmc0=devnum=0; run mmc_boot
+bootcmd_mmc1=devnum=1; run mmc_boot
+bootcmd_mmc_auto=if test ${mmc_bootdev} -eq 1; then run bootcmd_mmc1; run bootcmd_mmc0; elif test ${mmc_bootdev} -eq 0; then run bootcmd_mmc0; run bootcmd_mmc1; fi
+bootcmd_pxe=run boot_net_usb_start; dhcp; if pxe get; then pxe boot; fi
+bootcmd_usb0=devnum=0; run usb_boot
+bootdelay=2
+bootdev=2
+bootfstype=ext4
+bootm_size=0xa000000
+console=ttyS0,115200
+cpu=armv8
+devplist=1
+dfu_alt_info_ram=kernel ram 0x40080000 0x1000000;fdt ram 0x4FA00000 0x100000;ramdisk ram 0x4FE00000 0x4000000
+distro_bootcmd=for target in ${boot_targets}; do run bootcmd_${target}; done
+efi_dtb_prefixes=/ /dtb/ /dtb/current/
+ethaddr=02:ba:3a:fe:45:68
+fdt_addr_r=0x4FA00000
+fdtcontroladdr=b9f31258
+fdtfile=allwinner/sun50i-a64-pine64-lts.dtb
+fileaddr=4fc00000
+filesize=397
+kernel_addr_r=0x40080000
+load_efi_dtb=load ${devtype} ${devnum}:${distro_bootpart} ${fdt_addr_r} ${prefix}${efi_fdtfile}
+mmc_boot=if mmc dev ${devnum}; then devtype=mmc; run scan_dev_for_boot_part; fi
+mmc_bootdev=1
+partitions=name=loader1,start=8k,size=32k,uuid=${uuid_gpt_loader1};name=loader2,size=984k,uuid=${uuid_gpt_loader2};name=esp,size=128M,bootable,uuid=${uuid_gpt_esp};name=syste
+m,size=-,uuid=${uuid_gpt_system};                                                                                                                                            
+preboot=usb start
+pxefile_addr_r=0x4FD00000
+ramdisk_addr_r=0x4FE00000
+scan_dev_for_boot=echo Scanning ${devtype} ${devnum}:${distro_bootpart}...; for prefix in ${boot_prefixes}; do run scan_dev_for_extlinux; run scan_dev_for_scripts; done;run s
+can_dev_for_efi;                                                                                                                                                             
+scan_dev_for_boot_part=part list ${devtype} ${devnum} -bootable devplist; env exists devplist || setenv devplist 1; for distro_bootpart in ${devplist}; do if fstype ${devtype
+} ${devnum}:${distro_bootpart} bootfstype; then run scan_dev_for_boot; fi; done; setenv devplist                                                                             
+scan_dev_for_efi=setenv efi_fdtfile ${fdtfile}; for prefix in ${efi_dtb_prefixes}; do if test -e ${devtype} ${devnum}:${distro_bootpart} ${prefix}${efi_fdtfile}; then run loa
+d_efi_dtb; fi;done;if test -e ${devtype} ${devnum}:${distro_bootpart} efi/boot/bootaa64.efi; then echo Found EFI removable media binary efi/boot/bootaa64.efi; run boot_efi_bi
+nary; echo EFI LOAD FAILED: continuing...; fi; setenv efi_fdtfile                                                                                                            
+scan_dev_for_extlinux=if test -e ${devtype} ${devnum}:${distro_bootpart} ${prefix}${boot_syslinux_conf}; then echo Found ${prefix}${boot_syslinux_conf}; run boot_extlinux; ec
+ho SCRIPT FAILED: continuing...; fi                                                                                                                                          
+scan_dev_for_scripts=for script in ${boot_scripts}; do if test -e ${devtype} ${devnum}:${distro_bootpart} ${prefix}${script}; then echo Found U-Boot script ${prefix}${script}
+; run boot_a_script; echo SCRIPT FAILED: continuing...; fi; done                                                                                                             
+scriptaddr=0x4FC00000
+serial#=<REDACTED>
+soc=sunxi
+stderr=serial,vidconsole
+stdin=serial,usbkbd
+stdout=serial,vidconsole
+usb_boot=usb start; if usb dev ${devnum}; then devtype=usb; run scan_dev_for_boot_part; fi
+uuid_gpt_esp=c12a7328-f81f-11d2-ba4b-00a0c93ec93b
+uuid_gpt_system=b921b045-1df0-41c3-af44-4c6f280d3fae
+
+Environment size: 4745/131068 bytes
+Loading DTB
+29575 bytes read in 3 ms (9.4 MiB/s)
+Loading Initramfs
+4580494 bytes read in 202 ms (21.6 MiB/s)
+Loading Kernel
+15091720 bytes read in 658 ms (21.9 MiB/s)
+gpio: pin 115 (gpio 115) value is 1
+Resizing FDT
+Booting kernel
+gpio: pin 116 (gpio 116) value is 1
+## Loading init Ramdisk from Legacy Image at 4fe00000 ...
+   Image Name:   uInitrd
+   Image Type:   AArch64 Linux RAMDisk Image (uncompressed)
+   Data Size:    4580430 Bytes = 4.4 MiB
+   Load Address: 00000000
+   Entry Point:  00000000
+   Verifying Checksum ... OK
+## Flattened Device Tree blob at 4fa00000
+   Booting using the fdt blob at 0x4fa00000
+EHCI failed to shut down host controller.
+   Loading Ramdisk to 49ba1000, end 49fff44e ... OK
+   Loading Device Tree to 0000000049b96000, end 0000000049ba0fff ... OK
+
+Starting kernel ...
+
+[    0.000000] Booting Linux on physical CPU 0x0000000000 [0x410fd034]
+[    0.000000] Linux version 5.4.0 (pmos@build) (gcc version 9.2.0 (Alpine 9.2.0)) #2-postmarketos-allwinner SMP Sat Dec 7 14:14:33 UTC 2019
+[    0.000000] Machine model: PinePhone
+[    0.000000] earlycon: uart0 at MMIO32 0x0000000001c28000 (options '')
+[    0.000000] printk: bootconsole [uart0] enabled
+### postmarketOS initramfs ###
+Configuring kernel firmware image search path
+modprobe: module sun6i_mipi_dsi not found in modules.dep
+modprobe: module sun4i_drm not found in modules.dep
+modprobe: module pwm_sun4i not found in modules.dep
+modprobe: module sun8i_mixer not found in modules.dep
+modprobe: module ext4 not found in modules.dep
+modprobe: module usb_f_rndis not found in modules.dep
+NOTE: Waiting 10 seconds for the framebuffer /dev/fb0.
+If your device does not have a framebuffer, disable this with:
+no_framebuffer=true in <https://postmarketos.org/deviceinfo>
+Setting framebuffer mode to: U:720x1440p-0
+Setup usb network
+  /sys/class/android_usb does not exist, skipping android_usb
+  Setting up an USB gadget through configfs
+Starting udhcpd
+  Using interface usb0
+  Start the dhcpcd daemon (forks into background)
+Mount boot partition (/dev/mmcblk2p1)
+Extract /boot/initramfs-postmarketos-allwinner-extra
+31639 blocks
+Check/repair root filesystem (/dev/mmcblk2p2)
+e2fsck 1.45.5 (07-Jan-2020)
+pmOS_root: recovering journal
+Setting free blocks count to 37000 (was 36998)
+pmOS_root: clean, 23951/100080 files, 227704/264704 blocks
+Resize root filesystem (/dev/mmcblk2p2)
+resize2fs 1.45.5 (07-Jan-2020)
+The filesystem is already 264704 (4k) blocks long.  Nothing to do!
+
+Mount root partition (/dev/mmcblk2p2)
+umount: can't unmount /dev: Invalid argument
+
+   OpenRC 0.42.1.034fce6328 is starting up Linux 5.4.0 (aarch64)
+
+/lib/rc/sh/init.sh: line 15: can't create /dev/null: Read-only file system
+ * md5sum is missing, which suggests /usr is not mounted
+ * If you have separate /usr, it must be mounted by initramfs
+ * If not, you should check coreutils is installed correctly
+ * Mounting /proc ... [ ok ]
+ * Mounting /run ... * /run/openrc: creating directory
+ * /run/lock: creating directory
+ * /run/lock: correcting owner
+/lib/rc/sh/init.sh: line 101: can't create /dev/null: Read-only file system
+/lib/rc/sh/gendepends.sh: line 28: can't create /dev/null: Read-only file system
+ * Caching service dependencies ... [ ok ]
+ * Clock skew detected with `(null)'
+ * Adjusting mtime of `/run/openrc/deptree' to Fri Jan 10 19:03:07 2020
+
+ * WARNING: clock skew detected!
+ * Mounting devtmpfs on /dev ... [ ok ]
+ * Mounting /dev/mqueue ... [ ok ]
+ * Mounting /dev/pts ... [ ok ]
+ * Mounting /dev/shm ... [ ok ]
+ * Mount subpartitions of /dev/mmcblk2
+device-mapper: reload ioctl on mmcblk2p1  failed: Resource busy
+create/reload failed on mmcblk2p1
+device-mapper: reload ioctl on mmcblk2p2  failed: Resource busy
+create/reload failed on mmcblk2p2
+ * Mounting /sys ... [ ok ]
+ * Mounting security filesystem ... [ ok ]
+ * Mounting debug filesystem ... [ ok ]
+ * Mounting config filesystem ... [ ok ]
+ * Mounting persistent storage (pstore) filesystem ... [ ok ]
+ * Starting udev ... [ ok ]
+ * Generating a rule to create a /dev/root symlink ... [ ok ]
+ * Populating /dev with existing devices through uevents ... [ ok ]
+ * WARNING: clock skew detected!
+ * Loading modules ... [ ok ]
+ * Setting system clock using the hardware clock [UTC] ... [ ok ]
+ * Setting the local clock based on last shutdown time ... [ ok ]
+ * Checking local filesystems  ...pmOS_root: clean, 23951/100080 files, 227704/264704 blocks
+pmOS_boot was not cleanly unmounted, check forced.
+pmOS_boot: 18/16704 files (22.2% non-contiguous), 48645/66560 blocks            
+ * Filesystems repaired
+ [ !! ]
+ * Remounting root filesystem read/write ... [ ok ]
+ * Remounting filesystems ... [ ok ]
+ * Mounting local filesystems ... [ ok ]
+ * Configuring kernel parameters ...sysctl: error: 'net.ipv4.tcp_syncookies' is an unknown key
+ [ ok ]
+ * Creating user login records ... [ ok ]
+ * Wiping /tmp directory ... [ ok ]
+ * Setting hostname ... [ ok ]
+ * Starting busybox syslog ... [ ok ]
+ * WARNING: clock skew detected!
+ * Starting System Message Bus ... [ ok ]
+ * Starting RNG Daemon ... [ ok ]
+ * Starting WPA Supplicant ... [ ok ]
+ * Starting networkmanager ... [ ok ]
+ * Starting chronyd ... [ ok ]
+ * Enabling EG25 WWAN module ... * /run/lightdm: creating directory
+ * /run/lightdm: correcting owner
+ * Starting Display Manager ... [ ok ]
+ * Starting oFono ... [ ok ]
+ * Starting sshd ... [ ok ]
+ * Activating swap file ...Configured swap file size is 0, skipping creation.
+ [ ok ]
+ * Starting local ... [ ok ]
+
+Welcome to postmarketOS
+Kernel 5.4.0 on an aarch64 (/dev/ttyS0)
+pine64-pinephone login: demo
+#+end_example
+
+If your PinePhone was already turned on when you established the serial connection you might be presented with a blank screen. In that case, if you hit the =<RET>= key, that should cause the welcome message and login prompt to be rendered to the screen.
+
+* Have a look around
+To sign in to the postMarketOS [[https://gitlab.com/MartijnBraam/hwtest/-/tree/master/hwtest][hwtest (factory test)]] use the following default credentials
+| user | password |
+|------+----------|
+| demo | demo     |
+
+#+begin_example
+Welcome to postmarketOS
+Kernel 5.4.0 on an aarch64 (/dev/ttyS0)
+pine64-pinephone login: demo
+Password: 
+Welcome to postmarketOS!
+
+This distribution is based on Alpine Linux.
+Read both our wikis to find a large amount of how-to guides and
+general information about administrating and development.
+See <https://wiki.postmarketos.org> and <https://wiki.alpinelinux.org>.
+
+You may change this message by editing /etc/motd.
+
+pine64-pinephone:~$ 
+#+end_example
+
+First, let's look at what is in the demo user's home directory.
+#+begin_src sh
+pine64-pinephone:~$ ls -lah
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+
+total 48K    
+drwxr-xr-x    4 demo     root        4.0K Aug 23 10:49 .
+drwxr-xr-x    3 root     root        4.0K Jan 10  2020 ..
+-rw-------    1 demo     demo        1.7K Aug 23 11:14 .ash_history
+drwxr-xr-x    3 demo     demo        4.0K Aug 23 10:49 .cache
+drwx------    2 demo     demo        4.0K Jan 10  2020 .ssh
+-rwxr-xr-x    1 demo     root          90 Mar  7 22:57 .xsession
+-rw-------    1 demo     demo        8.8K Aug 23 10:49 .xsession-errors
+-rw-------    1 demo     demo       10.6K Aug 23  2019 .xsession-errors.old
+pine64-pinephone:~$ 
+#+end_example
+
+Notice that there is a =.ssh/= directory that must have been created during setup at the factory.
+
+#+begin_src sh
+pine64-pinephone:~$ ls -lah .ssh
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+pine64-pinephone:~$ ls -lah .ssh
+total 12K    
+drwx------    2 demo     demo        4.0K Jan 10  2020 .
+drwxr-xr-x    4 demo     root        4.0K Aug 23 10:49 ..
+-rw-r--r--    1 demo     demo         397 Jan 10  2020 authorized_keys
+pine64-pinephone:~$ 
+#+end_example
+
+We can see that the directory contains a file named /authorized_keys/ which we will revisit momentarily. I wonder what services are currently running:
+
+#+begin_src sh
+  pine64-pinephone:~$ rc-status
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+Runlevel: default
+ dbus
+ [  started 00:45:35 (0) ]
+ lightdm
+ [  started 00:45:32 (0) ]
+ haveged
+ [  started 00:45:35 (0) ]
+ wpa_supplicant
+ [  started 00:45:35 (0) ]
+ networkmanager
+ [  started 00:45:35 (0) ]
+ chronyd
+ [  started  ]
+ eg25
+ [  started  ]
+ ofono
+ [  started  ]
+ sshd
+ [  started  ]
+ swapfile
+ [  started  ]
+ udev-postmount
+ [  started  ]
+ local
+ [  started  ]
+Dynamic Runlevel: hotplugged
+Dynamic Runlevel: needed/wanted
+ sysfs
+ [  started  ]
+ fsck
+ [  started  ]
+ root
+ [  started  ]
+ localmount
+ [  started  ]
+Dynamic Runlevel: manual
+pine64-pinephone:~$ 
+#+end_example
+
+Even in light of the fact that we are only running the factory test suite, I cannot tell you how much I appreciate to see so few services running on a mobile phone. There is nothing unusual about the services that I see running. [[https://en.wikipedia.org/wiki/OFono][/OFono/]] is a linux daemon for mobile telephony application support. [[https://linux.die.net/man/8/haveged][/Haveged/]] is for entropy gathering and random number generation. The eg25 daemon is for the [[https://wiki.pine64.org/index.php/PinePhone#EG25_-_Modem][PinePhone EG25 modem]].
+
+I can see that wpa_supplicant service is running along with the NetworkManager service, those will be for testing WiFi. The SSH daemon is also running, but I don't imagine that is necessary for the factory tests, so I will [[*Remove SSH key][remove the SSH key]] and [[*Shutdown sshd][shut down sshd]]. After that, the next time I boot my phone into the /factory test/ program I will rest at ease knowing that the SSH daemon is not running, and the default user account home directory does not contain a publicly known SSH key.
+
+Since wpa_supplicant is running we should see if there are any configured WiFi access points. I checked =/etc/wpa_supplicant.conf= and found that it was empty. I will also check to see if there were any connections known to the NetworkManager by using the ~nmcli~.
+#+begin_src sh
+  pine64-pinephone:~$ nmcli connection show
+#+end_src
+
+That produced no results, which is expected. We can also get a list of devices from ~nmcli~ by using the ~device~ sub-command.
+
+#+begin_src sh
+  nmcli device show
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+GENERAL.DEVICE:                         wlan0
+GENERAL.TYPE:                           wifi
+GENERAL.DEVICE:                         wlan0
+GENERAL.TYPE:                           wifi
+GENERAL.HWADDR:                         02:BA:3A:FE:45:68
+GENERAL.MTU:                            1500
+GENERAL.STATE:                          30 (disconnected)
+GENERAL.CONNECTION:                     --
+GENERAL.CON-PATH:                       --
+
+GENERAL.DEVICE:                         p2p-dev-wlan0
+GENERAL.TYPE:                           wifi-p2p
+GENERAL.HWADDR:                         (unknown)
+GENERAL.MTU:                            0
+GENERAL.STATE:                          30 (disconnected)
+GENERAL.CONNECTION:                     --
+GENERAL.CON-PATH:                       --
+
+GENERAL.DEVICE:                         quectelqmi_0
+GENERAL.TYPE:                           gsm
+GENERAL.HWADDR:                         (unknown)
+GENERAL.MTU:                            0
+GENERAL.STATE:                          20 (unavailable)
+GENERAL.CONNECTION:                     --
+GENERAL.CON-PATH:                       --
+
+GENERAL.DEVICE:                         usb0
+GENERAL.TYPE:                           ethernet
+GENERAL.HWADDR:                         BA:00:FB:E9:5C:9C
+GENERAL.MTU:                            1500
+GENERAL.STATE:                          10 (unmanaged)
+GENERAL.CONNECTION:                     --
+GENERAL.CON-PATH:                       --
+WIRED-PROPERTIES.CARRIER:               off
+IP4.ADDRESS[1]:                         172.16.42.1/16
+IP4.GATEWAY:                            --
+IP4.ROUTE[1]:                           dst = 172.16.0.0/16, nh = 0.0.0.0, mt = 0
+IP6.GATEWAY:                            --
+
+GENERAL.DEVICE:                         lo
+GENERAL.TYPE:                           loopback
+GENERAL.HWADDR:                         00:00:00:00:00:00
+GENERAL.MTU:                            65536
+GENERAL.STATE:                          10 (unmanaged)
+GENERAL.CONNECTION:                     --
+GENERAL.CON-PATH:                       --
+IP4.ADDRESS[1]:                         127.0.0.1/8
+IP4.GATEWAY:                            --
+IP6.ADDRESS[1]:                         ::1/128
+IP6.GATEWAY:                            --
+
+#+end_example
+
+In my opinion, it is good practice to take a peek in the boot partition of a new device before booting it up.
+
+#+begin_src sh
+  pine64-pinephone:~$ ls -lah /boot
+#+end_src
+
+#+RESULTS: 
+
+#+begin_example
+total 44M    
+drwxr-xr-x    3 root     root        1.0K Jan 10  2020 .
+drwxr-xr-x   21 root     root        4.0K Jan 10  2020 ..
+-rw-r--r--    1 root     root         919 Jan  3  2020 boot.scr
+-rw-r--r--    1 root     root        4.4M Jan 10  2020 initramfs-postmarketos-allwinner
+-rw-r--r--    1 root     root        6.4M Jan 10  2020 initramfs-postmarketos-allwinner-extra
+drwx------    2 root     root       12.0K Jan 10  2020 lost+found
+-rw-r--r--    1 root     root       28.9K Jan 10  2020 sun50i-a64-pinephone.dtb
+-rw-r--r--    1 root     root       14.4M Jan 10  2020 uImage-postmarketos-allwinner
+-rw-r--r--    1 root     root        4.4M Jan 10  2020 uInitrd-postmarketos-allwinner
+-rw-r--r--    1 root     root       14.4M Dec  7  2019 vmlinuz-postmarketos-allwinner
+pine64-pinephone:~$ 
+#+end_example
+
+I am not very knowledgeable about /u-boot/ yet, but I took a look at the u-boot ~boot.scr~ and it seems straight forward.
+
+The last thing I wanted to see was a list of all user accounts.
+#+begin_src sh
+  pine64-pinephone:~$ cut -d: -f1 /etc/passwd
+#+end_src
+
+#+RESULTS: 
+
+#+begin_example
+root
+bin
+daemon
+adm
+lp
+sync
+shutdown
+halt
+mail
+news
+uucp
+operator
+man
+postmaster
+cron
+ftp
+sshd
+at
+squid
+xfs
+games
+cyrus
+vpopmail
+ntp
+smmsp
+guest
+nobody
+demo
+chrony
+messagebus
+polkitd
+pulse
+lightdm
+#+end_example
+
+I wonder if the /guest/ user is needed for automatically loading into /factory test/? I might look into that another day. If you are going to leave the factory test program loaded for any length of time, then you should [[*Change demo user password][change the password for the demo user]]. Finally, if you install a newer release of /factory test/, then you will need to re-apply each of the changes that you have made.
+
+* Ending the Serial Terminal session
+When you have finished your fun poking around in the factory install of postmarketOS, power-off your device, kill the =/dev/ttyUSB0/= buffer and unplug the serial console cable.
+
+#+begin_src 
+pine64-pinephone:~$ sudo poweroff
+#+end_src
+
+#+begin_example
+pine64-pinephone:~$  * WARNING: clock skew detected!
+ * Stopping local ... [ ok ]
+ * Deactivating swap file ... [ ok ]
+ * Stopping oFono ... [ ok ]
+ * Stopping Display Manager ... [ ok ]
+ * Disabling EG25 WWAN module ... * Stopping chronyd ... [ ok ]
+ * Stopping networkmanager ... [ ok ]
+ * Stopping RNG Daemon ... [ ok ]
+ * Stopping System Message Bus ... [ ok ]
+ * Stopping busybox syslog ... [ ok ]
+ * Unmounting loop devices
+ * Unmounting filesystems
+ *   Unmounting /run/user/10000 ... [ ok ]
+ *   Unmounting /boot ... [ ok ]
+ * Saving the shutdown time ... [ ok ]
+ * Setting hardware clock using the system clock [UTC] ... [ ok ]
+ * Stopping udev ... [ ok ]
+ * Terminating remaining processes ... [ ok ]
+ * Killing remaining processes ... [ ok ]
+ * Clock skew detected!
+ * Saving dependency cache ... [ ok ]
+ [ ok ]
+ * Remounting remaining filesystems read-only ... *   Remounting / read only ... [ ok ]
+ [ ok ]
+The system is going down NOW!
+Sent SIGTERM to all processes
+Sent SIGKILL to all processes
+Requesting system poweroff
+[ 1036.519665] reboot: Power down
+#+end_example
+
+* Conclusion
+
+I am excited about trying the [[https://wiki.pine64.org/index.php/PinePhone#Operating_Systems][PinePhone compatible operating systems]]. It will be interesting, since I am going to need to find an operating system that is sufficient for every day use since my Nexus 6p is finally dead. I guess am one step closer now in de-googling my life.
+
+You are done. The rest of the content below is linked from above.
+
+* Remove SSH key
+I am not comfortable with someone else's SSH key left on my device, even if it is a factory test program that I will likely be removing soon. What if the device connected to a nearby insecure WiFi while running the factory tests? It might be possible for a nefarious person or program to use the known SSH key to gain control of my phone. To be safe, I am going to remove the directory and the SSH key contained within. If I really want to connect to my phone via SSH while the /factory test/ program is running, I can create myself a new private key and start ~sshd~.
+#+begin_src 
+pine64-pinephone:~$ rm -rf .ssh
+#+end_src
+
+* Shutdown sshd
+As long as I have the factory test installed, I do not want the SSH daemon running as it poses an unnecessary risk. If, at some point in the future, I want to run ~sshd~ on my phone, I can do so with my own user and authorized SSH key.
+
+#+begin_src sh
+pine64-pinephone:~$ sudo rc-service sshd stop
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+  * Stopping sshd ...
+   [ ok ]
+  pine64-pinephone:~$ 
+#+end_example
+
+#+begin_src sh
+  pine64-pinephone:~$ sudo rc-update delete sshd
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+  * service sshd removed from runlevel default
+#+end_example
+
+* Change demo user password
+#+begin_src sh
+pine64-pinephone:~$ passwd demo
+#+end_src
+
+#+RESULTS: 
+
+#+begin_example
+Changing password for demo.
+Current password: 
+New password: 
+Retype new password: 
+passwd: password updated successfully
+#+end_example
