@@ -6,7 +6,7 @@
 #+HUGO_SECTION: post
 #+HUGO_DRAFT: false
 #+HUGO_CATEGORIES: Mobile
-#+HUGO_TAGS: pinephone emacs serial
+#+HUGO_TAGS: pinephone emacs tty
 #+HUGO_AUTO_SET_LASTMOD: true
 #+startup: showeverything
 #+options: d:(not "notes")
