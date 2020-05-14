@@ -1,0 +1,82 @@
+#+TITLE: Appendix
+#+author: Trevor Wilson
+#+email: trevor.wilson@bloggerbust.ca
+#+DATE: 2020-05-10T12:54:23Z
+#+HUGO_BASE_DIR: ../../
+#+HUGO_SECTION: page
+#+HUGO_DRAFT: false
+#+HUGO_CATEGORIES: Supplemental
+#+HUGO_TAGS: emacs key_bindings serial uart
+#+HUGO_AUTO_SET_LASTMOD: true
+#+startup: showeverything
+#+options: d:(not "notes")
+#+options: toc:2
+
+This is where I am going to keep supplemental material that might be useful to reference from multiple pages.
+
+* Key-binding notation
+
+I follow the [[https://www.gnu.org/software/emacs/manual/html_node/efaq/Basic-keys.html#Basic-keys][emacs key-binding nation]] when representing keybindings in text. You might be use to seeing =CTRL-A= to represent holding down the control key followed by the letter =a=, but in my writings you will see =C-a= to represent the same. In that context, the =<CTRL>= key is being used as a prefix to a key-binding. The other key-binding prefix is the =<Meta>= key. In short, I use:
+- =C-<key>= :: Hold the =<Control>= key followed by =<key>=
+- =M-<key>= :: Hold the =<Meta>= key followed by =<key>=
+- =<key> [<key> ...]= :: a sequence of key presses
+
+Most computers today do not have an actual =<Meta>= key. Instead, the =<Meta>= key is mapped to either =<ESC>= or =<ALT>=. For named keys other than prefix keys, such as =<TAB>= or =<F1>= I will simply write the name in angle brackets. 
+
+** Examples
+- =C-c h= :: Open the meta-help buffer
+- =C-c h i= :: Open the info documentation buffer
+- =M-x= :: execute emacs command
+- =<RET>= :: The ENTER or RETURN key.
+- =<ESC>= :: The ESC (escape) key
+- =<ALT>= :: The ALT key
+- =<DEL>= :: The DELETE key
+- =<Backspace>= :: The BACKSPACE key
+
+* Serial Communication
+
+** Comm Parameters
+A serial connection will fail to be established if the correct [[*Line Speed][line speed]] is not provided to the client program that is initiating the connection. Some client programs can be configured to try and guess the line speed. That is useful for hacking a device that you are unfamiliar with, but it is generally not recommended. The established connection might not be stable and the reason will become more clear when you read about the [[*Stopbit Time][stopbit time]]. To find out if your client has this capability consult its corresponding /man page/ or /info/ documentation.
+
+| Parameter    | Example Value |
+|--------------+---------------|
+| Port         |  /dev/ttyUSB0 |
+| baud rate    |        115200 |
+| bit rate     |             8 |
+| Parity       |             n |
+| stopbit time |             1 |
+
+*** Port
+The */port/* is the special file name providing an interface to the character =I/O= device.
+
+*** Baud rate
+The */baud rate/*, often referred to as /speed/ or /flow rate/, represents the number of signal units transmitted per second.
+
+*** Bit rate
+The */bit rate/*, often referred to as /data bits/, represents the number of bits transmitted per unit. A typical bit rate is 7 or 8 since 8-bits can represent the entire ASCII character set. 
+
+*** Parity
+The */parity/* bit may be set to odd (=o=), even (=e=), mark (=m=), space (=s=) or none (=n=). The mark and space parity bits are used in special circumstances where the parity bit position is /sticky/. A /stick bit/ is a bit that never changes value. When a sticky bit is in the position normally reserved for the parity bit, but not used for parity, then that bit is called a /sticky parity bit/. If the sticky parity bit is 1, then it is more accurately the /mark parity bit/ (=m=), otherwise it is the /space parity bit/ (=s=). Some terminals do not allow 9 data bits, in such cases the /parity/ must be none (=n=) when using 8-bit character sets.
+
+*** Stopbit Time
+Serial communication is asynchronously in that there is no external clock synchronizing communication between the transmitter and the receiver. It is as if the receiver is reading bits looking through a sliding window that moves one bit position every time the receiver's clock ticks. Similarly, the sender has its own clock that it uses to change signal state once every tick. The important point is that the sender and receiver are not aware of each others clocks.
+
+For this protocol to reliably work a mechanism is needed to ensure that the bits meant for one byte do not bleed into the bits meant for another byte. Moreover, when representing a byte, not all devices order bits in the same direction. The bit order of a byte is referred to as its endianness. The expected endianness must be included within the transmission to ensure that the receiver does not invert the intended byte. Finally, the transmission protocol does not include a bit delimiter of any kind. A sequence of 1s is represented by an uninterrupted negative voltage (-12 V) signal. Similarly, a sequence of 0s is represented by an uninterrupted positive voltage (+12 V) signal. It is the tick count of the transmission during sampling that determines how many 1s or how many 0s are interpreted by the signal. This is all achieved by adding just two extra bits called the */start bit/* and the */stop bit/* to the unit prior to transmission.
+
+Naturally, the start bit always marks the beginning of transmission and encodes the Endianness of the subsequent bits. As the receiver's clock ticks the signal is sampled multiple times thereby calculating the number of bits received for each change in voltage. Finally, when the end bit is received, transmission of the byte is terminated. The start and stop bits are said to frame the byte and without which synchronization would not be possible.
+
+You might be wondering why the stopbit shows up in the list of parameters, but not the start bit. [[https://en.wikipedia.org/wiki/Asynchronous_serial_communication#Origin][The reason appears to be a matter of backwards compatibility]]. Early electromechanical teletypewriters required 2 stop bits to allow mechanical impression without buffering while interfacing with their mechanical predecessors. That is because the fully mechanical teleprinters used a stop period of 1.5 bit times, hence the reason the parameter is referred to as */stopbit time/*.
+
+** Line Speed
+/*Line speed*/ typically has the form =<baud rate><bit rate><parity><stopbit time>= or something recognizably close to that. Given the example [[*Comm Parameters][Comm Parameters]], the line speed can be represented in this form by: =1152008n1=. A serial connection will fail to be establish if you do not provide the correct line speed.
+
+** Additional Reading
+- [[http://www.linusakesson.net/programming/tty/][The TTY Demystified]]
+- [[https://www.tldp.org/HOWTO/Serial-HOWTO.html][Serial HOWTO]]
+  - [[https://www.tldp.org/HOWTO/Serial-HOWTO-18.html][18. What are UARTs? How Do They Affect Performance?]]
+  - [[https://www.tldp.org/HOWTO/Serial-HOWTO-20.html][20. Voltage Waveshapes]]
+    - [[https://www.tldp.org/HOWTO/Serial-HOWTO-20.html#ss20.3][Parity Explained]]
+    - [[https://www.tldp.org/HOWTO/Serial-HOWTO-20.html#ss20.4][Forming a Byte (Framing)]]
+    - [[https://www.tldp.org/HOWTO/Serial-HOWTO-20.html#ss20.5][How "Asynchronous" is Synchronized]]
+- [[https://en.wikipedia.org/wiki/Asynchronous_serial_communication][Asynchronous Serial Communication]]
+- [[https://en.wikipedia.org/wiki/Parity_bit][Parity bit]]

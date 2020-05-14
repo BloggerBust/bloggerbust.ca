@@ -5,6 +5,8 @@
 #+HUGO_BASE_DIR: ../../
 #+HUGO_SECTION: post
 #+HUGO_DRAFT: false
+#+HUGO_CATEGORIES: Mobile
+#+HUGO_TAGS: pinephone emacs serial
 #+HUGO_AUTO_SET_LASTMOD: true
 #+startup: showeverything
 #+options: d:(not "notes")
@@ -66,7 +68,7 @@ crw-rw---- 1 root uucp 188, 0 Mar 24 06:16 /dev/ttyUSB0
 
 The output from ~ls~ tells us that we need to be in the ~uucp~ group. We will use the ~groups~ command to find out if my user is already of member of ~uucp~.
 #+begin_src sh :results output scalar :shebang "#!/bin/bash" :wrap example
-  groups dustfinger
+  groups $USER
 #+end_src
 
 #+RESULTS:
@@ -77,7 +79,7 @@ The output from ~ls~ tells us that we need to be in the ~uucp~ group. We will us
 
 Since my user is not a member of the ~uucp~ group, I will add the group membership using ~gpasswd~.
 #+begin_src sh :results output scalar :shebang "#!/bin/bash" :wrap example
-sudo gpasswd -a dustfinger uucp
+sudo gpasswd -a $USER uucp
 #+end_src
 
 #+RESULTS:
