@@ -1,0 +1,69 @@
+#+AUTHOR: Trevor Wilson
+#+EMAIL: trevor.wilson@bloggerbust.ca
+#+TITLE: "Let SOcket CAT Be Thy Glue Over Serial"
+#+DATE: 2020-05-14T12:10:42Z
+#+HUGO_BASE_DIR: ../../
+#+HUGO_SECTION: post
+#+HUGO_DRAFT: false
+#+HUGO_CATEGORIES: serial
+#+HUGO_TAGS: tty uart
+#+HUGO_AUTO_SET_LASTMOD: true
+#+startup: showeverything
+#+options: d:(not "notes")
+
+* Introduction
+
+I previously wrote [[file:how-to-configure-minicom-to-connect-over-usb-serial-uart.org][how to configure minicom to connect to a device over serial UART]]. In that post I mentioned that [[https://bloggerbust.ca/post/how-to-configure-minicom-to-connect-over-usb-serial-uart/#minicom-might-not-be-the-best-tool-for-the-job][minicom might not be the best tool for the job]]. Consider that ~minicom~ is adding a lot of unnecessary complexity. If you think about it, we are taking a command line utility intended for communicating with modems, stripping all that functionality away so that we are left with nothing more than a terminal emulator that knows how to connect to a foreign =TTY=. Yet, we are probably running ~minicom~ from a perfectly capable terminal emulator such as ~xterm~. All we need is a way of connecting our terminal emulator to the target serial port in raw mode. As long as the device side is running a login on the receiving end, we can simply let our terminal emulator do what it was designed for.
+
+* Introducing SOcket CAT
+
+With SOcket CAT (see [[https://linux.die.net/man/1/socat][socat(1)]]) we can connect a serial port to a terminal emulator in raw mode.
+
+#+begin_src sh
+  socat -,rawer /dev/ttyUSB0,b115200,rawer
+#+end_src
+
+SOcket Cat relays two bidirectional byte streams given their /address specifications/. The order of the address specifications is irrelevant. The following command is equivalent:
+
+#+begin_src sh
+  socat /dev/ttyUSB0,b115200,rawer -,rawer
+#+end_src
+
+Consider the address specification which targets the =standard I/O= of the client side emulator:
+#+begin_example
+  -,rawer
+#+end_example
+
+The hyphen at the beginning is actually an alias for the address type =STDIO=.  Some address types take /parameters/ delimited by a =:=. The comma separated list that follows are the address /options/. Address options are defined in /option groups/. =STDIO= accepts options from the /FD, TERMIOS, REG, SOCKET/ option groups. The ~rawer~ address option is defined in the /TERMIOS/ option group. It initializes the line discipline in raw mode and implicitly turns off /echo/.
+
+Now consider the second address specification.
+#+begin_example
+  /dev/ttyUSB0,b115200,rawer
+#+end_example
+
+There is a rule that if a forward slash is found before the first colon or comma of an address specification, then the address type implicitly defaults to =GOPEN= (Generic file Open) and accepts the (FD, REG, SOCKET, NAMED and OPEN) option groups. In other words, =/dev/ttyUSB0= is an address parameter to =GOPEN=. After that the address option list begins. The first address option, =b115200/=, sets the /baud rate/ to 115200. The second address option, which we are already familiar with, causes the =/dev/ttyUSB0/= to be initialized in raw mode and implicitly turns off /echo/.
+
+You might be wondering how /rawer/ is a valid option since it is defined in the TERMIOS option group and TERMIOS was not listed as one of the option groups available to =GOPEN=. In fact, the /baud rate/ option is also from TERMIOS. SOcket CAT makes an exception for addresses that work on a =TTY= by making the /TERMIOS/ option group available.
+
+If you prefer to avoid aliases and implicit address types, then the following command is equivalent.
+
+#+begin_src sh
+  socat STDIO,rawer GOPEN:/dev/ttyUSB0,b115200,rawer
+#+end_src
+
+* The nmtui test
+
+I wanted to confirm that using ~socat~ as the glue between serial and =STDIO= byte streams would in fact allow me to run ncurses applications without garbling the display. To test this out, I connected my PinePhone to =/dev/ttyUSB0=, opened an ~xterm~ session and then ran the aforementioned ~socat~ command.
+
+[[/post/let-socket-cat-be-thy-glue-over-serial/login-over-serial-uart-from-xterm-socat-raw.png]]
+
+Since my PinePhone was already booted at the time of connection, there was no login prompt waiting to greet me. I simply typed my username into the blank space and hit =<RET>=, then the I was prompted for a password. After I successfully signed into my shell account, I ran ~nmtui~ and it displayed on my screen without any undesirable artifacts.
+
+[[/post/let-socket-cat-be-thy-glue-over-serial/nmtui-over-serial-uart-from-xterm-socat-raw.png]]
+
+My PinePhone is running postmarketOS with ~ash~ as the login shell. I configured the serial port of the PinePhone to use =linux= /terminfo/ so that I can run colour displays.
+
+* Conclusion
+My motivation to use ~minicom~ to connect with my PinePhone over serial was stemed by the fact that I was using it anyway to configure the PinePhone's modem. I thought that it would be convenient to use this one tool to connect to the PinePhone and configure the modem. However, ~SOcket CAT~ makes it so easy to connect over serial UART that unless you have a good reason to use something else, I think you should consider letting SOcket CAT be your default glue.
+
+Next I will be posting about setting up [[https://postmarketos.org/][postmarketOS]] with [[https://www.plasma-mobile.org/][Plasma Mobile]] and manually configuring [[https://01.org/ofono][oFono]] for my SIM.
