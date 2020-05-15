@@ -57,7 +57,7 @@ I wanted to confirm that using ~socat~ as the glue between serial and =STDIO= by
 
 [[/post/let-socket-cat-be-thy-glue-over-serial/login-over-serial-uart-from-xterm-socat-raw.png]]
 
-Since my PinePhone was already booted at the time of connection, there was no login prompt waiting to greet me. I simply typed my username into the blank space and hit =<RET>=, then the I was prompted for a password. After I successfully signed into my shell account, I ran ~nmtui~ and it displayed on my screen without any undesirable artifacts.
+Since my PinePhone was already booted at the time of connection, there was no login prompt waiting to greet me. I simply typed my username into the blank space and hit =<RET>=. At that point the password prompt was displayed as bytes were received by SOcket CAT and relayed through standard output of my ~xterm~ session. After I successfully signed into my shell account, I ran ~nmtui~ and it displayed on my screen without any undesirable artifacts.
 
 [[/post/let-socket-cat-be-thy-glue-over-serial/nmtui-over-serial-uart-from-xterm-socat-raw.png]]
 
