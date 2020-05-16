@@ -51,6 +51,20 @@ If you prefer to avoid aliases and implicit address types, then the following co
   socat STDIO,rawer GOPEN:/dev/ttyUSB0,b115200,rawer
 #+end_src
 
+* Interrupting SOcket CAT
+At some point you will want to leave your SOcket CAT relayed serial connection. You might try =^C= which is the default way to interrupt the foreground job. However, the byte will not be interpreted by terminal emulation on the client side, but instead will be passed through interrupting the foreground process on the device side. There are many ways to achieve the desired behaviour. The SOcket CAT man page (see [[https://linux.die.net/man/1/socat][socat(1)]]) recommends using the /escape/ address option from the /APPLICATION option group/. The ~escape~ option accepts a keysym hex code identifying a key that when pressed will send an =EOF= to the input stream thus ending the relay.
+
+#+begin_src sh
+socat -,rawer,escape=0x0f /dev/ttyUSB0,b115200,rawer
+#+end_src
+
+The key identified by =0x0f= is =C-o=. To get a complete list of keysyms known by [[http://man7.org/linux/man-pages/man1/loadkeys.1.html][loadkeys(1)]] run ~dumpkeys -l~. If you ever forget to include the escape option, then you can still interrupt ~socket~ from another terminal by sending ~SIGINT~ (see [[http://man7.org/linux/man-pages/man7/signal.7.html][signal(7)]]) via [[http://man7.org/linux/man-pages/man1/kill.1.html][kill(1)]] given the /pid/ (Process ID). You can get the pid using [[http://man7.org/linux/man-pages/man1/pidof.1.html][pidof(1)]].
+
+With ~socat~ running in one terminal, open a second terminal and run the following command to signal ~socat~ with ~SIGINT~.
+#+begin_src sh
+  kill -2 `pidof socat`
+#+end_src
+
 * The nmtui test
 
 I wanted to confirm that using ~socat~ as the glue between serial and =STDIO= byte streams would in fact allow me to run ncurses applications without garbling the display. To test this out, I connected my PinePhone to =/dev/ttyUSB0=, opened an ~xterm~ session and then ran the aforementioned ~socat~ command.
