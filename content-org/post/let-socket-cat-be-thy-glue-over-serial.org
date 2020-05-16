@@ -52,7 +52,7 @@ If you prefer to avoid aliases and implicit address types, then the following co
 #+end_src
 
 * Interrupting SOcket CAT
-At some point you will want to leave your SOcket CAT relayed serial connection. You might try =^C= which is the default way to interrupt the foreground job. However, the byte will not be interpreted by terminal emulation on the client side, but instead will be passed through interrupting the foreground process on the device side. There are many ways to achieve the desired behaviour. The SOcket CAT man page (see [[https://linux.die.net/man/1/socat][socat(1)]]) recommends using the /escape/ address option from the /APPLICATION option group/. The ~escape~ option accepts a keysym hex code identifying a key that when pressed will send an =EOF= to the input stream thus ending the relay.
+At some point you will want to leave your SOcket CAT relayed serial connection. You might try =^C= which is the default way to interrupt the foreground job. However, the byte will not be interpreted by terminal emulation on the client side, but instead will be passed through interrupting the foreground process on the device side. There are many ways to achieve the desired behaviour. The SOcket CAT man page (see [[https://linux.die.net/man/1/socat][socat(1)]]) recommends using the /escape/ address option from the /APPLICATION option group/. The ~escape~ option accepts a keysym hex code identifying a key that, when pressed, will send an =EOF= to the input stream thus ending the relay.
 
 #+begin_src sh
 socat -,rawer,escape=0x0f /dev/ttyUSB0,b115200,rawer
