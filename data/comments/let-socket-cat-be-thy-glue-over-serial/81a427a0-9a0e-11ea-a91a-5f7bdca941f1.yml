@@ -1,0 +1,5 @@
+_id: 81a427a0-9a0e-11ea-a91a-5f7bdca941f1
+name: 'N'
+email: 044dddc244f154f4be95f247eaae03b6
+message: "I've always found minicom cumbersome. For the past decade my goto has been GNU screen:\r\nscreen /dev/ttyUSB0 115200 8N1\r\nAs an added bonus screen supports logging too."
+date: 1589919768
