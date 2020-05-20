@@ -135,7 +135,7 @@ Use the down arrow to select /Serial Port Setup/ and hit =<RET>=.
 If you do not know what =8N1= means, then please read my brief write up on [[https://bloggerbust.ca/page/appendix/#serial-communication][serial communication]] before proceeding.
 
 1. Type =A= to edit the Serial Device and change the port to the correct value, which is =/dev/ttyUSB0/= in my case.
-2. Type =E= to enter the */[[file:/shared/dustfinger/dev/org-publish/bloggerbust.ca/content-org/page/appendix.org::*Line Speed][line speed]]/* required by your device.
+2. Type =E= to enter the */[[https://bloggerbust.ca/page/appendix/#line-speed][line speed]]/* required by your device.
    [[/post/how-to-configure-minicom-to-connect-over-usb-serial-uart/minicom-configuration-serial-port-comm-parameters.png]]
 
    Setting the line speed should be self explanatory. The UI is divided into columns. The first three columns represent each of the [[https://bloggerbust.ca/page/appendix/#comm-parameters][comm parameters]] encoded in the line speed. The fifth column provides key bindings to set the two most common Parity, Data and Stopbit combinations. The most common baud rates (speeds) have quick keys =C= --> 9600, =D= --> 38400, =E= --> 115200. Since the line speed of my PinePhone is =1152008n1= I can keep the default value. However, if I needed to set it, the fastest way would be to type =E Q <RET>=.
