@@ -1,0 +1,5 @@
+_id: 0ba1f130-9ad7-11ea-820e-0b97815b97b9
+name: Trevor Wilson
+email: 79ad80bd825ee2d3d91b885caa22bf1f
+message: "Hi N!,\r\n\r\nThanks for commenting. Screen is a popular choice. Many people use Screen simply because it is a terminal multiplexer. \r\n\r\n SOcket CAT provides command line options which facilitate logging, although I have not experimented with them yet. By default, SOcket CAT writes messages to stderr. The -v option tells SOcket CAT to write transferred data to stderr in addition to the target stream. The -lf option accepts a path to a file that will cause SOcket CAT to write messages to the named file instead of stderr. I suspect that combining these optional parameters will allow one to log not only SOcket CAT messages, but also the output from the interactive terminal session. I will test this out when I am not busy with work and let you know what I can come up with.\r\n\r\n Cheers!"
+date: 1590005899
