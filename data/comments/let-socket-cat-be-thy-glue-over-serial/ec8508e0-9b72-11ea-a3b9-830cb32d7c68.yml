@@ -1,0 +1,5 @@
+_id: ec8508e0-9b72-11ea-a3b9-830cb32d7c68
+name: Trevor Wilson
+email: 79ad80bd825ee2d3d91b885caa22bf1f
+message: "Hi N!,\r\n\r\nI added a Logging section to demonstrate logging capabilities using a combination of SOcket CAT command line options and bash file descriptor manipulation. I would love to hear how that compares to Screen's logging capabilities."
+date: 1590072848
