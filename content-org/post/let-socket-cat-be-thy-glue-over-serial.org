@@ -104,7 +104,7 @@ Pictures       dialer.log     dialer.log.bk
 pine64-pinephone:~$ dustfinger@galactica ~ $
 #+end_example
 
-First, let's look at the contents of [[file:/shared/dustfinger/dev/org-publish/bloggerbust.ca/static/post/let-socket-cat-be-thy-glue-over-serial/socat.log][socat.log]]:
+First, let's look at the contents of [[https://bloggerbust.ca/post/let-socket-cat-be-thy-glue-over-serial/socat.log][socat.log]]:
 
 The file descriptor information is written before the transfer phase begins, so it will always be at the head of the file.
 #+INCLUDE: "../../static/post/let-socket-cat-be-thy-glue-over-serial/socat.log" example :lines "1-5"
@@ -115,7 +115,7 @@ Each key stroke was logged as they were both sent and received.
 The output from ~ls~ was transferred back to the client side.
 #+INCLUDE: "../../static/post/let-socket-cat-be-thy-glue-over-serial/socat.log" example :lines "12-16"
 
-There was quite a bit of information logged to [[file:/shared/dustfinger/dev/org-publish/bloggerbust.ca/static/post/let-socket-cat-be-thy-glue-over-serial/socat_debug.log][socat_debug.log]]. I will only show six lines of output below:
+There was quite a bit of information logged to [[https://bloggerbust.ca/post/let-socket-cat-be-thy-glue-over-serial/socat_debug.log][socat_debug.log]]. I will only show six lines of output below:
 #+INCLUDE: "../../static/post/let-socket-cat-be-thy-glue-over-serial/socat_debug.log" example :lines "202-208"
 
 I ended the session by sending a ~SIGINT~ to the ~socat~ process. You can see in the diagnostic logging when ~socat~ receives the signal and then handles it by [[https://www.tldp.org/LDP/abs/html/exitcodes.html][exiting with code 130]].
