@@ -77,6 +77,51 @@ Since my PinePhone was already booted at the time of connection, there was no lo
 
 My PinePhone is running postmarketOS with ~ash~ as the login shell. I configured the serial port of the PinePhone to use =linux= /terminfo/ so that I can run colour displays.
 
+* Logging
+
+In the comments section, N mentioned that [[https://www.gnu.org/software/screen/manual/screen.html#Logging][Screen is capable of logging]]. [[https://www.gnu.org/software/screen/manual/screen.html#Overview][Screen is a multiplexer]] that can be used to connect to login sessions over serial. I wanted to find out what options there are for logging when using SOcket CAT. In [[https://linux.die.net/man/1/socat][socat(1)]] there is an /OPTIONS/ section that describes command line options for modifying the behaviour of ~socat~. After reading that section, I was able to log diagnostic information to =~/dev/log/socat_debug.log= and transfer data to =~/dev/log/socat.log=. Let's take a look at the command for doing this:
+
+#+begin_src sh
+  socat -v -D -d -d -d -d -lh -lf ~/dev/log/socat_debug.log -,rawer,escape=0x0f /dev/ttyUSB0,b115200,rawer 2>~/dev/log/socat.log
+#+end_src
+
+Options that affect transfer data logging:
+- ~-v~ :: writes transfer data to ~stderr~ using =>= and =<= prefixes to indicate direction
+- ~-D~ :: Log file descriptor information
+- ~2>~/dev/log/socat.log~ :: Redirect ~stderr~ to =/dev/log/socat.log=
+
+Options that affect diagnostic logging
+- ~-d~ :: Increase the level of diagnostic logging. When absent, only errors are logged.
+- ~-lh~ :: Add hostname to diagnostic messages.
+- ~-lf ~/dev/log/socat_debug.log~ :: Write diagnostic messages to named log file
+
+To demonstrate, I connected to my PinePhone using the above SOcket CAT command. A login session was already running, so there was no need for me to sign in. I ran ~ls~ as soon as the connection was established and then exited the session by sending a ~SIGINT~ to the ~socat~ process.
+
+#+begin_example
+dustfinger@galactica ~ $ socat -v -d -d -d -d -lf ~/dev/log/socat_debug.log -,rawer,escape=0x0f /dev/ttyUSB0,b115200,rawer 2>~/dev/log/socat.log
+ls
+Pictures       dialer.log     dialer.log.bk
+pine64-pinephone:~$ dustfinger@galactica ~ $
+#+end_example
+
+First, let's look at the contents of [[file:/shared/dustfinger/dev/org-publish/bloggerbust.ca/static/post/let-socket-cat-be-thy-glue-over-serial/socat.log][socat.log]]:
+
+The file descriptor information is written before the transfer phase begins, so it will always be at the head of the file.
+#+INCLUDE: "../../static/post/let-socket-cat-be-thy-glue-over-serial/socat.log" example :lines "1-5"
+
+Each key stroke was logged as they were both sent and received.
+#+INCLUDE: "../../static/post/let-socket-cat-be-thy-glue-over-serial/socat.log" example :lines "5-12"
+
+The output from ~ls~ was transferred back to the client side.
+#+INCLUDE: "../../static/post/let-socket-cat-be-thy-glue-over-serial/socat.log" example :lines "12-16"
+
+There was quite a bit of information logged to [[file:/shared/dustfinger/dev/org-publish/bloggerbust.ca/static/post/let-socket-cat-be-thy-glue-over-serial/socat_debug.log][socat_debug.log]]. I will only show six lines of output below:
+#+INCLUDE: "../../static/post/let-socket-cat-be-thy-glue-over-serial/socat_debug.log" example :lines "202-208"
+
+I ended the session by sending a ~SIGINT~ to the ~socat~ process. You can see in the diagnostic logging when ~socat~ receives the signal and then handles it by [[https://www.tldp.org/LDP/abs/html/exitcodes.html][exiting with code 130]].
+
+I am not sure how the logging capabilities I have demonstrated here compare to what Screen is capable of. I use to use Screen years ago, but since I have embraced ~Emacs~ as both my editor and windows manager I have very little need for a multiplexer. A serial line sniffer [[https://linux.die.net/man/1/slsnif][such as slsnif]] can also be used to log information from a serial connection.
+
 * Conclusion
 My motivation to use ~minicom~ to connect with my PinePhone over serial was stemed by the fact that I was using it anyway to configure the PinePhone's modem. I thought that it would be convenient to use this one tool to connect to the PinePhone and configure the modem. However, ~SOcket CAT~ makes it so easy to connect over serial UART that unless you have a good reason to use something else, I think you should consider letting SOcket CAT be your default glue.
 
