@@ -1,0 +1,2893 @@
+#+author: Trevor Wilson
+#+email: trevor.wilson@bloggerbust.ca
+#+title: "Install And Configure PostmarketOS With Plasma Mobile"
+#+date: 2020-06-07T08:04:14Z
+#+HUGO_BASE_DIR: ../../
+#+HUGO_SECTION: post
+#+HUGO_DRAFT: false
+#+HUGO_CATEGORIES: Mobile
+#+HUGO_TAGS: pinephone postmarketOS plasma_mobile
+#+HUGO_AUTO_SET_LASTMOD: true
+#+startup: showeverything
+#+options: d:(not "notes")
+
+* Introduction
+In this post I will install PostmarketOS + Plasma Mobile. At the time of this writing many Plasma Mobile features are either not fully integrated or not working at all. I will be focusing on the configuring postmarketOS so that by the end of this post you should be able to make phone calls and both send and receive SMS. I will also delve into extra detail on subjects that I find interesting or that I think might be helpful for you to know when trouble shooting issues.
+
+You might notice that sometimes I add ~env TEMP=/dev/tmp~ to the beginning of some commands. That is because my ~temp~ directory is not executable. You most likely will not need to do the same.
+
+* What not to post online
+It is common for people to innocently reveal information that they shouldn't when seeking help online. After all, the very fact that they are asking for help indicates that they lack some level of knowledge, which is fine, we all need to begin our journey of learning somehow and asking questions is a great starting point. Sometimes people reveal information that can cause them serious trouble.
+
+*Always* redact the following details from command line output, screen shots, configuration files, and written text that you share with others when seeking help or for any other reason. In the words of Gandalf the Grey - Keep it secret, keep it safe!
+
+- IMSI :: It is imperative that you never reveal your phone's [[https://en.wikipedia.org/wiki/International_mobile_subscriber_identity][International Mobile Subscriber Identity]] to anyone.
+- Private Cryptographic Keys ::
+
+It is a very good idea to to not share the following information with anyone that you do not fully trust:
+- IP Address :: In particular your devices external IP Addresses, but I also redact or conceal information about the topology of my home network.
+- LUKS Header :: Do not post your LUKS header because it provides an attacker with one piece of the puzzle to decrypt an encrypted volume
+
+Information you might want to keep private because they could be used to leak some information about you
+- ICCID :: Integrated Circuit Card Identifier can be used to identify the country and possibly the mobile network that the card was manufactured for.
+
+If you take photos of your SIM, you should know that many SIM cards have the /IMSI/ printed on their casing. It is also easy to take photos of serial numbers uniquely identifying your hardware such as the Pine Phone's modem. This section is by no means complete, I include it simply to raise awareness. 
+* Setting up the build environment
+** Ensure =~/.local/bin= exists
+Check that you have a =~/.local/bin= directory. If it does not exist, then create it using [[https://www.freedesktop.org/software/systemd/man/file-hierarchy.html#Home%20Directory][file-hierarchy man(7)]] as a guide. Below is the first level directory hierarchy of my =~/.local/= path, including group and owner permissions:
+#+begin_src sh :results output scalar replace :shebang "#!/bin/bash" :wrap example
+  tree --noreport -L 1 -pudg ~/.local
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+/home/dustfinger/.local
+├── [drwxr-x--- dustfinger dustfinger]  bin
+├── [drwx------ dustfinger dustfinger]  lib64
+├── [drwx------ dustfinger dustfinger]  share
+└── [drwx------ dustfinger dustfinger]  var
+#+end_example
+
+If the following command returns a 0, then you will need to add =~/.local/bin= to your path at the user session level:
+#+begin_src sh :results output scalar replace :shebang "#!/bin/bash" :wrap example
+  echo $PATH | grep -ci '\.local/bin'
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+1
+#+end_example
+
+Exactly how you do this in a persistent way depends on the shell being used. In general, you will need to set =$PATH= in one of the following files: =~/.profile=, =~/.<shell>_profile=, =~/.<shell>_login=. For example, if you are using /Bash/, then you can simply add the following to the bottom of =~/.bash_profile=.
+
+#+begin_example
+  PATH=$PATH:~/.local/bin/
+#+end_example
+
+After that, run ~source ~/bash_profile~ in each of your open shells. The next time you login, it will be sourced automatically.
+
+** Install or clone pmbootstrap
+
+You have two choices. You can install pmbootstrap using pip by following [[https://wiki.postmarketos.org/wiki/Installing_pmbootstrap#Installing_automatically][these instructions]], or you can [[https://wiki.postmarketos.org/wiki/Installing_pmbootstrap#Installing_manually][clone the pmbootstrap repository and link to the executable]]. I chose to clone the repository and link to the executable. There are two reasons for this: it will make it easier for me to debug the code and contribute to the project if I choose to, and I find that having the source code on my local system makes it more convenient to use as a reference.
+
+#+begin_src sh
+  cd ~/dev
+  git clone https://gitlab.com/postmarketOS/pmbootstrap.git
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+  Cloning into 'pmbootstrap'...
+  remote: Enumerating objects: 1461, done.
+  remote: Counting objects: 100% (1461/1461), done.
+  remote: Compressing objects: 100% (443/443), done.
+  remote: Total 18404 (delta 1132), reused 1248 (delta 1011), pack-reused 16943
+  Receiving objects: 100% (18404/18404), 6.90 MiB | 3.03 MiB/s, done.
+  Resolving deltas: 100% (11560/11560), done.
+#+end_example
+
+Now add a link to the pmbootstrap script from your =~/.local/bin= directory.
+#+begin_src sh :results output scalar replace :shebang "#!/bin/bash" :wrap example :dir ~/dev
+  ln -s "$PWD/pmbootstrap/pmbootstrap.py" ~/.local/bin/pmbootstrap
+  ls -lah ~/.local/bin/pmbootstrap
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+lrwxrwxrwx 1 dustfinger dustfinger 47 May 24 06:55 /home/dustfinger/.local/bin/pmbootstrap -> /home/dustfinger/dev/pmbootstrap/pmbootstrap.py
+#+end_example
+
+At the time of this article the commit for the master branch of pmbootstrap was:
+
+#+begin_src sh :results output scalar replace :shebang "#!/bin/bash" :wrap example
+  cd ~/dev/pmbootstrap
+  git rev-parse HEAD
+  pmbootstrap --version
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+445410d08c56a1fd2093ce2c0dda55ba2ac805de
+1.20.0
+#+end_example
+
+Run ~pmbootstrap --help~ for CLI documentation.
+
+** Clone pmaports
+Cloning /pmaports/ is entirely optional. If you do not perform this step, then pmbootstrap will clone pmaports into its local git cache. I prefer to keep all source repositories in one place, i.e. =~/dev=. For that reason, and for the same reasons that I chose to clone pmbootstrap, I will now clone pmaports.
+
+#+begin_src sh :results output scalar replace :shebang "#!/bin/bash" :wrap example
+  cd ~/dev
+  git clone https://gitlab.com/postmarketOS/pmaports.git
+#+end_src
+
+At the time of this article the commit has for the master branch of pmaports was:
+
+#+begin_src sh :results output scalar replace :shebang "#!/bin/bash" :wrap example
+  cd ~/dev/pmaports
+  git rev-parse HEAD
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+a17a93102614fb2dba48cac2383b3e4280544241
+#+end_example
+
+* Initialize the pmbootstrap configuration for the pinephone
+Invoking ~pmbootstrap init~ will perform the following steps:
+
+1. Perform sanity checks and take actions if necessary
+2. Invoke initialize config subroutine
+3. If =~/.config/pmbootstrap.cfg= exists
+   1. load the config
+   2. set default values
+   3. remove invalid or outdated settings
+4. If config did not exist, load defaults
+5. Ask for work path
+   1. If path does not exist, create it
+   2. Create and set =/WORK_PATH/version=
+   3. Create =/WORK_PATH/cache_git=
+6. update config with work path setting and save =~/.config/pmbootstrap.cfg=.
+7. Perform version migration if necessary
+8. Clone pmaports
+   1. Get path to pmaports repository
+      1. If ~--aports~ optional parameter is provided, then create link =/WORK_PATH/cache_git/pmaports= targeting provided path
+      2. else use =/WORK_PATH/cache_git/pmaports=
+   2. If repository does not exist at path, then clone it
+9. Choose Release Channel
+10. Ask for vendor
+11. Ask for device code name
+12. Ask if it is okay to install non-free firmware
+13. Ask for username
+14. Ask for UI
+15. Ask for build options: Parallel jobs, ccache per arch.
+16. Ask for extra packages to be installed to rootfs
+17. Ask for timezone
+18. Ask for hostname
+19. Ask for SSH keys
+20. Save configuration
+21. Remove (zap) existing chroots. i.e. will remove /WORK_PATH/chroot_*
+
+The ~pmbootstrap init~ command runs interactively, storing inputs from the user in the pmbootstrap configuration file, i.e. =~/.config/pmbootstrap.cfg=. If the =pmbootstrap.cfg= already exists, then it will use the values contained within as defaults the next time you initialize pmbootstrap.
+
+I will walk through each user interaction of the pmbootstrap init sub command. Do not run this command with ~sudo~ or you will end up with incorrect ownership and permissions applied to the resulting artifacts. The command will use ~sudo~ internally and prompt you for credentials when required. Only provide the ~--aports~ optional parameter if you [[*Clone pmaports][cloned pmaports]] above.
+#+begin_src sh
+  env TEMP=~/dev/tmp/ pmbootstrap --aports=~/dev/pmaports init
+#+end_src
+
+Steps /1-4/ have been completed. We are now on step /5/. Hit =<RET>= keeping the default working directory.
+#+begin_example
+[11:04:02] Location of the 'work' path. Multiple chroots (native, device arch, device rootfs) will be created in there.
+[11:04:02] Work path [/home/dustfinger/.local/var/pmbootstrap]:
+#+end_example
+
+Steps /5-8/ have been completed. The working path has been created and now contains a =version= file, a =log.txt= file and a directory named =cache_git=.
+#+begin_src sh :results output scalar replace :shebang #!/bin/bash :wrap example
+tree --noreport -pug ~/.local/var/
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+/home/dustfinger/.local/var/
+└── [drwx------ dustfinger dustfinger]  pmbootstrap
+    ├── [drwx------ dustfinger dustfinger]  cache_git
+    ├── [-rw-r--r-- dustfinger dustfinger]  log.txt
+    └── [-rw-r--r-- dustfinger dustfinger]  version
+#+end_example
+
+We are now on step /9/. You will be asked to choose a postmarketOS release channel. At the time of writing there are two options, /stable/ and /edge/. Since stable is marked as a work in progress we will stick with the default channel which is edge.
+
+#+begin_example
+[11:05:22] NOTE: pmaports path: /home/dustfinger/dev/pmaports
+[11:05:22] Choose the postmarketOS release channel.
+[11:05:22] Available (2):
+[11:05:22] * edge: Rolling release channel
+[11:05:22] * stable: Upcoming beta release (WIP, DO NOT USE!)
+[11:05:22] Channel [edge]:
+#+end_example
+
+On step /10/ you will be asked to choose a vendor. Enter /pine64/ and hit =<RET>=.
+#+begin_example
+[11:06:12] Choose your target device vendor (either an existing one, or a new one for porting).
+[11:06:12] Available vendors (49): alcatel, amazon, asus, bq, chuwi, fairphone, finepower, fly, fujitsu, google, gp, hisense, htc, huawei, infocus, jolla, leeco, lenovo, lg, medion, meizu, motorola, nextbit, nobby, nokia, oneplus, oppo, ouya, pine64, planet, purism, qemu, raspberry, samsung, semc, sharp, sony, surftab, t2m, tablet, teclast, tokio, wiko, wileyfox, wingtech, xiaomi, yu, zte, zuk
+[11:06:12] Vendor [qemu]: pine64
+#+end_example
+
+Step /11/: You will be asked to enter a /device codename/; enter /pinephone/ and hit =<RET>=.
+#+begin_example
+[11:07:18] Available codenames (6): a64lts, dontbeevil, pinebookpro, pinephone, pinetab, rockpro64
+[11:07:18] Device codename: pinephone
+#+end_example
+
+Step /12/, if you would like to be able to use /Wifi/ and /Bluetooth/, then hit =<RET>= accepting the default choice to install the nonfree firmware.
+#+begin_example
+[11:10:14] This device has proprietary components, which trade some of your freedom with making more peripherals work.
+[11:10:14] We would like to offer full functionality without hurting your freedom, but this is currently not possible for your device.
+[11:10:14] device-pine64-pinephone-nonfree-firmware: Wifi and Bluetooth firmware
+[11:10:14] Enable this package? (y/n) [y]:
+#+end_example
+
+Step /13/, enter a username that you would like created for your phone and hit =<RET>=.
+#+begin_example
+[11:12:32] Username [user]: dustfinger
+#+end_example
+
+Step /14/, enter /plasma-mobile-extras/ and hit =<RET>=.
+#+begin_example
+[11:13:18] Available user interfaces (12):
+[11:13:18] * none: No graphical environment
+[11:13:18] * gnome: (Wayland) Gnome Shell (not for armhf)
+[11:13:18] * i3wm: (X11) Tiling WM (keyboard required)
+[11:13:18] * kodi: (Wayland) 10-foot UI useful on TV's
+[11:13:18] * mate: (X11) MATE Desktop Environment, fork of GNOME2 (stylus recommended)
+[11:13:18] * phosh: (Wayland) Mobile UI developed for the Librem 5 (works only with numeric passwords!)
+[11:13:18] * plasma-desktop: (X11/Wayland) KDE Desktop Environment (works well with tablets)
+[11:13:18] * plasma-mobile: (Wayland) Mobile variant of KDE Plasma (slow without hardware acceleration, allows only numeric passwords!)
+[11:13:18] * plasma-mobile-extras: Plasma Mobile with more apps pre-installed (video and music players, pdf reader, etc.)
+[11:13:18] * shelli: Plain console with touchscreen gesture support
+[11:13:18] * sway: (Wayland) Tiling WM, drop-in replacement for i3wm (DOES NOT RUN WITHOUT HW ACCELERATION!)
+[11:13:18] * weston: (Wayland) Reference compositor (demo, not a phone interface)
+[11:13:18] * xfce4: (X11) Lightweight GTK+2 desktop (stylus recommended)
+[11:13:18] User interface [weston]: plasma-mobile-extras
+#+end_example
+
+Step /15/, it is safe to choose the default by just hitting =<RET>=, but feel free to change this if you desire. The valid units for /ccache/ are: =K|M|G|T|Ki|Mi|Gi|Ti=. I kept with the defaults.
+
+#+begin_example
+[11:15:50] Build options: Parallel jobs: 9, ccache per arch: 5G
+[11:15:50] Change them? (y/n) [n]:
+#+end_example
+
+Step /16/, enter /ofonoctl,minicom/ with no space after the comma and hit =<RET>=. [[https://git.sr.ht/~martijnbraam/ofonoctl][The ofonoctl command]] is used to control [[https://01.org/ofono][the ofono daemon]] and [[https://salsa.debian.org/minicom-team/minicom][minicom]] is a serial communication program that we will use to send /AT commands/ to initialize the modem.
+#+begin_example
+[11:17:00] Additional packages that will be installed to rootfs. Specify them in a comma separated list (e.g.: vim,file) or "none"
+[11:17:00] Extra packages [none]: ofonoctl,minicom
+#+end_example
+
+Step /17/: pmbootstrap will attempt to detect the timezone from the host machine, but it might fail.
+#+begin_example
+[11:31:07] WARNING: Unable to determine timezone configuration on host, using GMT.
+#+end_example
+
+Pmbootstrap assumes that a symlink exists named either =/etc/zoneinfo/localtime= or =/etc/localtime= pointing to the timezone in =/usr/share/zoneinfo/=. Not all distributions have such a symlink. This is what the configuration looks like on my Gentoo host:
+
+#+begin_src sh :results output scalar replace :shebang #!/bin/bash :wrap example
+cat /etc/timezone
+ls -lah /etc/localtime
+file /etc/localtime
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+Canada/Mountain
+-rw-r--r-- 1 root root 2.3K Dec  6 05:55 /etc/localtime
+/etc/localtime: timezone data, version 2, 5 gmt time flags, 5 std time flags, no leap seconds, 150 transition times, 5 abbreviation chars
+#+end_example
+
+As you can see, Gentoo keeps the timezone in =/etc/timezone= and =/etc/localtime= is the actual timezone file rather than a symlink. If your timezone is not detected, then like me, you will have to set the timezone manually later.
+
+Step /18/: You can customize the hostname of your phone if you wish, or hit =<RET>= to accept the default. I am going to call my phone /Second Chance/ from Pter F. Hamilton's [[https://en.wikipedia.org/wiki/Commonwealth_Saga#Pandora's_Star][Pandora's Star]].
+#+begin_example
+  [11:31:07] Device hostname (short form, e.g. 'foo') [pine64-pinephone]: second-chance
+#+end_example
+
+Step /19/: You will now be asked if you wish to copy your SSH keys from your host machine to your PinePhone. If you choose /y/ here, then all files matching the pattern =~/.ssh/id_*.pub/= will be copied to =$HOME/.ssh/=. Perhaps you have public keys that you do not want copied to your phone. My preference is to manually copy specific SSH keys to my PinePhone if, and when I have a need to. I just kept the default by hitting =<RET>=.
+#+begin_example
+  [11:50:22] Would you like to copy your SSH public keys to the device? (y/n) [n]:
+#+end_example
+
+Step /20/, pmbootstrap will save your inputs to =~/.config/pmbootstrap.cfg=.
+#+begin_src sh :results output scalar replace :shebang #!/bin/bash :wrap example
+cat ~/.config/pmbootstrap.cfg
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+[pmbootstrap]
+aports = /home/dustfinger/dev/pmaports
+ccache_size = 5G
+is_default_channel = False
+device = pine64-pinephone
+extra_packages = ofonoctl,minicom
+hostname = second-chance
+jobs = 9
+kernel = stable
+keymap =
+nonfree_firmware = True
+nonfree_userland = False
+ssh_keys = False
+timezone = GMT
+ui = plasma-mobile-extras
+ui_extras = False
+user = dustfinger
+work = /home/dustfinger/.local/var/pmbootstrap
+#+end_example
+
+Step /21/, a reminder to run ~pmbootstrap status~ regularly to keep things up to date.
+#+begin_example
+[11:51:02] WARNING: The chroots and git repositories in the work dir do not get updated automatically.
+[11:51:02] Run 'pmbootstrap status' once a day before working with pmbootstrap to make sure that everything is up-to-date.
+[11:51:02] Done!
+#+end_example
+
+* Identify the block special file name
+Insert your SD card into your computer. My computer does not have an SD card reader, so I use an SD card USB adapter. Once inserted, the /SCSI/ (Pron. "scuzzy", Small Computer System Interface) device, will be registered with the SD mass-storage driver and assigned a letter. Letter assignment is in alphabetic order, meaning that the first SCSI device registered will be given the block special file name =/dev/sda=, the second device registered will be named =/dev/sdb= and so on. Additional block special file names will be assigned in numeric order providing an interface to each partition of the disk, e.g =/dev/sdx1=, =/dev/sdx2= etc. A disk image includes the partition table; for this reason, when we want to write an image to a disk, we need only know the letter assignment of the block special file name, e.g =/dev/sdb=. However; if we want to mount a disk's partition with read or write access, then we need to know the block special file name including the partition number, e.g =/dev/sdb1=. To find the block special file names of your SD card, run dmesg.
+#+begin_src sh :results output scalar replace :shebang #!/bin/bash :wrap example
+dmesg | tail
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+[1578133.409947] usb-storage 1-2:1.0: USB Mass Storage device detected
+[1578133.410221] scsi host4: usb-storage 1-2:1.0
+[1578134.429208] scsi 4:0:0:0: Direct-Access     Generic  STORAGE DEVICE   1404 PQ: 0 ANSI: 6
+[1578134.429571] sd 4:0:0:0: Attached scsi generic sg1 type 0
+[1578134.676148] sd 4:0:0:0: [sdb] 124735488 512-byte logical blocks: (63.9 GB/59.5 GiB)
+[1578134.677349] sd 4:0:0:0: [sdb] Write Protect is off
+[1578134.677356] sd 4:0:0:0: [sdb] Mode Sense: 21 00 00 00
+[1578134.678529] sd 4:0:0:0: [sdb] Write cache: disabled, read cache: enabled, doesn't support DPO or FUA
+[1578134.692971]  sdb: sdb1 sdb2
+[1578134.697055] sd 4:0:0:0: [sdb] Attached SCSI removable disk
+#+end_example
+
+From the output above we can see that my SCSI device was the second such device registered on my system and was therefore assigned the letter =b=. So I will need to use =/dev/sdb= as the SD card device name when writing the postmarketOS image to disk. If the tail of ~dmesg~ displays information from events unrelated to inserting the SD card, then try increasing the number of lines of output shown via the ~-n~ optional parameter, e.g. ~dmesg | tail -n 50~.
+
+Referring to =/dev/sdb/= as the SD card is a misnomer because the device name refers to the Small Computer System Interface (SCSI) used to read and write to the SD card and not the card itself. In my case, the device refers to my SD card USB adapter. If I insert the SD card USB adapter without the SD card, then the device is still registered with the mass-storage driver, but without the numbered block special file names that interface with the disk's partitions.
+
+#+begin_src sh :results output scalar replace :shebang #!/bin/bash :wrap example
+dmesg | tail
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+[1578380.920621] usb 1-2: new high-speed USB device number 96 using xhci_hcd
+[1578380.936431] usb 1-2: New USB device found, idVendor=05e3, idProduct=0751, bcdDevice=14.04
+[1578380.936433] usb 1-2: New USB device strings: Mfr=3, Product=4, SerialNumber=0
+[1578380.936434] usb 1-2: Product: USB Storage
+[1578380.936435] usb 1-2: Manufacturer: USB Storage
+[1578380.937969] usb-storage 1-2:1.0: USB Mass Storage device detected
+[1578380.938165] scsi host4: usb-storage 1-2:1.0
+[1578381.981465] scsi 4:0:0:0: Direct-Access     Generic  STORAGE DEVICE   1404 PQ: 0 ANSI: 6
+[1578381.981862] sd 4:0:0:0: Attached scsi generic sg1 type 0
+[1578382.197257] sd 4:0:0:0: [sdb] Attached SCSI removable disk
+#+end_example
+
+I am telling you all this because the order that devices are registered in is not guaranteed. Perhaps one day you have another mass storage device attached to your computer and now the special file name that you were so used to referring to your SD card is in fact referring to the one and only drive containing you precious family photos. Every single time you deploy an image to any disk, be absolutely certain that you have the correct special file name for the particular disk that you intended to completely overwrite.
+
+It is crucial that you write the image to the correct device. When I provide the device name =/dev/sdb= to the ~pmbootstrap install~ command, *you must remember* to replace the device name with the name to your device.
+
+* Deploy to the SD card
+Invoking ~pmbootstrap install~ will perform the following steps:
+1. PREPARE NATIVE CHROOT
+2. CREATE DEVICE ROOTFS ("pine64-pinephone")
+3. PREPARE INSTALL BLOCKDEVICE
+4. FILL INSTALL BLOCKDEVICE
+5. FLASHING TO DEVICE
+
+*CAUTION:* It is *crucial* that you pick the *[[*Identify the block special file name][correct device name]]*, because all existing data on the device will be removed. If you are unsure, simply remove the SD card and see if the device you think is your SD card still has one or more numbered block special file names, e.g ~ls /dev/sdb1/~. If the numbered device names are *only present while your card is inserted*, then you can be confident that you have the correct device name.
+
+Now that we know the correct device name, we can install postmarketOS + Plasma Mobile onto the SD card. I am going to tell pmbootstrap to encrypt my disk by passing the optional flag ~--fde~ which stands for /full disk encryption/, although it actually only encrypts the root partition leaving the boot partition encrypted.
+
+Despite the fact that the /L/ in /LUKS/ (Linux Unified Key Setup) stands for Linux, LUKS is a platform-independent on-disk encryption open standard. LUKS was a proof of concept for /[[https://clemens.endorphin.org/TKS1-draft.pdf][TKS1]]/ (Template Key Setup 1), but by [[https://gitlab.com/cryptsetup/cryptsetup/wikis/LUKS-standard/on-disk-format.pdf][LUKS version 1.0]] the specification switched to the /[[https://clemens.endorphin.org/nmihde/nmihde-A4-ds.pdf][TKS2]]/ variant, making it easier to implement a transparent hard disk encryption subsystem. The [[https://gitlab.com/cryptsetup/LUKS2-docs/blob/master/luks2_doc_wip.pdf][LUKS 2.0 specification]] is a work in progress, but as of [[https://gitlab.com/cryptsetup/cryptsetup/-/blob/master/docs/v2.1.0-ReleaseNotes][cryptsetup 2.1, LUKS2 has become the default format type]].
+
+Before trusting your data to LUKS, you should read the [[https://gitlab.com/cryptsetup/cryptsetup/-/wikis/FrequentlyAskedQuestions][LUKS FAQ]] which covers some risks of using encrypted storage, how to trouble shoot issues, backup and data recovery, and a select number of security aspects. For /cryptsetup/ usage instructions refer to [[http://man7.org/linux/man-pages/man8/cryptsetup.8.html][CRYPTSETUP(8)]]. As mentioned in the previous paragraph, even though LUKS2 is currently a work in progress, it is actually the default format as of cryptsetup v2.1. It is possible that your system has an older version of cryptsetup installed. It is important to know what version of the LUKS format your disk was encrypted with when reading the [[https://gitlab.com/cryptsetup/cryptsetup/-/wikis/FrequentlyAskedQuestions][LUKS FAQ]], which, at the time of this writing, is LUKS1 specific. If you do not wish to have the data on your disk encrypted, then simply remove the ~--fde~ optional parameter from the install command shown below. However; I recommend that you protect your privacy by encrypting your root partition as I have done.
+
+Do not run ~pmbootstrap install~ with ~sudo~, the command will make internal calls to ~sudo~ when necessary and you will be prompted to enter your credentials as required. If something goes wrong and you need to run the install command again, be sure to zap the chroot environments first with ~pmbootstrap zap~.
+#+begin_src sh
+env TEMP=~/dev/tmp/ pmbootstrap install --fde --sdcard=/dev/sdb
+#+end_src
+
+The install script will also prompt you to set a password for your user account. At the time of writing, the virtual keyboard that is presented to you when entering your login password on the PlasmaMobile is a number pad. That means you must enter a numeric pin for your user's password or you will not be able to unlock the PlasmaMobile desktop. I know that is not secure, hopefully an alpha numeric virtual keyboard will be available in the future.
+#+begin_example
+[13:55:22] *** (1/5) PREPARE NATIVE CHROOT ***
+Password:
+[13:55:37] Update package index for x86_64 (4 file(s))
+[13:55:40] Download http://dl-cdn.alpinelinux.org/alpine/edge/main/x86_64/apk-tools-static-2.10.5-r1.apk
+[13:55:40] (native) install alpine-base
+[13:55:45] (native) install cryptsetup util-linux e2fsprogs parted dosfstools
+[13:55:47] *** (2/5) CREATE DEVICE ROOTFS ("pine64-pinephone") ***
+[13:55:47] Update package index for aarch64 (4 file(s))
+[13:55:50] (native) install qemu-aarch64
+[13:55:50] Register qemu binfmt (aarch64)
+[13:55:51] (rootfs_pine64-pinephone) install alpine-base
+[13:55:56] (rootfs_pine64-pinephone) install postmarketos-base device-pine64-pinephone device-pine64-pinephone-nonfree-firmware postmarketos-ui-plasma-mobile-extras ofonoctl minicom
+Password:
+[14:02:35] (rootfs_pine64-pinephone) write /etc/os-release
+[14:02:35] (rootfs_pine64-pinephone) install
+[14:02:39] (rootfs_pine64-pinephone) install
+[14:02:42] (rootfs_pine64-pinephone) mkinitfs postmarketos-allwinner
+[14:03:08]  *** SET LOGIN PASSWORD FOR: 'dustfinger' ***
+New password:
+Retype new password:
+passwd: password updated successfully
+#+end_example
+
+If you have installed postmarketOS in the past, then you will be warned that the SD card contains an installation of postmarketOS. In that case, type /y/ and =<RET>= to remove the previous installation.
+#+begin_example
+[14:04:14] NOTE: No valid keymap specified for device
+[14:04:16] *** (3/5) PREPARE INSTALL BLOCKDEVICE ***
+[14:04:16] (native) mount /dev/install (host: /dev/sdb)
+[14:04:16] WARNING: This device has a previous installation of pmOS. CONTINUE? (y/n) [n]: y
+#+end_example
+
+Enter a strong password for full disk encryption. Unlike when you unlock the PinePhone's desktop, you will be provided a standard virtual keyboard for unlocking the encrypted /LUKS/ container, so please do include upper and lower case letters as well as numbers and special symbols. You want this passphrase to be strong so that it cannot easily be cracked; however, it is recommended that you limit the character set of the passphrase to [[https://en.wikipedia.org/wiki/ASCII#Printable_characters][the 95 printable characters from 7-bit ASCII]]. The reason to limit the characters used in the passphrase is because 7-bit ASCII stays the same for all ASCII variants and UTF-8. In other words, If the system's character encoding changes, your passphrase will stay the same so long as you follow this recommendation.
+
+#+begin_example
+[14:13:22] (native) partition /dev/install (boot: 84M, root: the rest)
+[14:13:22] WARNING: Full disk encryption is enabled!
+[14:13:22] Make sure that osk-sdl has been properly configured for your device
+[14:13:22] or else you will be unable to unlock the rootfs on boot!
+[14:13:22] If you started a device port, it is recommended you disable
+[14:13:22] FDE by re-running the install command without '--fde' until
+[14:13:22] you have properly configured osk-sdl. More information:
+[14:13:22] <https://postmarketos.org/osk-port>
+[14:13:22] (native) format /dev/installp2 (root, luks), mount to /dev/mapper/pm_crypt
+[14:13:22]  *** TYPE IN THE FULL DISK ENCRYPTION PASSWORD (TWICE!) ***
+Enter passphrase for /dev/installp2:
+WARNING: Locking directory /run/cryptsetup is missing!
+Enter passphrase for /dev/installp2:
+#+end_example
+
+The warning about the missing =/run/cryptsetup= directory is apparently a [[https://lists.debian.org/debian-boot/2019/02/msg00100.html][known and benign issue]]. The postmarketOS PinePhone wiki Installation section links to the same [[https://wiki.postmarketos.org/wiki/PINE64_PinePhone_(pine64-pinephone)#Installation][Debian mailing list email]], but I was not able to find anything *specifically* about this on the [[https://gitlab.com/cryptsetup/cryptsetup/-/issues?scope=all&utf8=%E2%9C%93&state=all&search=%22%2Frun%2Fcryptsetup+is+missing%22][cryptsetup issues tracker]].
+
+The root file system that pmbootstrap prepared in =~/.local/var/pmbootstrap/chroot_rootfs_pine64-pinephone/= will now be deployed to the SD card.
+#+begin_example
+[14:14:32] (native) format /dev/mapper/pm_crypt
+[14:15:26] (native) mount /dev/mapper/pm_crypt to /mnt/install
+[14:15:26] (native) format /dev/installp1 (boot, ext2), mount to /mnt/install/boot
+[14:15:26] *** (4/5) FILL INSTALL BLOCKDEVICE ***
+[14:15:26] (native) copy rootfs_pine64-pinephone to /mnt/install/
+[14:15:34] Embed firmware u-boot/pine64-pinephone/u-boot-sunxi-with-spl.bin in the SD card image at offset 8 with step size 1024
+[14:16:28] *** (5/5) FLASHING TO DEVICE ***
+[14:16:28] Run the following to flash your installation to the target device:
+[14:16:28] * If the above steps do not work, you can also create symlinks to the generated files with 'pmbootstrap export' and flash outside of pmbootstrap.
+[14:16:28] NOTE: chroot is still active (use 'pmbootstrap shutdown' as necessary)
+[14:16:28] Done
+#+end_example
+
+If you take a look in the working directory, you will notice that many new artifacts have been created.
+
+#+begin_src sh :results output scalar replace :shebang #!/bin/bash :wrap example
+ls -lah ~/.local/var/pmbootstrap
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+total 2.3M
+drwx------ 15 dustfinger dustfinger   19 May 24 14:11 .
+drwx------  3 dustfinger dustfinger    3 May 24 11:05 ..
+-rwx------  1 dustfinger dustfinger 2.9M May 24 14:11 apk.static
+drwxr-xr-x  2 root       root        599 May 24 14:13 cache_apk_aarch64
+drwxr-xr-x  2 root       root         57 May 24 14:11 cache_apk_x86_64
+drwxr-xr-x  2 root       root          2 May 24 13:55 cache_ccache_aarch64
+drwxr-xr-x  2      12345      12345    2 May 24 13:55 cache_ccache_x86_64
+drwxr-xr-x  2 root       root          2 May 24 13:55 cache_distfiles
+drwx------  2 dustfinger dustfinger    2 May 24 11:05 cache_git
+drwxr-xr-x  2 dustfinger dustfinger   11 May 24 13:55 cache_http
+drwxr-xr-x  4 root       root          4 May 24 13:55 cache_rust
+drwxr-xr-x 19 root       root         19 May 24 14:11 chroot_native
+drwxr-xr-x 20 root       root         20 May 24 14:11 chroot_rootfs_pine64-pinephone
+drwxr-xr-x  2      12345      12345    2 May 24 13:55 config_abuild
+drwxr-xr-x  2 root       root         10 May 24 14:11 config_apk_keys
+-rw-r--r--  1 dustfinger dustfinger 384K May 24 14:20 log.txt
+drwxr-xr-x  3 root       root          3 May 24 13:55 packages
+-rw-r--r--  1 dustfinger dustfinger    2 May 24 11:05 version
+-rw-r--r--  1 dustfinger dustfinger  142 May 24 14:11 workdir.cfg
+#+end_example
+
+You can use the pmbootstrap chroot command to enter either the =chroot_native= or =chroot_rootfs_pine64-pinephone= by passing the corresponding suffix via the optional ~-s~ parameter, e.g. ~pmbootstrap chroot -s rootfs_pine64-pinephone~. Once you have finished looking around you should deactivate the chroot by running ~pmbootstrap shutdown~.
+
+#+begin_src sh :results output scalar replace :shebang #!/bin/bash :wrap example
+  pmbootstrap shutdown
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+[14:20:51] Unregister qemu binfmt (aarch64)
+[14:20:51] Done
+#+end_example
+
+The deployment will have created two partitions on your SD card. Your device name might be different than mine, see [[*Identify the block special file name][Identify the block special file name]]
+#+begin_example
+/dev/sdb    # block special device name
+/dev/sdb1   # unencrypted boot partition
+/dev/sdb2   # luks encrypted parition containing the operating system and your personal data
+#+end_example
+
+* A bit about LUKS
+** Determine if a partition is LUKS encrypted
+The ~pmbootstrap install~ command does not perform full raw disk encryption; although doing so is possible, it makes booting the device more complicated. Instead, the boot partition is left unencrypted and only the root partition is encrypted. If we try to mount the root partition directly the file-system will not be recognized.
+
+#+begin_src sh
+  sudo mount /dev/sdb2 /mnt/usb
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+Password:
+  mount: /mnt/usb: unknown filesystem type 'crypto_LUKS'.
+#+end_example
+
+You can test if a device has been LUKS encrypted using the ~isLuks~ subcommand. The subcommand succeeds if it is LUKS encrypted and fails otherwise. Normally, ~isLuks~  is silent and simply returns success or failure, but by adding the ~-v~ optional flag we can make it verbose.
+
+#+begin_src sh
+sudo cryptsetup isLuks -v /dev/sdb1
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+Command failed with code -1 (wrong or missing parameters).
+#+end_example
+
+#+begin_src sh
+sudo cryptsetup isLuks -v /dev/sdb2
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+Command successful.
+#+end_example
+
+** Determine the format of a LUKS encrypted partition
+The ~isLuks~ subcommand can also determine the format used in a LUKS encrypted partition simply by passing a type to the ~--type~ optional parameter. Valid types: plain, luks (default), luks1, luks2, loopaes or tcrypt.
+#+begin_src sh
+sudo cryptsetup isLuks -v --type luks /dev/sdb2
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+Command successful.
+#+end_example
+
+#+begin_src sh
+sudo cryptsetup isLuks -v --type luks1 /dev/sdb2
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+Command failed with code -1 (wrong or missing parameters).
+#+end_example
+
+#+begin_src sh
+sudo cryptsetup isLuks -v --type luks2 /dev/sdb2
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+Command successful.
+#+end_example
+
+** A quick look at a LUKS header
+The LUKS format keeps metadata in the LUKS header. The LUKS header is what allows LUKS to provide features such as salting, iterated [[https://en.wikipedia.org/wiki/PBKDF2][PBKDF2]] passphrase hashing and, key management. The two significant downside of the LUKS header are:
+1. The header is visible making it obvious that the disk is encrypted with LUKS
+2. If the header is not backed up and becomes damaged, then the data on the disk is not recoverable unless you happen to still have the disk mounted.
+
+It is best not to post your header publicly because it provides an attacker with one piece of the puzzle to decrypt an encrypted volume even if the header has been stripped from the volume. Of course, they would still need a passphrase for one of the key slots. The ~luksDump~ subcommand can be used to send the header to standard output. This is what a LUKS2 header looks like:
+#+begin_src sh
+sudo cryptsetup luksDump /dev/sdb2
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+sudo cryptsetup luksDump /dev/sdb2
+LUKS header information
+Version:        2
+Epoch:          3
+Metadata area:  16384 [bytes]
+Keyslots area:  16744448 [bytes]
+UUID:           5c616a99-5054-40ac-958d-11e90e0b4c41
+Label:          (no label)
+Subsystem:      (no subsystem)
+Flags:          (no flags)
+
+Data segments:
+  0: crypt
+        offset: 16777216 [bytes]
+        length: (whole device)
+        cipher: aes-cbc-plain64
+        sector: 512 [bytes]
+
+Keyslots:
+  0: luks2
+        Key:        256 bits
+        Priority:   normal
+        Cipher:     aes-cbc-plain64
+        Cipher key: 256 bits
+        PBKDF:      argon2i
+        Time cost:  4
+        Memory:     149551
+        Threads:    4
+        Salt:       b5 a3 13 19 2a cf a9 15 23 a1 b3 df 13 46 2e 41
+                    12 74 eb 32 74 b2 80 c3 46 01 26 92 ba 8f 3e da
+        AF stripes: 4000
+        AF hash:    sha256
+        Area offset:32768 [bytes]
+        Area length:131072 [bytes]
+        Digest ID:  0
+Tokens:
+Digests:
+  0: pbkdf2
+        Hash:       sha256
+        Iterations: 211406
+        Salt:       4b 72 65 ef 41 da 3b 69 af 09 51 cd 37 40 fe b3
+                    26 0a 12 53 cc 52 02 46 78 a3 54 21 79 0e 18 b4
+        Digest:     66 83 25 b8 ca 9a 72 34 92 17 48 02 42 b7 8d 02
+                    cf 3b 48 95 71 32 d5 f2 3c 86 25 67 3d fe 68 21
+#+end_example
+
+See the [[https://gitlab.com/cryptsetup/LUKS2-docs/blob/master/luks2_doc_wip.pdf][LUKS 2.0 specification]] for details on each field in the header.
+
+** Test mounting our LUKS Encrypted Partition
+
+In order to reveal the contents of a LUKS encrypted disk, we must call ~cryptsetup luksOpen~ subcommand, which maps the encrypted file system to a LVM logical device using the Linux device mapper. Remember that your block device name might be something other than =/dev/sdb=, so be sure to edit the command below with the correct device name.
+
+#+begin_src sh :results output scalar replace :shebang #!/bin/bash :wrap example
+sudo cryptsetup luksOpen /dev/sdb2 pinephone
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+Enter passphrase for /dev/sdb2:
+#+end_example
+
+This will map the name /dev/mapper/pinephone to the LVM device.
+#+begin_src sh :results output scalar replace :shebang #!/bin/bash :wrap example
+  ls -lah /dev/mapper/pinephone
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+lrwxrwxrwx 1 root root 7 May  8 08:18 /dev/mapper/pinephone -> ../dm-2
+#+end_example
+
+To see a full list of logical devices that use the device mapper driver you can simply run ~dmsetup ls~
+#+begin_src sh
+sudo dmsetup ls
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+pinephone       (253:2)
+crypt2  (253:1)
+crypt1  (253:0)
+#+end_example
+
+The ~dmsetup info~ command can be used to get more details about the device.
+#+begin_src sh
+sudo dmsetup info pinephone
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+Name:              pinephone
+State:             ACTIVE
+Read Ahead:        256
+Tables present:    LIVE
+Open count:        0
+Event number:      0
+Major, minor:      253, 2
+Number of targets: 1
+UUID: CRYPT-LUKS2-01c8d337e5504121ba3eaba823ee5c38-pinephone
+#+end_example
+
+Now we can mount =/dev/mapper/pinephone= somewhere. I will just use =/mnt/usb= again because I am lazy ;-)
+
+#+begin_src sh :results output scalar replace :shebang #!/bin/bash :wrap example
+  sudo mount /dev/mapper/pinephone /mnt/usb
+  ls -lah /mnt/usb
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+total 93K
+drwxr-xr-x 21 root root 4.0K May 24 14:15 .
+drwxr-xr-x  4 root root    5 Oct 18  2018 ..
+drwxr-xr-x  2 root root 4.0K May 24 14:11 bin
+drwxr-xr-x  2 root root 4.0K May 24 14:15 boot
+drwxr-xr-x  2 root root 4.0K May 24 14:11 dev
+drwxr-xr-x 61 root root 4.0K May 24 14:13 etc
+drwxr-xr-x  3 root root 4.0K May 24 14:15 home
+drwxr-xr-x 14 root root 4.0K May 24 14:11 lib
+drwx------  2 root root  16K May 24 14:15 lost+found
+drwxr-xr-x  5 root root 4.0K May 24 14:11 media
+drwxr-xr-x  7 root root 4.0K May 24 14:11 mnt
+drwxr-xr-x  2 root root 4.0K May 24 14:11 opt
+drwxr-xr-x  2 root root 4.0K May 24 14:11 proc
+drwx------  2 root root 4.0K May 24 14:11 root
+drwxr-xr-x  6 root root 4.0K May 24 14:11 run
+drwxr-xr-x  2 root root 4.0K May 24 14:11 sbin
+drwxr-xr-x  2 root root 4.0K May 24 14:11 srv
+drwxr-xr-x  2 root root 4.0K May 24 14:11 sys
+drwxrwxrwt  2 root root 4.0K May 24 14:13 tmp
+drwxr-xr-x 10 root root 4.0K May 24 14:11 usr
+drwxr-xr-x 13 root root 4.0K May 24 14:11 var
+#+end_example
+
+Now is a good time to copy anything over from your computer that you would like on your phone. For example, if you chose not to allow ~pmbootstrap~ to copy your SSH keys when we [[*Initialize the pmbootstrap configuration for the pinephone][initialized the pmbootstrap configuration for the pinephone]], now is your second chance. It is particularly valuable to copy the SSH keys over if you do not have a serial UART cable that adapts USB to a 3.5mm audio jack. Otherwise, you can wait until we ge to to the section on [[*Configure x-forwarding][configuring x-forwarding]].
+
+Once you are finished, unmount the device and close the luks volume.
+#+begin_src sh
+sudo umount /mnt/usb
+sudo cryptsetup luksClose pinephone
+#+end_src
+
+* NCurses Over Serial
+
+I wrote an article that covers how to [[https://bloggerbust.ca/post/my-first-experience-connecting-to-the-phinephone-via-serial-console/][connect to the PinePhone via serial console]] using emacs =serial-term=. In this article we are going to be using /ncurses/ applications which [[https://bloggerbust.ca/post/how-to-configure-minicom-to-connect-over-usb-serial-uart/#minicom-might-not-be-the-best-tool-for-the-job][can appear garbled]] if unintended escape interpretation mangles byte sequences meant to be displayed as part of the the UI. I have written another article where I explain [[https://bloggerbust.ca/post/let-socket-cat-be-thy-glue-over-serial/][how to use SOcket CAT to relay STDIO and serial in raw mode]] which solves this problem. I will be using [[http://www.dest-unreach.org/socat/][SOcket CAT]] to connect to the PinePhone, if you would like to use a different tool then that is fine. Otherwise, take the time now to [[https://pkgs.org/search/?q=socat][install SOcket CAT for your distro]] before moving on.
+
+* Boot into postmarketOS
+For this next part you will need a USB to 3.3V TTL converter that uses RS-232 for serial communication transmission and adapts to a 3.5mm audio jack. See [[https://bloggerbust.ca/post/my-first-experience-connecting-to-the-phinephone-via-serial-console/#connect-to-the-pinephone-over-uart][Connect to the PinePhone over UART]] for some options.
+
+With your PinePhone powered off, insert both your /SIM/ card and your /SD/ card into the appropriate sockets. Connect your PinePhone to your computer using your serial UART cable. You might notice a LED on the phone light red. Next, you will need to [[https://bloggerbust.ca/post/how-to-configure-minicom-to-connect-over-usb-serial-uart/#determine-the-device-name][determine the attached serial port]] and ensure that your user has been added to the [[https://bloggerbust.ca/post/how-to-configure-minicom-to-connect-over-usb-serial-uart/#device-group-ownership][appropriate application group]]. Now fire up your favourite terminal emulator and run the following command, taking care to replace the serial port name appropriately.
+
+#+begin_src sh
+  socat -,rawer,escape=0x0f /dev/ttyUSB0,b115200,rawer
+#+end_src
+
+Power on the PinePhone and wait for the input prompt on the phone's display to decrypt the disk. As long as you connected to the UART serial console before powering on the phone, you should see output similar to the following in the terminal session:
+
+#+begin_example
+DRAM: 2048 MiB
+Trying to boot from MMC1
+NOTICE:  BL31: v2.1(release):v3.10.0_rc3-151-ga4b61dc7d9
+NOTICE:  BL31: Built : 16:21:59, Jun 12 2019
+NOTICE:  BL31: Detected Allwinner A64/H64/R18 SoC (1689)
+NOTICE:  BL31: Found U-Boot DTB at 0x40632d8, model: PinePhone
+NOTICE:  BL31: PMIC: Detected AXP803 on RSB.
+
+
+U-Boot 2020.04-rc3 (Mar 18 2020 - 13:16:10 +0000)
+
+DRAM:  2 GiB
+MMC:   Device 'mmc@1c11000': seq 1 is in use by 'mmc@1c10000'
+mmc@1c0f000: 0, mmc@1c10000: 2, mmc@1c11000: 1
+Loading Environment from FAT... Unable to use mmc 1:1... Hit any key to stop autoboot:  0
+switch to partitions #0, OK
+mmc0 is current device
+Scanning mmc 0:1...
+Found U-Boot script /boot.scr
+949 bytes read in 1 ms (926.8 KiB/s)
+## Executing script at 4fc00000
+gpio: pin 98 (gpio 98) value is 1
+gpio: pin 114 (gpio 114) value is 1
+Booting from SD
+arch=arm
+baudrate=115200
+board=sunxi
+board_name=sunxi
+boot_a_script=load ${devtype} ${devnum}:${distro_bootpart} ${scriptaddr} ${prefix}${script}; source ${scriptaddr}
+boot_extlinux=sysboot ${devtype} ${devnum}:${distro_bootpart} any ${scriptaddr} ${prefix}${boot_syslinux_conf}
+boot_net_usb_start=usb start
+boot_prefixes=/ /boot/
+boot_script_dhcp=boot.scr.uimg
+boot_scripts=boot.scr.uimg boot.scr
+boot_syslinux_conf=extlinux/extlinux.conf
+boot_targets=fel mmc_auto usb0
+bootargs=init=/init.sh rw console=tty0 console=ttyS0,115200 no_console_suspend earlycon=uart,mmio32,0x01c28000 panic=10 consoleblank=0 loglevel=1 cma=256M PMOS_NO_OUTPUT_REDIRECT pmos_boot=/dev/mmcblk0p1 pmos_root=/dev/mmcblk0p2
+bootcmd=run distro_bootcmd
+bootcmd_fel=if test -n ${fel_booted} && test -n ${fel_scriptaddr}; then echo '(FEL boot)'; source ${fel_scriptaddr}; fi
+bootcmd_mmc0=devnum=0; run mmc_boot
+bootcmd_mmc1=devnum=1; run mmc_boot
+bootcmd_mmc_auto=if test ${mmc_bootdev} -eq 1; then run bootcmd_mmc1; run bootcmd_mmc0; elif test ${mmc_bootdev} -eq 0; then run bootcmd_mmc0; run bootcmd_mmc1; fi
+bootcmd_usb0=devnum=0; run usb_boot
+bootdelay=2
+bootdev=0
+bootfstype=ext4
+bootm_size=0xa000000
+console=ttyS0,115200
+cpu=armv8
+devplist=1
+dfu_alt_info_ram=kernel ram 0x40080000 0x1000000;fdt ram 0x4FA00000 0x100000;ramdisk ram 0x4FE00000 0x4000000
+distro_bootcmd=for target in ${boot_targets}; do run bootcmd_${target}; done
+distro_bootcmd=for target in ${boot_targets}; do run bootcmd_${target}; done
+ethaddr=02:ba:3a:fe:45:68
+fdt_addr_r=0x4FA00000
+fdtcontroladdr=bbf4ed50
+fdtfile=allwinner/sun50i-a64-pinephone.dtb
+fileaddr=4fc00000
+filesize=3b5
+kernel_addr_r=0x40080000
+mmc_boot=if mmc dev ${devnum}; then devtype=mmc; run scan_dev_for_boot_part; fi
+mmc_bootdev=0
+partitions=name=loader1,start=8k,size=32k,uuid=${uuid_gpt_loader1};name=loader2,size=984k,uuid=${uuid_gpt_loader2};name=esp,size=128M,bootable,uuid=${uuid_gpt_esp};name=system,size=-,uuid=${uuid_gpt_system};
+preboot=usb start
+pxefile_addr_r=0x4FD00000
+ramdisk_addr_r=0x4FE00000
+scan_dev_for_boot=echo Scanning ${devtype} ${devnum}:${distro_bootpart}...; for prefix in ${boot_prefixes}; do run scan_dev_for_extlinux; run scan_dev_for_scripts; done;
+scan_dev_for_boot_part=part list ${devtype} ${devnum} -bootable devplist; env exists devplist || setenv devplist 1; for distro_bootpart in ${devplist}; do if fstype ${devtype} ${devnum}:${distro_bootpart} bootfstype; then run scan_dev_for_boot; fi; done; setenv devplist
+scan_dev_for_extlinux=if test -e ${devtype} ${devnum}:${distro_bootpart} ${prefix}${boot_syslinux_conf}; then echo Found ${prefix}${boot_syslinux_conf}; run boot_extlinux; echo SCRIPT FAILED: continuing...; fi
+scan_dev_for_scripts=for script in ${boot_scripts}; do if test -e ${devtype} ${devnum}:${distro_bootpart} ${prefix}${script}; then echo Found U-Boot script ${prefix}${script}; run boot_a_script; echo SCRIPT FAILED: continuing...; fi; done
+scriptaddr=0x4FC00000
+serial#=92c002ba3afe4568
+soc=sunxi
+stderr=serial@1c28000
+stdin=serial@1c28000
+stdout=serial@1c28000
+usb_boot=usb start; if usb dev ${devnum}; then devtype=usb; run scan_dev_for_boot_part; fi
+uuid_gpt_esp=c12a7328-f81f-11d2-ba4b-00a0c93ec93b
+uuid_gpt_system=b921b045-1df0-41c3-af44-4c6f280d3fae
+
+Environment size: 3158/131068 bytes
+Loading DTB
+33835 bytes read in 4 ms (8.1 MiB/s)
+Loading Initramfs
+1426778 bytes read in 76 ms (17.9 MiB/s)
+Loading Kernel
+15601672 bytes read in 690 ms (21.6 MiB/s)
+gpio: pin 115 (gpio 115) value is 1
+Resizing FDT
+Booting kernel
+gpio: pin 116 (gpio 116) value is 1
+gpio: pin 98 (gpio 98) value is 0
+## Loading init Ramdisk from Legacy Image at 4fe00000 ...
+   Image Name:   uInitrd
+   Image Type:   AArch64 Linux RAMDisk Image (uncompressed)
+   Data Size:    1426714 Bytes = 1.4 MiB
+   Load Address: 00000000
+   Entry Point:  00000000
+   Verifying Checksum ... OK
+## Flattened Device Tree blob at 4fa00000
+   Booting using the fdt blob at 0x4fa00000
+   Loading Ramdisk to 49ea3000, end 49fff51a ... OK
+   Loading Device Tree to 0000000049e97000, end 0000000049ea2fff ... OK
+
+Starting kernel ...
+
+[    0.000000] Booting Linux on physical CPU 0x0000000000 [0x410fd034]
+[    0.000000] Linux version 5.6.0 (pmos@build) (gcc version 9.3.0 (Alpine 9.3.0)) #2-postmarketos-allwinner SMP Mon May 11 18:30:53 UTC 2020
+[    0.000000] Machine model: Pine64 PinePhone Braveheart (1.1)
+[    0.000000] earlycon: uart0 at MMIO32 0x0000000001c28000 (options '')
+[    0.000000] printk: bootconsole [uart0] enabled
+### postmarketOS initramfs ###
+Configuring kernel firmware image search path
+modprobe: module sun6i_mipi_dsi not found in modules.dep
+modprobe: module sun4i_drm not found in modules.dep
+modprobe: module pwm_sun4i not found in modules.dep
+modprobe: module sun8i_mixer not found in modules.dep
+modprobe: module ext4 not found in modules.dep
+modprobe: module usb_f_rndis not found in modules.dep
+NOTE: Waiting 10 seconds for the framebuffer /dev/fb0.
+If your device does not have a framebuffer, disable this with:
+no_framebuffer=true in <https://postmarketos.org/deviceinfo>
+Setting framebuffer mode to: U:720x1440p-0
+Setup usb network
+  /sys/class/android_usb does not exist, skipping android_usb
+  Setting up an USB gadget through configfs
+Starting udhcpd
+  Using interface usb0
+  Start the dhcpcd daemon (forks into background)
+Mount boot partition (/dev/mmcblk0p1)
+Extract /boot/initramfs-postmarketos-allwinner-extra
+32175 blocks
+#+end_example
+
+The last line of output should indicate the number of blocks on the device. If your serial connection was not established before booting the PinePhone, then you will not see the output above. In that case, don't fret and continue reading.
+
+At this point, the /initramfs/ is waiting for the passphrase required to unlock the encrypted root filesystem. The PinePhone screen should now be displaying an input field to enter the passphrase as well as a full virtual keyboard. Remember that you have two passwords; one is for opening the LUKS encrypted partition and the other is a simple numeric pin that is actually your postmarketOS user account password.
+
+Enter your password for disk decryption. The initrd will then open the LUKS encrypted file system and continue with the boot process. You will see output similar to the following in your serial console screen.
+
+#+begin_example
+Check/repair root filesystem (/dev/mapper/root)
+e2fsck 1.45.6 (20-Mar-2020)
+pmOS_root: clean, 51568/3899392 files, 664293/15567360 blocks
+Resize root filesystem (/dev/mapper/root)
+resize2fs 1.45.6 (20-Mar-2020)
+The filesystem is already 15567360 (4k) blocks long.  Nothing to do!
+
+Mount root partition (/dev/mapper/root)
+umount: can't unmount /dev: Invalid argument
+
+   OpenRC 0.42.1.ea8a00c524 is starting up Linux 5.6.0 (aarch64)
+
+/lib/rc/sh/init.sh: line 15: can't create /dev/null: Read-only file system
+ * md5sum is missing, which suggests /usr is not mounted
+ * If you have separate /usr, it must be mounted by initramfs
+ * If not, you should check coreutils is installed correctly
+ * Mounting /proc ... [ ok ]
+ * Mounting /run ... * /run/openrc: creating directory
+ * /run/lock: creating directory
+ * /run/lock: correcting owner
+/lib/rc/sh/gendepends.sh: line 28: can't create /dev/null: Read-only file system
+ * Caching service dependencies ... [ ok ]
+ * Clock skew detected with `(null)'
+ * Adjusting mtime of `/run/openrc/deptree' to Sun May 24 20:11:53 2020
+
+ * WARNING: clock skew detected!
+ * Mounting devtmpfs on /dev ... [ ok ]
+ * Mounting /dev/mqueue ... [ ok ]
+ * Mounting /dev/pts ... [ ok ]
+ * Mounting /dev/shm ... [ ok ]
+ * Mount subpartitions of /dev/mmcblk0
+device-mapper: reload ioctl on mmcblk0p1  failed: Resource busy
+create/reload failed on mmcblk0p1
+device-mapper: reload ioctl on mmcblk0p2  failed: Resource busy
+create/reload failed on mmcblk0p2
+ * Mount subpartitions of /dev/mmcblk2
+ * Mounting /sys ... [ ok ]
+ * Mounting security filesystem ... [ ok ]
+ * Mounting debug filesystem ... [ ok ]
+ * Mounting config filesystem ... [ ok ]
+ * Mounting fuse control filesystem ... [ ok ]
+ * Starting udev ... [ ok ]
+ * Generating a rule to create a /dev/root symlink ... [ ok ]
+ * Populating /dev with existing devices through uevents ... [ ok ]
+ * WARNING: clock skew detected!
+ * Loading modules ... [ ok ]
+ * Setting system clock using the hardware clock [UTC] ... [ ok ]
+ * Checking local filesystems  .../dev/mmcblk2p2 is in use.
+e2fsck: Cannot continue, aborting.
+
+
+ * Operational error
+ [ !! ]
+ * Remounting root filesystem read/write ... [ ok ]
+ * Remounting filesystems ... [ ok ]
+ * Mounting local filesystems ... [ ok ]
+ * Configuring kernel parameters ...sysctl: error: 'net.ipv4.tcp_syncookies' is an unknown key
+sysctl: error: 'kernel.unprivileged_bpf_disabled' is an unknown key
+sysctl: error: 'kernel.sysrq' is an unknown key
+ [ ok ]
+ * Migrating /var/lock to /run/lock ... [ ok ]
+ * Creating user login records ... [ ok ]
+ * Wiping /tmp directory ... [ ok ]
+ * Setting hostname ... [ ok ]
+ * Starting busybox syslog ... [ ok ]
+ * WARNING: clock skew detected!
+ * Starting System Message Bus ... [ ok ]
+ * Starting RNG Daemon ... [ ok ]
+ * Starting WPA Supplicant ... [ ok ]
+ * Starting networkmanager ... [ ok ]
+ * Starting chronyd ... [ ok ]
+ * Enabling EG25 WWAN module ... * Starting gpsd ... [ ok ]
+ * /run/lightdm: creating directory
+ * /run/lightdm: correcting owner
+ * Starting Display Manager ... [ ok ]
+ * Starting pinephone_setup-modem-audio ... * command_background option used but no pidfile specified
+ [ !! ]
+ * ERROR: pinephone_setup-modem-audio failed to start
+ * Starting oFono ... [ ok ]
+ * Starting ofono-auto-enable ... [ ok ]
+ssh-keygen: generating new host keys: RSA DSA ECDSA ED25519
+ * Starting sshd ... [ ok ]
+ * Activating swap file ...Configured swap file size is 0, skipping creation.
+ [ ok ]
+ * Starting urfkill ... [ ok ]
+ * Starting local ... [ ok ]
+
+Welcome to postmarketOS
+Kernel 5.6.0 on an aarch64 (/dev/ttyS0)
+second-chance login:
+#+end_example
+
+You might notice some errors in the output, this is a work in progress and eventually those sorts of issues will be taken care of. Notice that the serial port that the login session is connected to on the device side is displayed in the welcome message above. You may now sign in by entering your user name and pin.
+
+#+begin_example
+Welcome to postmarketOS
+Kernel 5.6.0 on an aarch64 (/dev/ttyS0)
+second-chance login: dustfinger
+Password:
+Welcome to postmarketOS!
+
+This distribution is based on Alpine Linux.
+Read both our wikis to find a large amount of how-to guides and
+general information about administrating and development.
+See <https://wiki.postmarketos.org> and <https://wiki.alpinelinux.org>.
+
+You may change this message by editing /etc/motd.
+
+second-chance:~$
+#+end_example
+
+Once signed in, you will probably be interested in knowing that the PostmarketOS default shell is ash ([[https://www.in-ulm.de/~mascheck/various/ash/][Almquist Shell]]).
+
+* Resize the screen
+The device side has no way of knowing the size of the terminal display. Use the ~stty~ command (see [[https://linux.die.net/man/1/stty][stty(1)]]) to print the number of rows and columns that the phone's kernel thinks that your terminal has.
+
+#+begin_src sh
+  second-chance:~$ stty size
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+  52 80
+#+end_example
+
+To set a specific number of rows and columns you can use ~stty rows 56 columns 192~. If you are not sure the true number of rows and columns that your terminal has you can simply run the ~resize~ (see [[https://linux.die.net/man/1/resize][resize(1)]]) command.
+
+#+begin_src sh
+  second-chance:~$ resize
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+  COLUMNS=191;LINES=56;export COLUMNS LINES;
+#+end_example
+
+I have found that I need to run ~resize~ each time I connect over serial. Be sure to set the size again if the terminals dimensions change at any point. This could be automated, but I won't be covering automation of screen resizing in this post.
+
+* Set the timezone, date & time
+For some reason pmbootstrap did not detect my host's timezone, that means I will need to set it manually. Unfortunately I was not able to do this with the PlasmaMobile UI. The date controls seem to not be integrated yet. Thankfully, setting the timezone, date and time is straight forward to do via command line.
+
+We can use the date command to find out what the current timezone, date and time are set to.
+#+begin_src sh
+second-chance:~$ date
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+Sat Apr 11 18:19:04 GMT 2020
+#+end_example
+
+If pmbootstrap cannot determine your host's timezone, then it will default to GMT (Greenwich Mean Time).
+
+#+begin_src sh
+  second-chance:~$ ls -la /etc/localtime
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+  lrwxrwxrwx    1 root     root            17 Apr 12  2020 /etc/localtime -> /etc/zoneinfo/GMT
+#+end_example
+
+To set the timezone, we simply need to update the =/etc/localtime= soft link to point to the correct timezone information file in =/usr/share/zoneinfo/=. The timezone information file is a binary file, if you are curious about its format, refer to the [[https://linux.die.net/man/5/tzfile][tzfile(5)]] man page.
+
+#+begin_src sh
+second-chance:~$ sudo ln -snf -T /usr/share/zoneinfo/Canada/Mountain /etc/localtime
+second-chance:~$ ls -la /etc/localtime
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+lrwxrwxrwx    1 root     root            35 Apr 11 12:35 /etc/localtime -> /usr/share/zoneinfo/Canada/Mountain
+#+end_example
+
+Finally, we can set the current date and time with the date command (see [[https://man7.org/linux/man-pages/man1/date.1.html][date(1)]]). The date command accepts a date in the following format: =[MMDDhhmm[[CC]YY][.ss]]=. The square brackets indicate optional date and time information. Enter the current date and time, then press =<RET>=.
+
+#+begin_src sh
+  second-chance:~$ sudo date 052506302020
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+  [sudo] password for dustfinger:
+  Mon May 25 06:30:00 MDT 2020
+#+end_example
+
+Now, if you run the date command again with no parameters, the correct date, time and timezone should be displayed.
+
+#+begin_src sh
+second-chance:~$ date
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+  Mon May 25 06:30:25 MDT 2020
+#+end_example
+
+Don't worry about getting the time set with a high degree of precision. There is chron job configured to correct time drift via /NTP/. See =/etc/chrony/chron.conf=.
+
+* What's in the default runlevel?
+This is a newly installed system that I did not fully configure myself. I would like to know what is registered with the default runlevel. PostmarketOS uses OpenRC init system, so to answer my question we can make use of the ~rc-update~ command (see [[https://manpages.debian.org/testing/openrc/rc-update.8.en.html][rc-update(8)]]).
+
+#+begin_src sh
+  second-chance:~$ rc-update show default
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+              chronyd | default
+                 dbus | default
+                 eg25 | default
+                 gpsd | default
+       gpsd_pinephone | default
+              haveged | default
+              lightdm | default
+                local | default
+       networkmanager | default
+                ofono | default
+    ofono-auto-enable | default
+ pinephone_setup-modem-audio | default
+                 sshd | default
+             swapfile | default
+       udev-postmount | default
+              urfkill | default
+       wpa_supplicant | default
+#+end_example
+
+I do not have an immediate need for the ssh daemon (~sshd~), so I am going to delete that from the default runlevel. Otherwise, I am happy with what is currently registered.
+
+#+begin_src sh
+  second-chance:~$ sudo rc-update del sshd default
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+  We trust you have received the usual lecture from the local System
+  Administrator. It usually boils down to these three things:
+
+      #1) Respect the privacy of others.
+      #2) Think before you type.
+      #3) With great power comes great responsibility.
+
+  [sudo] password for dustfinger:
+   * service sshd removed from runlevel default
+#+end_example
+
+The daemon will remain running until I reboot the system or explicitly stop the service. There is no sense in leaving it running.
+
+#+begin_src sh
+second-chance:~$ sudo rc-service sshd stop
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+ * Stopping sshd ...                  [ ok ]
+#+end_example
+
+* Improve our getty configuration
+
+In order to have a modern terminal experience over the serial connection, we need to modify the terminal capabilities of the =TTY= at the login prompt. To accomplish that, we first need to select a /Terminfo/ (see [[https://linux.die.net/man/5/terminfo][terminfo(5)]], [[https://linux.die.net/HOWTO/Text-Terminal-HOWTO-16.html#ss16.1][Intro to Terminfo]]) which meets our requirements.
+
+To see the currently selected /Terminfo/ output the value of the [[https://linux.die.net/HOWTO/Text-Terminal-HOWTO-16.html#ss16.6][TERM environment variable]]:
+#+begin_src sh
+second-chance:~$ echo $TERM
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+  vt100
+#+end_example
+
+The ~getty~ command that opens the login =TTY= with the /vt100/ Terminfo is located in =/etc/inittab/=.
+
+#+begin_src sh
+second-chance:~$ grep -iE 'ttyS0.*vt100' /etc/inittab
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+  ttyS0::respawn:/sbin/getty -L ttyS0 115200 vt100
+#+end_example
+
+Here is the full list of valid =Terminfo= names supported by the PinePhone:
+
+#+begin_src sh
+second-chance:~$ ls -lh /etc/terminfo/**/*
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+-rw-r--r--    1 root     root        3.5K May 24  2020 /etc/terminfo/a/alacritty
+-rw-r--r--    1 root     root        1.4K May 24  2020 /etc/terminfo/a/ansi
+-rw-r--r--    1 root     root         308 May 24  2020 /etc/terminfo/d/dumb
+-rw-r--r--    1 root     root        3.0K May 24  2020 /etc/terminfo/g/gnome
+-rw-r--r--    1 root     root        3.2K May 24  2020 /etc/terminfo/g/gnome-256color
+-rw-r--r--    1 root     root        2.8K May 24  2020 /etc/terminfo/k/kitty
+-rw-r--r--    1 root     root        3.1K May 24  2020 /etc/terminfo/k/konsole
+-rw-r--r--    1 root     root        3.2K May 24  2020 /etc/terminfo/k/konsole-256color
+-rw-r--r--    1 root     root        1.8K May 24  2020 /etc/terminfo/k/konsole-linux
+-rw-r--r--    1 root     root        1.7K May 24  2020 /etc/terminfo/l/linux
+-rw-r--r--    1 root     root        2.1K May 24  2020 /etc/terminfo/p/putty
+-rw-r--r--    1 root     root        2.2K May 24  2020 /etc/terminfo/p/putty-256color
+-rw-r--r--    1 root     root        2.2K May 24  2020 /etc/terminfo/r/rxvt
+-rw-r--r--    1 root     root        2.4K May 24  2020 /etc/terminfo/r/rxvt-256color
+-rw-r--r--    1 root     root        1.5K May 24  2020 /etc/terminfo/s/screen
+-rw-r--r--    1 root     root        1.7K May 24  2020 /etc/terminfo/s/screen-256color
+-rw-r--r--    1 root     root        2.3K May 24  2020 /etc/terminfo/s/st-0.6
+-rw-r--r--    1 root     root        2.6K May 24  2020 /etc/terminfo/s/st-0.7
+-rw-r--r--    1 root     root        2.5K May 24  2020 /etc/terminfo/s/st-0.8
+-rw-r--r--    1 root     root        2.7K May 24  2020 /etc/terminfo/s/st-16color
+-rw-r--r--    1 root     root        2.6K May 24  2020 /etc/terminfo/s/st-256color
+-rw-r--r--    1 root     root        2.6K May 24  2020 /etc/terminfo/s/st-direct
+-rw-r--r--    1 root     root        1004 May 24  2020 /etc/terminfo/s/sun
+-rw-r--r--    1 root     root        1.7K May 24  2020 /etc/terminfo/t/terminator
+-rw-r--r--    1 root     root        3.0K May 24  2020 /etc/terminfo/t/terminology
+-rw-r--r--    1 root     root        2.3K May 24  2020 /etc/terminfo/t/terminology-0.6.1
+-rw-r--r--    1 root     root        3.0K May 24  2020 /etc/terminfo/t/terminology-1.0.0
+-rw-r--r--    1 root     root        3.0K May 24  2020 /etc/terminfo/t/tmux
+-rw-r--r--    1 root     root        3.1K May 24  2020 /etc/terminfo/t/tmux-256color
+-rw-r--r--    1 root     root        1.2K May 24  2020 /etc/terminfo/v/vt100
+-rw-r--r--    1 root     root        1.2K May 24  2020 /etc/terminfo/v/vt102
+-rw-r--r--    2 root     root        1.3K May 24  2020 /etc/terminfo/v/vt200
+-rw-r--r--    2 root     root        1.3K May 24  2020 /etc/terminfo/v/vt220
+-rw-r--r--    1 root     root         839 May 24  2020 /etc/terminfo/v/vt52
+-rw-r--r--    1 root     root        3.2K May 24  2020 /etc/terminfo/v/vte
+-rw-r--r--    1 root     root        3.4K May 24  2020 /etc/terminfo/v/vte-256color
+-rw-r--r--    1 root     root        3.6K May 24  2020 /etc/terminfo/x/xterm
+-rw-r--r--    1 root     root        3.7K May 24  2020 /etc/terminfo/x/xterm-256color
+-rw-r--r--    1 root     root        1.5K May 24  2020 /etc/terminfo/x/xterm-color
+-rw-r--r--    1 root     root        2.2K May 24  2020 /etc/terminfo/x/xterm-xfree86
+#+end_example
+
+You need to choose a Terminfo that is compatible with the terminal emulator that you will be using when connecting to the PinePhone over serial. Since I am running ~xterm~, one of the names under =/etc/terminfo/x/= would be appropriate, but what if one day I need to login using ~tmux~? That is why =vt100= was chosen, it is compatible with a larg variety of terminal emulators. A more modern safe choice would be =/etc/terminfo/l/linux= which is another common default for ~getty~ over serial. I recommend testing a few of them out to help you make the best decision. To do that, you can change the current ~$TERM~ on the command line using ~env~. To put our ~terminfo~ of choice to the test, we can use the ~nmtui~ command. First run ~nmtui~ without modifying the Terminfo so that you have a basis, then try out a few reasonable options.
+
+#+begin_src sh
+  env TERM=linux nmtui
+#+end_src
+
+Choosing an incompatible Terminfo when running ~nmtui~ may result in problems ranging from unexpected behaviour, to a completely garbled and totally unusable ncurses UI. If you run into problems, remember that you can send a =SIGINT= to ~nmtui~ that will cause it to exit and return control to the command line prompt. Exactly how you send the =SIGINT= will depend on how you established your serial connection in the first place. Assuming that you followed along and ran the same ~socat~ command that I did, then you can send a SIGINT by pressing =ESC ESC=.
+
+Some of the issues that you might run into may be subtle. For example, linux, xterm, xterm-color and xterm-xfree86 Terminfo generally all worked well during my testing, but the first screen of ~nmtui~ was always drawn twice. I even notice some artifacts while the screen is being rendered when using ~xterm-color~. However; xterm-256color renders the screen only once and seems much faster to navigate. The fastest Terminfo by far is vt100, but it lacks color which is nice for screen shots ;-)
+
+Once you have made your decision, use vi to edit =/etc/inittab= and replace ~vt100~ in the ~getty~ which opens =/dev/ttyS0=.
+
+#+begin_src sh
+  sudo vi /etc/inittab
+#+end_src
+
+Or, if you are feeling confident, you can simply use ~sed~ (see [[https://man7.org/linux/man-pages/man1/sed.1.html][sed(1)]]). A backup will be saved to =/etc/inittab.bk=.
+#+begin_src sh
+  second-chance:~$ sed -ibk 's/ttyS0 115200 vt100/ttyS0 115200 xterm-256color/' /etc/inittab
+#+end_src
+
+On your next reboot the Terminfo for the login session will be as you set it. I would rather not reboot now though, so let's change our Terminfo for the current session by exporting a new value for the ~TERM~ environment variable.
+
+#+begin_src sh
+  export TERM=xterm-256color
+#+end_src
+
+* Configuring Wifi
+PostmarketOS uses the NetworkManager daemon for configuring network interfaces. A simple way to configure the PinePhone's wireless network interface is to use the Network Manager Text-based User Interface command named ~nmtui~. I will be walking through one possible configuration for setting up Wi-Fi, but your local area network might require that you choose different configuration options other than the ones shown here. Please keep that in mind if you are following along, and choose the options that make the most sense for your local environment.
+
+Before we get started, we need to determine the name of the wireless interface. We can do that by using the ~find~ command (see [[https://man7.org/linux/man-pages/man1/find.1.html][find(1)]]) to search for a directory named /wireless/ under =/sys/class/net/=.
+
+#+begin_src sh
+second-chance:~$ sudo find -L /sys/class/net/ -maxdepth 2 -type d -name 'wireless'
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+/sys/class/net/wlan0/wireless
+#+end_example
+
+We can see that there is one wireless network interface named =wlan0=. Now we can use the ~ip~ CLI (see [[https://man7.org/linux/man-pages/man8/ip.8.html][ip(8)]]) to show us some information about the interface.
+#+begin_src sh
+  second-chance:~$ ip addr show wlan0
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+3: wlan0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc mq state DOWN qlen 1000
+    link/ether bf:72:de:21:38:51 brd ff:ff:ff:ff:ff:ff
+#+end_example
+
+The wireless interface is currently down. Now we are ready to configure a new network connection for the wireless interface.
+
+#+begin_src sh
+  second-chance:~$ nmtui edit
+#+end_src
+
+[[/post/install_and_configure_postmarketos_with_plasma_mobile/nmtui-edit-menu-no-connections-configured.png]]
+
+The network configuration edit menu appears displaying a list of configured network connections. If this is your first time configuring a network connection, then the selection list will be empty as shown in the screen shot above. Press =<TAB>= so that the =<Add>= button is highlighted, then hit enter.
+
+[[/post/install_and_configure_postmarketos_with_plasma_mobile/nmtui-new-connection-menu.png]]
+
+The /New Connection/ menu appears. Select /Wi-Fi/ from the list of connection types and then press =<TAB>= until the =<Create>= navigation control is highlighted, then press =<RET>=.
+
+[[/post/install_and_configure_postmarketos_with_plasma_mobile/nmtui-edit-connection-menu-initial-state.png]]
+
+Now that the type of connection has been decided we have arrived at the /Edit Connection/ dialog. I will walk through filling out a possible valid configuration. Enter the following fields:
+
+#+begin_example
+  Profile name: Hidden SSID
+  Device: wlan0
+  SSID: HiddenSSID
+  Mode: <Client>
+  Security: WPA & WPA2 Personal
+  Password: <YOUR PASSWORD>
+  BSSID: f2:33:7c:80:ba:d1
+#+end_example
+
+[[/post/install_and_configure_postmarketos_with_plasma_mobile/nmtui-edit-connection-menu-filled-in.png]]
+
+This is a simple configuration, I left all fields not explicitly mentioned to their default values. However; I recommend that you review all the configuration options available and choose the most secure settings that your router is capable of providing. Once you are happy with your choices, press =<TAB>= until the =<OK>= navigation control is highlighted and hit =<RET>=.
+
+Look at the display on your phone. If the screen has locked, you will need to enter your pin in order to unlock it. The display should be showing a dialog prompting you to set a password for the KDE wallet. I entered a strong password and pressed the OK button. Do not choose the same password that you used for encrypting the root file system. It should also go without saying that you should not use the same password as your user's PIN.
+
+Now draw your attention back to your serial console session.
+[[/post/install_and_configure_postmarketos_with_plasma_mobile/nmtui-edit-menu-showing-configured-connection.png]]
+
+The UI should be back at the screen for selecting a network connection. The network selection box is no longer empty, it contains a single Wi-Fi connection with the profile name /Hidden SSID/. Hit the =<TAB>= key until =<Quit>= is highlighted, then press =<RET>= to exit ~nmtui~.
+
+[[/post/install_and_configure_postmarketos_with_plasma_mobile/nmtui-edit-connection-menu-filled-in.png]]
+
+The configuration is saved to =/etc/NetworkManager/system-connection/=.
+
+In the console use the nmcli to see the connection
+#+begin_example
+  second-chance:~$ nmcli connection show
+  NAME         UUID                                  TYPE  DEVICE
+  Hidden SSID  b6e9fa71-9828-4912-9d8c-456be04e2a11  wifi  --
+#+end_example
+
+Use the ~nmcli con up~ command to start the Wi-Fi connection.
+
+#+begin_src sh
+  second-chance:~$ nmcli con up Hidden\ SSID
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+  Connection successfully activated (D-Bus active path: /org/freedesktop/NetworkManager/ActiveConnection/1)
+#+end_example
+
+If everything worked as intended, the ~wlan0~ interface should now have an IP address.
+
+#+begin_src sh
+  second-chance:~$ ip addr show wlan0
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+
+5: wlan0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP qlen 1000
+    link/ether 08:c1:de:23:02:10 brd ff:ff:ff:ff:ff:ff
+    inet 192.168.1.102/24 brd 192.168.1.255 scope global dynamic wlan0
+       valid_lft 43065sec preferred_lft 43065sec
+    inet6 efbd:3669:1d6c::ddf/128 scope global
+       valid_lft forever preferred_lft forever
+    inet6 efbd:3669:1d6c:0:7858:df42:e675:c583/64 scope global secondary dynamic
+       valid_lft 604662sec preferred_lft 86254sec
+    inet6 efbd:3669:1d6c:0:40c5:90e8:8190:64e8/64 scope global
+       valid_lft forever preferred_lft forever
+    inet6 ed63::28bc:a402:2d51:11d/64 scope link
+       valid_lft forever preferred_lft forever
+#+end_example
+
+Try pinging a domain on the internet that you know responds to ICMP echo requests.
+
+#+begin_src sh
+  second-chance:~$ ping bloggerbust.ca -c 3
+#+end_src
+
+#+begin_example
+PING bloggerbust.ca (185.199.111.153): 56 data bytes
+64 bytes from 185.199.111.153: seq=0 ttl=42 time=27.402 ms
+64 bytes from 185.199.111.153: seq=1 ttl=42 time=28.191 ms
+64 bytes from 185.199.111.153: seq=2 ttl=42 time=27.031 ms
+
+--- bloggerbust.ca ping statistics ---
+3 packets transmitted, 3 packets received, 0% packet loss
+round-trip min/avg/max = 27.031/27.541/28.191 ms
+#+end_example
+
+* NTP time syncing
+
+Before continuing, please check the [[http://support.ntp.org/bin/view/Main/SecurityNotice#Recent_Vulnerabilities][ntp security notice]] page for news about recent vulnerabilities and mitigation's. NTP is already configured.
+
+#+begin_src sh
+  second-chance:~$ cat /etc/conf.d/ntpd
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+  # By default ntpd runs as a client. Add -l to run as a server on port 123.
+  NTPD_OPTS="-N -p pool.ntp.org"
+#+end_example
+
+The ~chronyd~ is configured to monitor drift and perform the sync when necessary.
+
+#+begin_src sh
+cat /etc/chrony/chrony.conf
+#+end_src
+
+#+begin_example
+  # default config
+
+  pool pool.ntp.org iburst
+  #initstepslew 10 pool.ntp.org
+  driftfile /var/lib/chrony/chrony.drift
+  rtcsync
+  cmdport 0
+  makestep 1 -1
+#+end_example
+
+So if there is nothing to do, then why did I include a section on NTP at all? Well, as you have been made aware, NTP has known vulnerabilities. These vulnerabilities can be mitigated, but I felt it was important to raise awareness about the issue. You might want to [[https://tor.stackexchange.com/questions/3754/what-is-the-recommended-way-for-handling-ntp#3755][handle NTP differently over Tor]]. Consider the possibility of somehow using time skew corrections to deanonymize unsuspecting travellers on [[https://www.torproject.org/][the Tor network]]. Perhaps through some sort of fuzzy fingerprinting technique. That is all just me speculating of course, this is a subject matter I have much to learn about. At any rate, it is never a waste of time to learn more about how your system is configured, especially when that system is societies primary form of communication.
+
+See also [[https://tails.boum.org/contribute/design/Time_syncing/][Tails Time syncing]].
+
+* Update APK Index
+You are probably aware that postmarketOS is based on Alpine Linux. The [[https://wiki.alpinelinux.org/wiki/Alpine_Linux_package_management][package management tool for Alpine Linux]] is called ~apk~. Now that we have an network connection, it is a good time to update the index of available packages. You need to run the ~apk update~ command at least once, before you can use any of the sub commands that rely on the index. This is what you will see if you try to run ~apk info~ prior to downloading the index.
+
+#+begin_src sh
+second-chance:~$ apk info vi
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+WARNING: Ignoring APKINDEX.3f9c67ba.tar.gz: No such file or directory
+WARNING: Ignoring APKINDEX.066df28d.tar.gz: No such file or directory
+WARNING: Ignoring APKINDEX.b53994b4.tar.gz: No such file or directory
+WARNING: Ignoring APKINDEX.30e6f5af.tar.gz: No such file or directory
+#+end_example
+
+Let's update the index by running ~apk update~
+#+begin_src sh
+second-chance:~$ sudo apk update
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+fetch http://postmarketos1.brixit.nl/postmarketos/master/aarch64/APKINDEX.tar.gz
+fetch http://dl-cdn.alpinelinux.org/alpine/edge/main/aarch64/APKINDEX.tar.gz
+fetch http://dl-cdn.alpinelinux.org/alpine/edge/community/aarch64/APKINDEX.tar.gz
+fetch http://dl-cdn.alpinelinux.org/alpine/edge/testing/aarch64/APKINDEX.tar.gz
+2020-04-20 02:19:35.767440 [http://postmarketos1.brixit.nl/postmarketos/master]
+v20200319-2692-g0c35cac407 [http://dl-cdn.alpinelinux.org/alpine/edge/main]
+v20200319-2699-gfec8fe13ff [http://dl-cdn.alpinelinux.org/alpine/edge/community]
+v20200319-2697-g856e44244b [http://dl-cdn.alpinelinux.org/alpine/edge/testing]
+OK: 16469 distinct packages available
+#+end_example
+
+* Configure Logging
+
+Alpine Linux default logger is [[https://wiki.alpinelinux.org/wiki/Syslog#busybox_syslog][busybox syslog]]. You can find the log configuration in your PinePhone at =/etc/conf.d/syslog=. Run ~syslogd --help~ for configuration options. Busybox syslog is simple to configure, but I prefer a logging facility that is more customizable. My preferred logging facility is ~syslog-ng~ because it is also easy to configure, but it offers the ability to direct logging to appropriately named files, which keeps your logs organized and makes it easier to find what you are looking for. Perhaps the same is possible with ~syslogd~, but it wasn't immediately clear to me how to do that.
+
+#+begin_src sh
+second-chance:~$ sudo apk add syslog-ng
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+(1/3) Installing ivykis (0.42.4-r0)
+(2/3) Installing syslog-ng (3.27.1-r0)
+Executing syslog-ng-3.27.1-r0.post-install
+(3/3) Installing syslog-ng-openrc (3.27.1-r0)
+Executing busybox-1.31.1-r16.trigger
+Executing postmarketos-base-3-r34.trigger
+Configuring a getty on port ttyS0 with baud rate 115200
+OK: 1358 MiB in 597 packages
+#+end_example
+
+You can find the configuration for ~syslog-ng~ in =/etc/syslog-ng/syslog-ng.conf=, but I think the default configuration is quite good, so I am going to leave it as is.
+
+Delete ~syslog~ from the boot runlevel.
+#+begin_src sh
+second-chance:~$ sudo rc-update del syslog boot
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+ * service syslog removed from runlevel boot
+#+end_example
+
+Stop the ~syslog~ daemon.
+
+#+begin_src sh
+second-chance:~$ sudo rc-service syslog stop
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+ * Caching service dependencies ...            [ ok ]
+ * Stopping busybox syslog ...
+#+end_example
+
+Add ~syslog-ng~ to the boot runlevel.
+#+begin_src sh
+second-chance:~$ sudo rc-update add syslog-ng boot
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+ * service syslog-ng added to runlevel boot
+#+end_example
+
+Start the ~syslog-ng~ daemon.
+#+begin_src sh
+second-chance:~$ sudo rc-service syslog-ng start
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+ * Starting syslog-ng ...
+#+end_example
+
+You should start to see more log files showing up in =/var/log=.
+#+begin_src sh
+second-chance:~$ ls -lah /var/log/
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+total 44K
+drwxr-xr-x    4 root     root        4.0K May 27 06:23 .
+drwxr-xr-x   12 root     root        4.0K Dec 31  1969 ..
+-rw-r--r--    1 root     root           0 May 27 05:53 auth.log
+drwxr-sr-x    2 chrony   chrony      4.0K May 24 14:11 chrony
+-rw-r-----    1 root     root       22.8K May 26 03:43 dmesg
+-rw-r--r--    1 root     root           0 May 27 05:53 error.log
+-rw-r--r--    1 root     root           0 May 27 05:53 kern.log
+drwx--x--x    2 root     root        4.0K May 26 03:43 lightdm
+-rw-r--r--    1 root     root           0 May 27 05:53 mail.log
+-rw-r-----    1 root     adm           84 May 27 06:23 messages
+-rw-rw-r--    1 root     utmp           0 Dec 31  1969 wtmp
+#+end_example
+
+* Upgrade to latest repository
+You do not need to re-deploy with pmbootstrap to keep your system up to date with the latest repositories. Instead, on a daily basis, [[*Update APK Index][update the APK index]] and run ~apk upgrade~.
+
+#+begin_src sh
+second-chance:~$ sudo apk upgrade
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+(1/11) Upgrading libgcc (9.3.0-r1 -> 9.3.0-r2)
+(2/11) Upgrading libstdc++ (9.3.0-r1 -> 9.3.0-r2)
+(3/11) Upgrading poppler-qt5 (0.88.0-r0 -> 0.88.0-r1)
+(4/11) Upgrading okular-common (20.04.0-r0 -> 20.04.1-r0)
+(5/11) Upgrading okular-mobile (20.04.0-r0 -> 20.04.1-r0)
+(6/11) Upgrading kirigami-gallery (20.04.0-r0 -> 20.04.1-r0)
+(7/11) Upgrading libgomp (9.3.0-r1 -> 9.3.0-r2)
+(8/11) Upgrading ktp-common-internals (20.04.0-r0 -> 20.04.1-r0)
+(9/11) Upgrading akonadi (20.04.0-r0 -> 20.04.1-r0)
+(10/11) Upgrading kmime (20.04.0-r0 -> 20.04.1-r0)
+(11/11) Upgrading akonadi-contacts (20.04.0-r0 -> 20.04.1-r0)
+Executing busybox-1.31.1-r15.trigger
+Executing postmarketos-base-3-r33.trigger
+Configuring a getty on port ttyS0 with baud rate 115200
+Executing shared-mime-info-1.15-r0.trigger
+Executing gtk-update-icon-cache-2.24.32-r1.trigger
+OK: 1352 MiB in 591 packages
+#+end_example
+
+However; ~apk upgrade~ will not update U-Boot. I might cover updating U-Boot in a future post.
+
+* Set a theme
+Early in my career I spent many long days staring at CRT monitors. Over time, the flickering as the screen refreshed began to affect my vision. Eventually the whole world seemed to flicker. After that experience I have been using dark themes whenever possible to reduce the amount of light that my eyes are subjected to on a daily basis. I now prefer dark themes simply for their aesthetic. To enable a dark theme on Plasma Mobile:
+
+1. Navigate to /Settings/ and select /Appearance/
+   # [[/post/install_and_configure_postmarketos_with_plasma_mobile/plasma-settings-appearance-selected.png]]
+2. select /Breeze Dark/, or whatever suits you
+   # [[/post/install_and_configure_postmarketos_with_plasma_mobile/plasma-settings-appearance-breeze-dark.png]]
+
+* Audio configuration
+The /ALSA/ ([[https://en.wikipedia.org/wiki/Advanced_Linux_Sound_Architecture][Advanced Linux Sound Architecture]]) package can be installed to provide sound support for postmarketOS. The package includes a large number of drivers and various tools, such as the venerable [[https://en.wikipedia.org/wiki/Alsamixer][alsamixer]]. To learn more about ALSA, checkout the [[https://alsa-project.org][ALSA project homepage]]. Also, be sure to check out the [[https://alsa.opensrc.org/][Independent ALSA and Linux audio support site]].
+
+#+begin_src sh
+  second-chance:~$ sudo apk add alsa-utils
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+(1/4) Installing dialog (1.3.20200327-r0)
+(2/4) Installing fftw-single-libs (3.3.8-r0)
+(3/4) Installing alsa-utils (1.2.2-r0)
+(4/4) Installing alsa-utils-openrc (1.2.2-r0)
+Executing busybox-1.31.1-r14.trigger
+Executing eudev-3.2.9-r3.trigger
+Executing postmarketos-base-3-r33.trigger
+Configuring a getty on port ttyS0 with baud rate 115200
+OK: 1697 MiB in 578 packages
+#+end_example
+
+Inspect which groups both =root= and your user belong to.
+#+begin_src sh
+second-chance:~$ groups
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+dustfinger wheel audio input video netdev plugdev
+#+end_example
+
+#+begin_src sh
+second-chance:~$ groups root
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+root bin daemon sys adm disk wheel floppy dialout tape video
+#+end_example
+
+Both of these users should be a member of the ~audio~ group.
+#+begin_src sh
+second-chance:~$ sudo usermod -aG audio $USER
+second-chance:~$ sudo usermod -aG audio root
+#+end_src
+
+Start the ~alsa~ daemon.
+#+begin_src sh
+second-chance:~$ sudo rc-service alsa start
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+[sudo] password for dustfinger:
+ * Restoring Mixer Levels ...
+ * No mixer config in /var/lib/alsa/asound.state, you have to unmute your card!
+ [ ok ]
+#+end_example
+
+From the output above it looks like we have to unmute the /Master/ simple control. Once we have done that, we will be able to use the PinePhone's volume button to adjust the volume. However, I thought I would quickly cover the basics of how to use ~amixer~ since we are touching on it anyway. For more information on usage, see the [[https://alsa.opensrc.org/Amixer][Amixer wiki page]].
+
+To display general mixer information use the ~amixer info~ sub command.
+#+begin_src sh
+second-chance:~$ amixer info
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+Card default 'pulse'/'PulseAudio'
+  Mixer name    : 'PulseAudio'
+  Components    : ''
+  Controls      : 4
+  Simple ctrls  : 2
+#+end_example
+
+You can see that there are 2 simple controls and 4 not-so-simple controls :-P. If you would like to know the complete list of valid simple control names that can be used with the ~sset~ and ~sget~ subcommand, simply run ~amixer scontrols~.
+#+begin_src sh
+second-chance:~$ amixer scontrols
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+Simple mixer control 'Master',0
+Simple mixer control 'Capture',0
+#+end_example
+
+To display the complete list of valid control identifiers that can be used with the ~cset~ and ~cget~ subcommands, run ~amixer controls~.
+
+#+begin_src sh
+second-chance:~$ amixer controls
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+numid=4,iface=MIXER,name='Master Playback Switch'
+numid=3,iface=MIXER,name='Master Playback Volume'
+numid=2,iface=MIXER,name='Capture Switch'
+numid=1,iface=MIXER,name='Capture Volume'
+#+end_example
+
+For example, if we wanted to use ~cget~ to display information about the /Master Playback Volume/, we can pass it the key /name/ and the value /'Master Playback Volume'/
+#+begin_src sh
+second-chance:~$ amixer cget name='Master Playback Volume'
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+numid=3,iface=MIXER,name='Master Playback Volume'
+  ; type=INTEGER,access=rw------,values=2,min=0,max=65536,step=1
+  : values=58982,58982
+#+end_example
+
+To display an overview of the configuration, use the ~amixser scontents~.
+#+begin_src sh
+  second-chance:~$ amixer scontents
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+Simple mixer control 'Master',0
+  Capabilities: pvolume pswitch pswitch-joined
+  Playback channels: Front Left - Front Right
+  Limits: Playback 0 - 65536
+  Mono:
+  Front Left: Playback 58982 [90%] [off]
+  Front Right: Playback 58982 [90%] [off]
+Simple mixer control 'Capture',0
+  Capabilities: cvolume cswitch cswitch-joined
+  Capture channels: Front Left - Front Right
+  Limits: Capture 0 - 65536
+  Front Left: Capture 65536 [100%] [on]
+  Front Right: Capture 65536 [100%] [on]
+#+end_example
+
+In the above output, you might notice that the /Master/ control is indicated as being /off/. When you see /[off]/ that means it is muted. Your master control was probably unmuted automatically when you started the alsa daemon, but I will show you how to unmute the master control just in case. To turn the /Master/ control on, simply unmute it with the following command:
+
+#+begin_src sh
+second-chance:~$ amixer sset Master unmute
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+Simple mixer control 'Master',0
+  Capabilities: pvolume pswitch pswitch-joined
+  Playback channels: Front Left - Front Right
+  Limits: Playback 0 - 65536
+  Mono:
+  Front Left: Playback 58982 [90%] [on]
+  Front Right: Playback 58982 [90%] [on]
+#+end_example
+
+Try playing with the PinePhone's volume control to increase or decrease the volume, then output the configuration again and observe that the volume percentage has changed accordingly.
+
+#+begin_src sh
+second-chance:~$ amixer scontents
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+Simple mixer control 'Master',0
+  Capabilities: pvolume pswitch pswitch-joined
+  Playback channels: Front Left - Front Right
+  Limits: Playback 0 - 65536
+  Mono:
+  Front Left: Playback 36043 [55%] [on]
+  Front Right: Playback 36043 [55%] [on]
+Simple mixer control 'Capture',0
+  Capabilities: cvolume cswitch cswitch-joined
+  Capture channels: Front Left - Front Right
+  Limits: Capture 0 - 65536
+  Front Left: Capture 65536 [100%] [on]
+  Front Right: Capture 65536 [100%] [on]
+#+end_example
+
+From the output above we can see that my volume is now at 55%. To test the sound we can run the ~speaker-test~ command. The ~-l~ optional parameter controls the number of loops. See [[https://linux.die.net/man/1/speaker-test][speaker-test(1)]] for more information.
+#+begin_src sh
+  second-chance:~$ speaker-test -c2 -l 1
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+speaker-test 1.2.2
+
+Playback device is default
+Stream parameters are 48000Hz, S16_LE, 2 channels
+Using 16 octaves of pink noise
+Rate set to 48000Hz (requested 48000Hz)
+Buffer size range from 96 to 1048576
+Period size range from 32 to 349526
+Using max buffer size 1048576
+Periods = 4
+was set period_size = 262144
+was set buffer_size = 1048576
+ 0 - Front Left
+ 1 - Front Right
+Time per period = 11.079789
+#+end_example
+
+Alsa configuration paths. Take the time to become familiar with the configuration files:
+- =/etc/conf.d/alsa=
+- =/usr/share/alsa/=
+- =/etc/alsa/conf.d/=
+- =/usr/share/pulseaudio/alsa-mixer/=
+
+Finally, add the alsa daemon to the default runlevel so that it starts automatically the next time we boot the phone.
+#+begin_src sh
+second-chance:~$ sudo rc-update add alsa default
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+ * service alsa added to runlevel default
+#+end_example
+
+* Configure x-forwarding
+
+Before we begin, I should mention that [[https://unix.stackexchange.com/questions/236482/is-there-a-downside-to-enabling-x11-forwarding-in-ssh][X-forwarding poses a security risk to the client side]]. That said, there might be times when you would like to use a GUI app on your mobile phone, but the GUI wasn't designed for touch screens. For example, perhaps you would like to explore a dbus interface using [[https://github.com/GNOME/d-feet][dFeet]]. Unfortunately dFeet does not have a CLI and is not mobile friendly. In such cases, I will start ~sshd~ on the PinePhone and use x-forwarding to my development box. Once I am finished, I always shut down ~sshd~. No sense in leaving it running since I have ~serial~.
+
+First, let's configure the server side (PinePhone) by editing =/etc/ssh/sshd_config= (see [[http://man7.org/linux/man-pages/man5/sshd_config.5.html][sshd_config(5)]]).
+
+#+begin_src sh
+  sudo vi /etc/ssh/sshd_config
+#+end_src
+
+Page down to the bottom of the file and add the following conditional block which will override the system wide ~X11Forwarding~ and ~X11UseLocalhost~ settings for your user.
+
+#+begin_example
+  Match User dustfinger
+    X11Forwarding yes
+    X11UseLocalhost yes
+#+end_example
+
+Start the SSH daemon.
+
+#+begin_src sh
+  second-chance:~$ sudo rc-service sshd start
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+ * Starting sshd ...                       [ ok ]
+#+end_example
+
+If it is was already started, then you will have to restart it for the changes to take effect. Back on the client side, generate a new RSA key.
+#+begin_src sh
+ mkdir -p ~/.ssh
+ ssh-keygen -f ~/.ssh/id_second-chance_rsa
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+Generating public/private rsa key pair.
+Enter passphrase (empty for no passphrase):
+Enter same passphrase again:
+Your identification has been saved in /home/dustfinger/.ssh/id_second-chance_rsa.
+Your public key has been saved in /home/dustfinger/.ssh/id_second-chance_rsa.pub.
+The key fingerprint is:
+SHA256:3KcVsaPW0FxMatRMkX+/JKN21OPItaxi5P1wZBRliGo dustfinger@galactica
+The key's randomart image is:
++---[RSA 3072]----+
+|            oB==+|
+|           +.=*..|
+|          ..O  o |
+|       . .E= o. o|
+|        S.+ + .oo|
+|         . = +o=.|
+|          + =.O.+|
+|           * =o= |
+|          o o.o. |
++----[SHA256]-----+
+#+end_example
+
+Edit =$HOME/.ssh/config= (see [[http://man7.org/linux/man-pages/man5/ssh_config.5.html][ssh_config(5)]]) creating a new file if it does not already exist. Add the following host specific configuration. Replace =second-chance= with the host name or IP address of your PinePhone.
+
+#+begin_example
+  host second-chance
+       Hostname second-chance
+       ForwardAgent yes
+       ForwardX11 yes
+       # ForwardX11Trusted yes
+       IdentityFile ~/.ssh/id_second-chance_rsa
+       User dustfinger
+#+end_example
+
+I commented out =ForwardX11Trusted yes= on purpose. Only set =ForwardX11Trusted yes= if you fully trust the server, i.e. your PinePhone. You may choose to leave that option commented out and instead pass =-Y= optional flag only when you require x-forwarding and untrusted X11 forwarding fails. For the purposes of this post I have uncommented that option for my own convenience.
+
+Copy ssh id to remote authorized keys (see [[https://linux.die.net/man/1/ssh-copy-id][ssh-copy-id(1)]]).
+#+begin_src sh
+ssh-copy-id -i ~/.ssh/id_second-chance_rsa dustfinger@second-chance
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+/usr/bin/ssh-copy-id: INFO: Source of key(s) to be installed: "/home/dustfinger/.ssh/id_second-chance_rsa.pub"
+/usr/bin/ssh-copy-id: INFO: attempting to log in with the new key(s), to filter out any that are already installed
+/usr/bin/ssh-copy-id: INFO: 1 key(s) remain to be installed -- if you are prompted now it is to install the new keys
+dustfinger@second-chance's password:
+
+Number of key(s) added: 1
+
+Now try logging into the machine, with:   "ssh 'dustfinger@second-chance'"
+and check to make sure that only the key(s) you wanted were added.
+#+end_example
+
+As long as you don't see any warnings, such as /Warning: untrusted X11 forwarding setup failed: xauth key data not generated/, your /SSH/ requests should have access to the display. You can test this by running seeing if the ~$DISPLAY~ variable is set.
+
+#+begin_src sh
+ssh dustfinger@second-chance 'echo $DISPLAY'
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+localhost:10.0
+#+end_example
+
+* DBus Basics
+/DBus/ is a service for /Inter-Process Communication/ (IPC). When a service registers itself with DBus, it publishes an interface to facilitate interoperabillity with other processes. The oFono daemon is one such service. We will be using DBus to get information about our modem and configuration from the oFono daemon. Many frameworks wrap the low [[https://gitlab.freedesktop.org/dbus/dbus/-/blob/master/doc/busconfig.dtd][level libdbus XML bindings]] providing [[https://www.freedesktop.org/wiki/Software/DBusBindings/][higher level bindings]] for their own API. High-level Interface bindings use appropriate programming language constructs, meaning that bindings for Java based services would normally expose a Java interface and Python based services would normally expose a Python interface etc.
+
+I am going to show you how to find your way around dbus from the CLI. In the next two sections I will show you how to install and use [[*Qt DBus Viewer][Qt DBus Viewer]] and [[*GNOME D-Feet D-Bus Debugger][GNOME D-Feet D-Bus Debugger]] to do the same thing with a UI.
+
+In order to send a message to a service that is registered with DBus, we first need to know its name. Thankfully, DBus registers its own service named ~org.freedesktop.DBus~ that exposes the method ~org.freedesktop.DBus.ListNames~ for just this purpose. We can call it using the ~dbus-send~ command on any system running dbus like this:
+
+#+begin_src sh
+second-chance:~$ dbus-send --system --print-reply --dest=org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus.ListNames
+#+end_src
+
+There are many ways to do the same thing. Plasma Mobile comes with [[https://www.qt.io/][Qt]] which includes ~qdbus~ (see [[https://www.commandlinux.com/man-page/man1/qdbus.1.html][qdbus(1)]]) and provides shorter commands. Yet another option is ~gdbus~ (see [[https://www.commandlinux.com/man-page/man1/gdbus.1.html][gdbus(1)]]) which comes with [[https://wiki.gnome.org/Projects/GLib][GLib]]. One advantage of ~gdbus~ is bash completion. It would have been my first choice, save for the fact that my login shell is the Almquist Shell and it does not appear to support completion for ~gdbus~. In general bash completion seems to work. Maybe I need to configure ~gdbus~, or install another package, to get that spport in this environment. If you know the answer, please comment. At any rate, I am going to stick with ~qdbus~ for the remainder of this post for simplicity.
+
+The following ~qdbus~ command is equivalent:
+
+#+begin_src sh
+  second-chance:~$ qdbus --system
+#+end_src
+
+#+begin_example
+:1.0
+ fi.w1.wpa_supplicant1
+:1.1
+ org.freedesktop.NetworkManager
+:1.11
+ org.freedesktop.URfkill
+:1.112
+:1.113
+:1.12
+:1.13
+:1.14
+:1.15
+:1.16
+ org.freedesktop.UPower
+:1.165
+:1.17
+:1.18
+:1.19
+:1.20
+:1.27
+:1.28
+:1.29
+:1.3
+ org.freedesktop.DisplayManager
+:1.30
+:1.4
+:1.5
+ org.ofono
+:1.6
+ org.freedesktop.login1
+:1.7
+ org.freedesktop.Accounts
+:1.8
+ org.freedesktop.PolicyKit1
+:1.9
+org.freedesktop.DBus
+#+end_example
+
+To get a list of object paths that are exposed by the ~org.ofono~ service we can call:
+
+#+begin_src sh
+second-chance:~$ qdbus --system org.ofono
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+/
+/bluetooth
+/bluetooth/profile
+/bluetooth/profile/dun_gw
+/bluetooth/profile/hfp_ag
+/bluetooth/profile/hfp_hf
+/quectelqmi_0
+/quectelqmi_0/context1
+/quectelqmi_0/operator
+/quectelqmi_0/operator/<REDACTED>
+#+end_example
+
+An object path contains methods and signals. To list only the methods exposed by the object =/quectelqmi_0/context1=, we can use ~grep~ to filter the result.
+#+begin_src sh
+second-chance:~$ qdbus --system org.ofono /quectelqmi_0/context1 | grep -i method
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+method QString org.freedesktop.DBus.Introspectable.Introspect()
+method QVariantMap org.ofono.ConnectionContext.GetProperties()
+method void org.ofono.ConnectionContext.SetProperty(QString property, QDBusVariant value)
+#+end_example
+
+The ~qdbus~ CLI uses the [[https://doc.qt.io/qt-5/qtdbus-index.html][Qt API]] bindings which is why we are seeing types such as ~QString~ or ~QBusVariant~ from the [[https://doc.qt.io/qt-5/qdbustypesystem.html][Qt D-Bus type system]]. If we do the same thing with ~dbus-send~, then we will see [[https://developer.gnome.org/glib/stable/glib-GVariantType.html][GVariant types]] being used from the [[https://developer.gnome.org/gio/stable/gdbus-lowlevel.html][low-level DBus bindings]] instead.
+
+#+begin_src sh
+second-chance:~$ qdbus --system org.ofono /quectelqmi_0/context1 org.freedesktop.DBus.Introspectable.Introspect | grep -i method
+#+end_src
+
+#+RESULTS:
+
+#+begin_src xml
+<node><interface name="org.freedesktop.DBus.Introspectable"><method name="Introspect"><arg name="xml" type="s" direction="out"/>
+</method></interface><interface name="org.ofono.ConnectionContext"><method name="GetProperties"><arg name="properties" type="a{sv}" direction="out"/>
+</method><method name="SetProperty"><arg name="property" type="s" direction="in"/>
+</method><signal name="PropertyChanged"><arg name="name" type="s"/>
+#+end_src
+
+That should give you an idea of how to get information. Careful not to get your APIs crossed.
+
+** Qt DBus Viewer
+The /Qt DBus Viewer/ is a reasonable choice since PlasmaMobile already uses /Qt/. The UI is partially touch friendly, but the layout is not responsive enough to be considered practicable while rendered in portrait view.
+
+[[/post/install_and_configure_postmarketos_with_plasma_mobile/qtdbusviewer-with-ofono-manager-get-modems-selected-mobile.png]]
+
+At the time of writing Plasma Mobile's screen rotation is not working, without some investigation it is not clear how to switch from portrait to landscape. Scrolling is also an issue since it requires that you touch and drag the narrow scroll bar with your wide fingers. If you attempt to touch and drag a window pane, you will select a region of text instead. If you choose to install Qt D-Bus Viewer, then I recommend that you [[*Configure x-forwarding][configure x-forwarding]] and forward the display to your desktop where the user experience will be as intended.
+
+You might already think that you have ~qdbusviewer~ installed because the command is in the ~$PATH~.
+
+#+begin_src sh
+  second-chance:~$ which qdbusviewer
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+  /usr/bin/qdbusviewer
+#+end_example
+
+However, if you execute the command, it becomes clear that it is missing implementation binaries.
+#+begin_src sh
+second-chance:~$ qdbusviewer
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+qdbusviewer: could not exec '/usr/lib/qt5/bin/qdbusviewer': No such file or directory
+#+end_example
+
+You can install ~qdbusviewer~ by running the following command.
+#+begin_src sh
+  second-chance:~$ sudo apk add qt5-qdbusviewer
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+[sudo] password for dustfinger:
+fetch http://postmarketos1.brixit.nl/postmarketos/master/aarch64/APKINDEX.tar.gz
+fetch http://dl-cdn.alpinelinux.org/alpine/edge/main/aarch64/APKINDEX.tar.gz
+fetch http://dl-cdn.alpinelinux.org/alpine/edge/community/aarch64/APKINDEX.tar.gz
+fetch http://dl-cdn.alpinelinux.org/alpine/edge/testing/aarch64/APKINDEX.tar.gz
+(1/1) Installing qt5-qdbusviewer (5.14.2-r0)
+Executing busybox-1.31.1-r16.trigger
+Executing gtk-update-icon-cache-2.24.32-r1.trigger
+OK: 1358 MiB in 597 packages
+#+end_example
+
+Qt package information:
+#+begin_src sh
+  second-chance:~$ apk info --description --webpage --size --depends --provides --license qt5-qdbusviewer
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+qt5-qdbusviewer-5.14.2-r0 description:
+D-Bus debugger and viewer
+
+qt5-qdbusviewer-5.14.2-r0 webpage:
+https://www.qt.io/developers/
+
+qt5-qdbusviewer-5.14.2-r0 installed size:
+208896
+
+qt5-qdbusviewer-5.14.2-r0 depends on:
+so:libQt5Core.so.5
+so:libQt5DBus.so.5
+so:libQt5Gui.so.5
+so:libQt5Widgets.so.5
+so:libQt5Xml.so.5
+so:libc.musl-aarch64.so.1
+so:libstdc++.so.6
+
+qt5-qdbusviewer-5.14.2-r0 provides:
+cmd:qdbusviewer-qt5
+
+qt5-qdbusviewer-5.14.2-r0 license:
+(LGPL-2.0-or-later OR GPL-3.0-only OR GPL-2.0-or-later) AND Qt-GPL-exception-1.0 AND GFDL-1.3-or-later
+#+end_example
+
+Once you have x-forwarding configured, you will be able to render the Qt D-Bus instance that is running on your phone on your computer's monitor:
+#+begin_src sh
+dustfinger@galactica ~/ $ ssh dustfinger@second-chance qdbusviewer
+#+end_src
+
+[[/post/install_and_configure_postmarketos_with_plasma_mobile/qtdbusviewer-with-ofono-radio-settings-get-properties-selected-x-forwarding.png]]
+
+The tool is dead simple. Use the tab to switch between /Session/ and /System Bus/. Services which are registered with DBus are listed by name in the left pane. Selecting a service will cause Qt D-Bus Viewer to display a list of root level interfaces or object paths depending on what the service exposes. Root level interfaces are actually defined in the object path =/=, but the UI omits that object path for convenience. Expanding an object path will reveal its interface in a tree-view. To execute a method, simply double click it.
+
+Take a moment and play around with it and don't forget to visit the [[https://doc.qt.io/qt-5/qtdbus-index.html][Qt D-Bus documentation]] and keep the [[https://doc.qt.io/qt-5/qdbustypesystem.html][Qt D-Bus type system]] handy for reference.
+
+** GNOME D-Feet D-Bus Debugger
+D-Feet is less mobile friendly than Qt DBus Viewer. Although you can scroll by touch-dragging a window pane, the UI frequently stops responding after selecting a bus name. Since, in my case at least, it is not practicable from the touch interface, I recommend that you [[*Configure x-forwarding][configure x-forwarding]] and interact with d-feet from your computer.
+
+To illustrate my experience I took a screen capture after I managed to call ~getProperties~ from the ~Sim Manager~:
+[[/post/install_and_configure_postmarketos_with_plasma_mobile/d-feet-with-ofono-quectelqmi-sim-manager-interface-get-properties-method-selected-mobile.png]]
+
+I then selected another bus name which caused the UI to stop responding at the moment that both bus names were highlighted.
+[[/post/install_and_configure_postmarketos_with_plasma_mobile/d-feet-with-ofono-quectelqmi-sim-manager-service-and-freedesktop-login-service-selected-ui-unresponsive-mobile.png]]
+
+I discovered that swiping down to reveal the /Quick Settings Tray/ often, but not always, causes D-Feet UI to become responsive again. So if you are experimenting with D-Feet from the touch screen of your phone and the UI locks up, you could try swiping down to get it to respond. Failing that, there is always ~SIGINT~, i.e. ~kill -2 `pidof d-feet`~.
+
+To install dFeet run the following command:
+
+#+begin_src sh
+second-chance:~$ sudo apk add d-feet
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+fetch http://postmarketos1.brixit.nl/postmarketos/master/aarch64/APKINDEX.tar.gz
+fetch http://dl-cdn.alpinelinux.org/alpine/edge/main/aarch64/APKINDEX.tar.gz
+fetch http://dl-cdn.alpinelinux.org/alpine/edge/community/aarch64/APKINDEX.tar.gz
+fetch http://dl-cdn.alpinelinux.org/alpine/edge/testing/aarch64/APKINDEX.tar.gz
+(1/3) Installing gobject-introspection (1.64.1-r2)
+(2/3) Installing py3-gobject3 (3.36.1-r0)
+(3/3) Installing d-feet (0.3.15-r2)
+Executing busybox-1.31.1-r16.trigger
+Executing glib-2.64.3-r0.trigger
+Executing gtk-update-icon-cache-2.24.32-r1.trigger
+OK: 1356 MiB in 594 packages
+#+end_example
+
+Make sure that ~sshd~ is running:
+#+begin_src sh
+second-chance:~$ sudo rc-service sshd status
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+ * status: stopped
+#+end_example
+
+Start the daemon if it is not running:
+#+begin_src sh
+  second-chance:~$ sudo rc-service sshd start
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+ * Starting sshd ...
+ [ ok ]
+#+end_example
+
+From your home computer launch ~d-feet~:
+#+begin_src sh
+dustfinger@galactica ~/ $ ssh -Y dustfinger@second-chance d-feet
+#+end_src
+
+Just like [[*Qt DBus Viewer][Qt DBus Viewer]], D-Feet is dead simple to use. Services which are registered with DBus are listed by name in the left pane. Selecting a service will cause D-Feet to display that service's /address/, /name/, /unique name/ and /object path/ in the right pane. Expanding an object path will reveal its interface in a tree-view. To execute a method, simply double click it.
+
+[[/post/install_and_configure_postmarketos_with_plasma_mobile/d-feet-with-ofono-quectelqmi-sim-manager-interface-get-properties-method-selected.png]]
+
+Take a moment and play aroud with D-Feet via x-forwarding and don't forget to visit the [[https://wiki.gnome.org/Apps/DFeet][Gnome wiki D-Feet documentation]]. I also recommend that you keep this reference on [[https://developer.gnome.org/glib/stable/glib-GVariantType.html][GVariant types]] and the [[https://developer.gnome.org/gio/stable/gdbus-convenience.html][GLib APIs]] handy.
+
+* Configure the modem
+In the subsections to follow we are going to be configuring our modem, which will involve connecting to the modem over a serial port and running a number of /AT commands/ ([[https://en.wikipedia.org/wiki/Hayes_command_set#Description][Attention commands]]). Recent versions of postmarketOS now handle this configuration for you; however, if you have difficulty configuring your APN settings or making a phone call it can be helpful to understand how to validate the modem's configuration when trouble shooting.
+
+There are many tools available that will allow you to connect to a modem; I have decided to use ~minicom~. I will also be showing you how to run AT commands directly from the command line. Regardless of how you choose to send AT commands to the modem there are two pre-requisites that must be satisfied.
+
+1. We need to know the /special file name/ of the /serial port/
+2. Our user must have /read/ and /write/ permissions to the special file name of the serial port
+
+** Identify the serial port
+The output from ~dmesg~ can be used to determine which serial ports the modem is attached to.
+
+#+begin_src sh
+  second-chance:~$ dmesg | grep -i modem
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+[   80.291634] usbserial: USB Serial support registered for GSM modem (1-port)
+[   80.292045] option 3-1:1.0: GSM modem (1-port) converter detected
+[   80.294623] usb 3-1: GSM modem (1-port) converter now attached to ttyUSB0
+[   80.294965] option 3-1:1.1: GSM modem (1-port) converter detected
+[   80.298683] usb 3-1: GSM modem (1-port) converter now attached to ttyUSB1
+[   80.298975] option 3-1:1.2: GSM modem (1-port) converter detected
+[   80.301833] usb 3-1: GSM modem (1-port) converter now attached to ttyUSB2
+[   80.310246] option 3-1:1.3: GSM modem (1-port) converter detected
+[   80.310645] usb 3-1: GSM modem (1-port) converter now attached to ttyUSB3
+#+end_example
+
+In the above output, we can see that USB serial support was registered for a /GSM/ modem. The modem is connected to the PinePhone via a USB converter. Whenever a USB converter is attached to a serial device you will see the text /=converter now attached to <SPECIAL FILE NAME>=/ in the output of ~dmesg~. 
+
+Now that we have the names of the serial ports, we can determine the group ownership of the special file names via the ~ls~ command.
+
+#+begin_src sh
+  second-chance:~$ ls -lah /dev/ttyUSB*
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+  crw-rw----    1 root     dialout   188,   0 May 16 05:08 /dev/ttyUSB0
+  crw-rw----    1 root     dialout   188,   1 May 16 05:08 /dev/ttyUSB1
+  crw-rw----    1 root     dialout   188,   2 May 16 05:08 /dev/ttyUSB2
+  crw-rw----    1 root     dialout   188,   3 May 16 05:08 /dev/ttyUSB3
+#+end_example
+
+The /dialout/ group is the typical application group for modems, but it is always worth confirming the actual group name by looking it up yourself. After all, it is always possible that group ownership was not set correctly, or that a different application group was used for this purpose.
+
+We can use the ~groups~ command to find out if our user is already a member of /dialout/.
+
+#+begin_src sh
+  second-chance:~$ groups $USER
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+dustfinger wheel audio input video netdev plugdev
+#+end_example
+
+In my case, /dustfinger/ is not a member of the /dialout/ group. I will add /dustfinger/ to the /dialout/ group using ~gpasswd~.
+
+#+begin_src sh :results output scalar :shebang "#!/bin/bash" :wrap example
+  second-chance:~$ sudo gpasswd -a $USER dialout
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+  [sudo] password for dustfinger:
+  Adding user dustfinger to group dialout
+#+end_example
+
+You might be wondering how we know which of the four serial ports to connect to. Thankfully postmarketOS created descriptive symlinks to each of these ports. We can use the find command to locate those symlinks:
+
+#+begin_src sh
+  second-chance:~$ find /dev -maxdepth 1 -type l -exec ls -la '{}' \; | grep ttyUSB
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+  lrwxrwxrwx    1 root     root             7 Jun  4 05:09 /dev/EG25.MODEM -> ttyUSB3
+  lrwxrwxrwx    1 root     root             7 Jun  4 05:09 /dev/EG25.AT -> ttyUSB2
+  lrwxrwxrwx    1 root     root             7 Jun  4 05:09 /dev/EG25.NMEA -> ttyUSB1
+#+end_example
+
+It should be obvious that when establishing an interactive session with the modem using a tool like ~minicom~ the correct port is the one with the alis ~EG25.MODEM~. In fact, we can simply use the alias if we prefer.
+
+** Enable oFono debug logging
+
+There are two debugging features that you can enable to gain some insight when trouble shooting issues with your modem or SIM configuration. To enable them, I found it easiest to create the following config file for ~ofonod~.
+
+#+begin_src sh
+  second-chance:~$ sudo vi /etc/conf.d/ofono
+#+end_src
+
+#+begin_example
+  # optional parameters to be passed to ofonod. See ofonod --help
+  OFONOD_OPTS="-d"
+
+  # enable or disable AT debugging
+  ENABLE_AT_DEBUGGING=true
+#+end_example
+
+Next, I modified =/etc/init.d/ofono=
+#+begin_src sh
+  second-chance:~$ sudo vi /etc/init.d/ofono
+#+end_src
+
+and added a ~start_pre~ function to conditionally export the AT debug environment variable based on the value of ~$ENABLE_AT_DEBUGGING~.
+#+begin_src sh
+start_pre() {
+        # enable / disable AT debugging
+        if [ -n "$ENABLE_AT_DEBUGGING" ]; then
+                if yesno "$ENABLE_AT_DEBUGGING"; then
+                        einfo "AT debugging is enabled by config"
+                        export OFONO_AT_DEBUG=1
+                else
+                        einfo "AT debugging is disabled by config"
+                        export OFONO_AT_DEBUG=0
+                fi
+        fi
+
+        einfo "command_args_foreground = $command_args_foreground"
+}
+
+#+end_src
+
+I also added ~$OFONOD_OPTS~ to the ~command_args_forground~ assignment.
+
+#+begin_src sh
+  command_args_foreground="$OFONOD_OPTS -n"
+#+end_src
+
+Now restart the oFono service and you should see the following output:
+#+begin_src sh
+second-chance:~$ sudo rc-service ofono restart
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+ * Caching service dependencies ...                                       [ ok ]
+ * Stopping oFono ...                                                     [ ok ]
+ * AT debugging is enabled by config
+ * command_args_foreground = -d -n
+ * Starting oFono ...                                                     [ ok ]
+#+end_example
+
+You probably don't want to leave all that debugging enabled permanently, so don't forget to disable it once you are happy with your configuration.
+
+** Connect to the modem
+
+You may skip this step if you would prefer to [[*Send an AT command from the shell][send the AT commands directly from the shell]]. 
+
+The /[[https://bloggerbust.ca/page/appendix/#line-speed][line speed]]/ for the [[http://files.pine64.org/doc/datasheet/pinephone/Quectel_EG25-G_LTE_Specification_V1.0.pdf][Quectel EG25]] is 1152008n1 which is the default line speed for ~minicom~. The only thing we need to tell ~minicom~ is the port.
+
+#+begin_src sh
+minicom -D /dev/ttyUSB2
+#+end_src
+
+[[/post/install_and_configure_postmarketos_with_plasma_mobile/minicom-welcome-screen.png]]
+
+** AT Command Basics
+Please refer to the [[https://wiki.pine64.org/images/2/2e/Quectel_EC25EC21_AT_Commands_Manual_V1.2.pdf][Quectel EC25 AT commands manual]] when following along. There is an appendix on page 192 with many useful tables, such as terms & abbreviations and error codes.
+
+To get a value from an AT command, end the command with a question mark.
+#+begin_src sh
+AT+QDAI?
+#+end_src
+
+There are three categories of AT commands supported by the Quectel EC25.
+1. Basic Syntax :: =AT<x><n>= where =<x>= is the command and =<n>= represents 0 or more arguments
+2. S parameter syntax :: =ATS<n>=<m>= where =<n>= is a register index and =<m>= is the value to assign
+3. Extended syntax :: see table below
+
+| Type    | Syntax       | Description                                                                                     |
+|---------+--------------+-------------------------------------------------------------------------------------------------|
+| Test    | AT+<x>=?     | returns list of parameters and value ranges accepted by the write command or internal processes |
+| Read    | AT+<x>?      | Returns current parameter(s) value(s)                                                           |
+| Write   | AT+<x>=<...> | Set parameter(s) value(s)                                                                       |
+| Execute | AT+<x>       | Read non-variable parameters affected by internal processes in the UE                           |
+
+When powering down the modem it is recommended that you call ~AT+QPOWD~. See /1.6 Turn off Procedure/ of the manual. You don't need to worry about this anymore though, because postmarketOS handles this in the ~eg25~ service. It does not actually call the AT command, but instead it powers off the GPIO pins. If you ever want to restart the module without rebooting your phone, you can simply call:
+
+#+begin_src sh
+  second-chance:~$ sudo rc-service eg25 restart
+#+end_src
+
+** Send an AT command from the shell
+Sending an AT command directly from the shell is straight forward and I recommend this approach. I chose to use ~minicom~ for demonstration purposes and for fun. The most basic AT command is named ~AT~ and simply returns =OK=.
+
+#+begin_src sh
+second-chance:~$ echo "AT" | atinout - /dev/EG25.AT -
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+AT
+
+
+OK
+#+end_example
+
+** Configure the modem for audio
+
+This step is no longer necessary to perform manually. PostmarketOS now has a service named ~pinephone_setup-modem-audio~ that calls ~/usr/bin/pinephone_setup-modem-audio~ which runs the ~AT+QDAI~ AT command for you. If you need to change your audio routing for some reason, then you will need to update that script or it will just reset the configuration on next reboot. You are welcome to read on for learning purposes, or [[*Check Audio Mode][skip to the next section]].
+
+It is time to [[https://xnux.eu/devices/feature/modem-pp.html#toc-setting-up-the-modem-for-voice-calling][configure the modem for audio]] by running the Quectel Digital Audio Interface (QDAI) configuration write command defined on page 186 of the /[[https://wiki.pine64.org/images/2/2e/Quectel_EC25EC21_AT_Commands_Manual_V1.2.pdf][AT commands manual]]/.
+#+begin_src sh
+AT+QDAI=1,0,0,2,0,1,1,1
+#+end_src
+
+[[/post/install_and_configure_postmarketos_with_plasma_mobile/minicom-configure-digital-audio-interface.png]]
+
+The command only needs to be run one time since the configuration is persistent, but the effects will not be realized until the module is rebooted.
+
+#+begin_example
+This sets modem to:
+
+  1 - Digital PCM
+  0 - I2S master
+  0 - Primary mode (short sync)
+  1 - 256kHz clock (256kHz / 16bit = 16k samples/s)
+  0 - 16bit linear format
+  1 - 16kHz sample
+  1 - 1 slot
+  1 - map to first slot (the only slot)
+#+end_example
+
+See page 187 of the AT commands manual for a full explanation the parameters and their values.
+
+** Check Audio Mode
+The audio mode controls where the audio from the modem is sent. The audio mode has three states as defined on page 186:
+
+| Value | Description                  |
+|-------+------------------------------|
+|     0 | audio configured for handset |
+|     1 | audio configured for headset |
+|     2 | audio configured for speaker |
+
+It is unlikely for this mode to be sent incorrect, but if you find that you are not hearing any sound after [[*Configure the modem for audio][configuring the modem for audio]], then it is easy enough to call the ~AT+QAUDMOD~ read command for confirmation.
+
+[[/post/install_and_configure_postmarketos_with_plasma_mobile/minicom-check-modem-audio-mode.png]]
+
+** Check Audio Mute
+If nobody can hear you during a phone call, you can check to see if uplink voice muting is enabled via the ~AT+CMUT~ command on page 182 of the AT commands manual.
+
+[[/post/install_and_configure_postmarketos_with_plasma_mobile/minicom-check-modem-voice-uplink-mute-state.png]]
+
+| Value | Description |
+|-------+-------------|
+|     0 | Mute off    |
+|     1 | Mute on     |
+
+** Enable Full Functionality
+
+As was the case with audio configuration, the ~/usr/bin/pinephone_setup-modem-audio~ will enable full phone functionality. However, at the time of writing there is a bug in the code such that if your modem was previously configured with the [[*Configure the modem for audio][recommended audio routing]], then the script will exit before ensuring that full functionality is also configured.
+
+#+begin_src sh
+  # Read current config RET=$(echo "AT+QDAI?" | atinout - $DEV -)
+
+  if echo $RET | grep -q $QDAI_CONFIG
+  then
+          echo "Modem audio already configured"
+          exit 0
+  fi
+
+  # ... Setting full functionality happens below, but code exits above
+  # if audio routing was already configured.
+#+end_src
+
+To check that the modem's phone functionality is set to full run the ~AT+CFUN~ read command (pg 25).
+
+[[/post/install_and_configure_postmarketos_with_plasma_mobile/minicom-check-modem-phone-functionality-setting.png]]
+
+| Value | Description                         |
+|-------+-------------------------------------|
+|     0 | Minimum functionality               |
+|     1 | Full functionality (default)        |
+|     4 | radio (transmit & receive) disabled |
+
+Unfortunately the manual does not clearly specify what /minimal functionality/ means. Here are two known symptoms that might indicate that the modem is not in /full functionality/ mode.
+1. Checking operator registration and mode with ~AT+COPS?~ returns a 0 meaning that the operator mode and registration is ~UNKNOWN~
+2. Checking /PIN/ status with ~AT+CPIN?~ returns ~+CME ERROR: 13~
+
+Run ~AT+CFUN 1,1,~ to enable full modem functionality.
+
+** Enable (U)SIM card detection
+Card detection is what allows a modem to detect a SIM card that was inserted after the modem was already powered on. SIM hot-swapping means that the modem supports the removal of one SIM card and the insertion of another SIM card without having to power-cycle the modem in between. Since the Pine Phone's SIM socket is obstructed by the battery when powered on, the Pine Phone doesn't truly support hot-swapping SIM cards. That being said, the Quectel EC25 modem does support hot-swapping and we can exploit that feature to validate that the modem has detected the SIM. To get the current settings we need to call the ~AT+QSIMDET~ read command on page 58.
+
+[[/post/install_and_configure_postmarketos_with_plasma_mobile/minicom-check-modem-card-detection-and-set-high-level.png]]
+
+The result has the form =+QSIMDET: <enable>,<insert level>=.
+| Name         | Value | Description |
+|--------------+-------+-------------|
+| enable       |     0 | disabled    |
+| enable       |     1 | enabled     |
+| insert level |     0 | low         |
+| insert level |     1 | high        |
+
+A modem power-cycle is required before hot-swap detection becomes effective. If the insert level you pick is inconsistent with the hardware design, then detection will not work. I found that SIM hot-swap detection worked when I enabled the high insert level. To check that the modem has detected a SIM, run the ~AT+QSIMSTAT~ read command on page 60. You can also enable /SIM insert status reporting/ via the ~AT+QSIMSTAT~ write command as seen below.
+
+[[/post/install_and_configure_postmarketos_with_plasma_mobile/minicom-enable-sim-stat-reporting.png]]
+
+Status reporting also requires a modem power-cycle before it becomes effective. You might wonder why you would want to enable /SIM insert status reporting/ since it is not possible to insert a SIM into a PinePhone while the battery is in place. I have a [[https://en.wikipedia.org/wiki/SIM_card#Nano-SIM][nano-SIM]] from a Nexus 6P. The PinePhone socket fits a [[https://en.wikipedia.org/wiki/SIM_card#Micro-SIM][micro-SIM]], so I had to fashion a nano-SIM to micro-SIM card adapter out of the cardboard packaging that my SD card came in. The nano-SIM is not only narrower and shorter, but also thinner than the micro-SIM. If the SIM contact area does not fully connect with that of the socket, then the modem will not be able to read the SIM. I enabled /SIM insert status reporting/ so that I can detect if at anytime the SIM's contact moves out of place. It might be that SIM status reporting isn't necessary for my use case; I have not experimented enough with the feature yet to know for sure.
+
+** Power Saving
+The modem supports the ability to enter sleep mode. To find out whether or not sleep mode is enabled you can call the ~AT+QSCLK~ read command on page 190.
+
+[[/post/install_and_configure_postmarketos_with_plasma_mobile/minicom-enable-sleep-mode.png]]
+
+Since I am feeling adventurous, I decided to enable sleep mode to see if the battery life improves as a result. If you choose to do the same, take note in case it causes connectivity issues and needs to be disabled, i.e. enable at your own risk.
+
+** Get the SIM's IMSI
+We are going to need the IMSI number when configuring APN settings in the next section. You can do that by running the ~AT+CIMI~ execute command. Remember not to share your IMSI with anyone.
+
+#+begin_example
+  AT+CIMI
+  <REDACTED-IMI>
+
+  OK
+#+end_example
+
+** Power-cycle the modem
+Power cycling the modem is as simple as restarting the ~eg25~ service. It takes a little while, so be patient. 
+
+#+begin_src sh
+  second-chance:~$ sudo rc-service eg25 restart
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+ * Caching service dependencies ...                                       [ ok ]
+ * Disabling EG25 WWAN module ...
+ * Enabling EG25 WWAN module ...
+#+end_example
+
+However, if you don't restart the oFono daemon, then the quectelqmi object path will change in the ~org.ofono~ dbus service.
+
+#+begin_src sh
+second-chance:~$ sudo qdbus --system org.ofono | grep -E 'quectelqmi_\d$'
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+/quectelqmi_1
+#+end_example
+
+For that reason you should also restart ~ofonod~.
+
+#+begin_src sh
+  second-chance:~$ sudo rc-service ofono restart && sudo qdbus --system org.ofono | grep -E 'quectelqmi_\d'
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+ * Stopping oFono ...                                                     [ ok ]
+ * AT debugging is enabled by config
+ * command_args_foreground = -d -n
+ * Starting oFono ...                                                     [ ok ]
+/quectelqmi_0
+#+end_example
+
+* GPRS & LTE configuration
+Before we can send or receive /SMS/ and make phone calls we need to first configure oFono appropriately for our carrier service. Here are some ways that you can look up your APN settings:
+1. Check the list of [[https://wiki.pine64.org/index.php/PinePhone_APN_Settings#List_of_tested_carriers][tested APN settings by carrier service for the PinePhone]]
+2. Search your carrier service for published APN Settings
+3. Here is a DuckDuckGo search for [[https://duckduckgo.com/?q=complete+list+of+APN+settings][/complete list of APN settings/]]
+
+My carrier is Koodo and I was able to find the [[https://www.koodomobile.com/en/help/setting-data-your-non-koodo-phone][APN settings at koodomobile.com]]. Hopefully you were able to find your APN settings before moving on.
+
+** Determine your operator service name
+
+If your SIM is already registered with a carrier service, then you will be able to get the current service name, status and technology from the modem using DBus:
+
+#+begin_src sh
+  second-chance:~$ sudo qdbus --system org.ofono /quectelqmi_0 org.ofono.NetworkRegistration.GetProperties | grep -iE '(name|status|technology)'
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+Name: Koodo
+Status: registered
+Technology: lte
+#+end_example
+
+** Determine what technology standards your operator supports
+First scan for operators in the area:
+#+begin_src sh
+second-chance:~$ sudo qdbus --system org.ofono /quectelqmi_0 org.ofono.NetworkRegistration.Scan
+#+end_src
+
+#+Results:
+
+#+begin_example
+Error: org.freedesktop.DBus.Error.NoReply
+Did not receive a reply. Possible causes include: the remote application did not send a reply, the message bus security policy blocked the reply, the reply timeout expired, or the network connection was broken.
+#+end_example
+
+If you see that error, just ignore it. After the scan has completed, calling ~GetOperators~ should return a list of operators returned from the scan which are providing service in your area. Locate the structure containing your [[*Determine your operator service name][operator's service name]] and then look at the /Name, Status and Technologies/ fields. The technologies field should contain the complete list of standards that the operator supports.
+#+begin_src sh
+  sudo env DISPLAY=0.0 dbus-send --system --print-reply --dest=org.ofono /quectelqmi_0 org.ofono.NetworkRegistration.GetOperators
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+method return time=1590502077.356864 sender=:1.72 -> destination=:1.92 serial=255 reply_serial=2
+   array [
+      struct {
+         object path "/quectelqmi_0/operator/<REDACTED>"
+         array [
+            dict entry(
+               string "Name"
+               variant                   string "Koodo"
+            )
+            dict entry(
+               string "Status"
+               variant                   string "current"
+            )
+            dict entry(
+               string "MobileCountryCode"
+               variant                   string "<REDACTED>"
+            )
+            dict entry(
+               string "MobileNetworkCode"
+               variant                   string "<REDACTED>"
+            )
+            dict entry(
+               string "Technologies"
+               variant                   array [
+                     string "umts"
+                     string "lte"
+                  ]
+            )
+         ]
+      }
+#+end_example
+
+** Shutdown the modem and Ofono service
+Since we are going to be manually configuring the APN settings, we must shutdown the ~ofonod~ daemon, otherwise our changes will not persist. We might as well power down the modem at the same time.
+
+#+begin_src sh
+second-chance:~$ sudo rc-service ofono stop && second-chance:~$ sudo rc-service eg25 stop
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+[sudo] password for dustfinger: 
+ * Stopping oFono ...                                                     [ ok ]
+ * Disabling EG25 WWAN module ...
+#+end_example
+
+For those that are curious: Quectel teamed up with Qualcomm a couple of years ago [[https://www.quectel.com/infocenter/news/323.htm][to accelerate the production of /Cellular Vehicle-to-Everthing (C-V2X) technology/]]. Now, in 2020, we have [[https://projects.osmocom.org/projects/quectel-modems/wiki/QMI][Qualcomm Linux Modems by Quectel that use the Qualcomm MSM Interface (QMI)]]. So, if you know that you have a modem that uses QMI, then you can exploit this knowledge to verify which network interface is exposed by the modem.
+
+#+begin_src sh
+  second-chance:~$ sudo find -L /sys/class/net/ -maxdepth 2 -type d -name 'qmi'
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+  /sys/class/net/wwan0/qmi
+#+end_example
+
+Since we powered off the modem, you can see that the ~wwan0~ interface is currently in a ~DOWN~ state.
+
+#+begin_src sh
+second-chance:~$ ip link show wwan0
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+  4: wwan0: <POINTOPOINT,MULTICAST,NOARP> mtu 1500 qdisc pfifo_fast state DOWN qlen 1000
+      link/[65534]
+#+end_example
+
+** Configure APN settings
+
+I am going to be configuring my modem for =LTE/GPRS= coverage. The ~ofono~ framework keeps APN settings in files called stores which are kept in =/var/lib/ofono/<IMSI>/{gprs,lte,netreg,radiosetting,sms,voicecall}=. These settings files are essentially /INI/ files, so you will be setting key value pairs. You can find out what each key value pair is for by reading the appropriate [[https://git.kernel.org/pub/scm/network/ofono/ofono.git/tree/doc][doc files in the repository]].
+- [[https://git.kernel.org/pub/scm/network/ofono/ofono.git/tree/doc/connman-api.txt][connman-api.txt]] :: contains properties relevant to APN
+- [[https://git.kernel.org/pub/scm/network/ofono/ofono.git/tree/doc/lte-api.txt][lte-api.txt]] :: contains properties relevant to lte
+
+Those documentation files are really about the ~ofonod~ so they are also valuable reference when making calls over ~DBus~. We only care about the /Properties/ section.
+
+Here is what my =gprs= file contained before editing.
+
+#+begin_src sh
+second-chance:~$ sudo cat /var/lib/ofono/$(echo "AT+CIMI" | atinout - /dev/EG25.AT - | grep -iE '[0-9]')/gprs
+
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+[sudo] password for dustfinger: 
+[Settings]
+Powered=true
+RoamingAllowed=false
+
+[context1]
+Name=Internet
+AccessPointName=
+Username=
+Password=
+AuthenticationMethod=chap
+Type=internet
+Protocol=ip
+#+end_example
+
+First, we will edit the /lte/ settings. This is very straight forward, it just defines /APN/ which it will use as a fall back when /lte/ is not available.
+
+#+begin_src sh
+second-chance:~$ sudo vi /var/lib/ofono/$(echo "AT+CIMI" | atinout - /dev/EG25.AT - | grep -iE '[0-9]')/lte
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+  [Settings]
+  DefaultAccessPointName=sp.koodo.com
+  Protocol=dual
+  AuthenticationMethod=None
+  Username=
+  Password=
+#+end_example
+
+Configuring the =gprs= is more involved. Keep in mind that /Koodo/ is an /MVNO/, so between the two carrier services I was actually able to figure out a couple of different configurations that all worked fine. The only apparent difference was the DNS settings after connecting to the network.
+
+#+begin_src sh
+second-chance:~$ sudo vi /var/lib/ofono/$(echo "AT+CIMI" | atinout - /dev/EG25.AT - | grep -iE '[0-9]')/gprs
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+[Settings]
+Powered=true
+RoamingAllowed=false
+
+[context1]
+Name=Koodo
+AccessPointName=sp.koodo.com
+Active=true
+Username=
+Password=
+AuthenticationMethod=none
+Type=mms
+MessageCenter=http://aliasredirect.net/proxy/koodo/mmsc
+MessageProxy=74.49.0.18:80
+#+end_example
+
+Now start the ofono service
+
+#+begin_src 
+second-chance:~$ sudo rc-service ofono start
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+ * AT debugging is enabled by config
+ * command_args_foreground = -d -n
+ * Starting oFono ...                                                     [ ok ]
+#+end_example
+
+Bring modem online
+
+Then use ~ofonoctl~ to connect ~wann0~ and append DNS
+#+begin_src sh
+second-chance:~$ sudo ofonoctl wan --connect --append-dns
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+Interface    Protocol    APN               Method    Address         Gateway      DNS
+-----------  ----------  ----------------  --------  --------------  -----------  ----------------------------
+wwan0        ipv4        sp.koodo.com  static    <REDACTED>      <REDACTED>   <REDACTED>, <REDACTED>
+#+end_example
+
+Now we should be able to ping a domain over the internet.
+
+#+begin_src sh
+  second-chance:~$ ping bloggerbust.ca -c 3
+#+end_src
+
+#+begin_example
+PING bloggerbust.ca (185.199.111.153): 56 data bytes
+64 bytes from 185.199.111.153: seq=0 ttl=42 time=27.402 ms
+64 bytes from 185.199.111.153: seq=1 ttl=42 time=28.191 ms
+64 bytes from 185.199.111.153: seq=2 ttl=42 time=27.031 ms
+#+end_example
+
+Remember when I said that I was able to get multiple configurations to work. It is actually /Telus/ that provides /Koodo/ with /lte/ service. I was able to add a second context to the =gprs= to use a /Telus/ =APN=.
+
+#+begin_example
+[context2]
+Name=Telus
+AccessPointName=attach.telus.com
+Active=true
+Username=
+Password=
+AuthenticationMethod=none
+Type=internet
+Protocol=dual
+#+end_example
+
+This resulted in different /APN/, /Gateway/ and /DNS/ output from ~ofonoctl~. Otherwise, everything worked fine.
+
+#+begin_example
+Interface    Protocol    APN               Method    Address         Gateway      DNS
+-----------  ----------  ----------------  --------  --------------  -----------  ----------------------------
+wwan0        ipv4        attach.telus.com  static    <REDACTED>      <REDACTED>   <REDACTED>, <REDACTED>
+#+end_example
+
+* Send and receive SMS
+Plasma Mobile has an SMS app named /Spacebar/, but at the time of writing I was not able to get /Spacebar/ working. Instead, we are going to test both sending and receiving SMS from the command line. To receive SMS we will run a ~dbus-monitor~ process in the background that copy all messages on the ~org.ofono.MessageManager~ interface and print it to ~STDOUT~.
+
+#+begin_src sh
+second-chance:~$ sudo env DISPLAY=:0.0 dbus-monitor --system "type='signal',interface='org.ofono.MessageManager',member='IncomingMessage'"&
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+signal time=1589836625.655331 sender=org.freedesktop.DBus -> destination=:1.151 serial=2 path=/org/freedesktop/DBus; interface=org.freedesktop.DBus; member=NameAcquired
+   string ":1.151"
+signal time=1589836625.655487 sender=org.freedesktop.DBus -> destination=:1.151 serial=4 path=/org/freedesktop/DBus; interface=org.freedesktop.DBus; member=NameLost
+   string ":1.151"
+#+end_example
+
+To send a message use the ~ofonoctl sms~ command.
+#+begin_src sh
+second-chance:~$ ofonoctl sms <PHONE-NUMBER-NO-SPACES> --message "Let me know if you receive this message. I am sending it from postmarketOS/PlasmaMobile."
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+Sent
+#+end_example
+
+#+begin_example
+  second-chance:~$ signal time=1589837304.873843 sender=:1.73 -> destination=(null destination) serial=321 path=/quectelqmi_0; interface=org.ofono.MessageManager; member=IncomingMessage string "Message received! We are at a little garden centre near stony plain."
+   array [
+      dict entry(
+         string "LocalSentTime"
+         variant             string "2020-05-18T15:28:19-0600"
+      )
+      dict entry(
+         string "SentTime"
+         variant             string "2020-05-18T17:28:19-0400"
+      )
+      dict entry(
+         string "Sender"
+         variant             string "<PHONE-NUMBER-REDACTED>"
+      )
+   ]
+#+end_example
+
+* Make phone calls
+Plasma Mobile has a phone app that works fine for both sending and receiving phone calls. I do not hear any sound when dialing, but I do hear the phone ringing while I wait for someone to answer. When someone does answer, they can hear me clearly, but I have been told that I sound a bit "tinny".
+
+* Conclusion
+At this point you should be able to send and receive SMS and make phone calls. this was a long post and there was a lot that I didn't cover. The PostmarketOS PinePhone wiki has instructions for [[https://wiki.postmarketos.org/wiki/PINE64_PinePhone_(pine64-pinephone)#Components][setting up and experimenting with components]] not covered here. Enjoy!
