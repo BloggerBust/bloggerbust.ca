@@ -1,6 +1,6 @@
 #+author: Trevor Wilson
 #+email: trevor.wilson@bloggerbust.ca
-#+title: "Install And Configure PostmarketOS With Plasma Mobile"
+#+title: "Install And Configure PostmarketOS With Plasma Mobile On The PinePhone"
 #+date: 2020-06-07T08:04:14Z
 #+HUGO_BASE_DIR: ../../
 #+HUGO_SECTION: post
@@ -10,9 +10,10 @@
 #+HUGO_AUTO_SET_LASTMOD: true
 #+startup: showeverything
 #+options: d:(not "notes")
+#+options: toc:2
 
 * Introduction
-In this post I will install PostmarketOS + Plasma Mobile. At the time of this writing many Plasma Mobile features are either not fully integrated or not working at all. I will be focusing on the configuring postmarketOS so that by the end of this post you should be able to make phone calls and both send and receive SMS. I will also delve into extra detail on subjects that I find interesting or that I think might be helpful for you to know when trouble shooting issues.
+In this post I will install PostmarketOS + Plasma Mobile on the PinePhone. At the time of this writing many Plasma Mobile features are either not fully integrated or not working at all. I will be focusing on the configuring postmarketOS so that by the end of this post you should be able to make phone calls and both send and receive SMS. I will also delve into extra detail on subjects that I find interesting or that I think might be helpful for you to know when trouble shooting issues.
 
 You might notice that sometimes I add ~env TEMP=/dev/tmp~ to the beginning of some commands. That is because my ~temp~ directory is not executable. You most likely will not need to do the same.
 
@@ -24,14 +25,14 @@ It is common for people to innocently reveal information that they shouldn't whe
 - IMSI :: It is imperative that you never reveal your phone's [[https://en.wikipedia.org/wiki/International_mobile_subscriber_identity][International Mobile Subscriber Identity]] to anyone.
 - Private Cryptographic Keys ::
 
-It is a very good idea to to not share the following information with anyone that you do not fully trust:
+It is a very good idea to not share the following information with anyone that you do not fully trust:
 - IP Address :: In particular your devices external IP Addresses, but I also redact or conceal information about the topology of my home network.
 - LUKS Header :: Do not post your LUKS header because it provides an attacker with one piece of the puzzle to decrypt an encrypted volume
 
 Information you might want to keep private because they could be used to leak some information about you
 - ICCID :: Integrated Circuit Card Identifier can be used to identify the country and possibly the mobile network that the card was manufactured for.
 
-If you take photos of your SIM, you should know that many SIM cards have the /IMSI/ printed on their casing. It is also easy to take photos of serial numbers uniquely identifying your hardware such as the Pine Phone's modem. This section is by no means complete, I include it simply to raise awareness. 
+If you take photos of your SIM, you should know that many SIM cards have the /IMSI/ printed on their casing. It is also easy to take photos of serial numbers uniquely identifying your hardware such as the PinePhone's modem. This section is by no means complete, I include it simply to raise awareness. 
 * Setting up the build environment
 ** Ensure =~/.local/bin= exists
 Check that you have a =~/.local/bin= directory. If it does not exist, then create it using [[https://www.freedesktop.org/software/systemd/man/file-hierarchy.html#Home%20Directory][file-hierarchy man(7)]] as a guide. Below is the first level directory hierarchy of my =~/.local/= path, including group and owner permissions:
@@ -748,7 +749,7 @@ drwxr-xr-x 10 root root 4.0K May 24 14:11 usr
 drwxr-xr-x 13 root root 4.0K May 24 14:11 var
 #+end_example
 
-Now is a good time to copy anything over from your computer that you would like on your phone. For example, if you chose not to allow ~pmbootstrap~ to copy your SSH keys when we [[*Initialize the pmbootstrap configuration for the pinephone][initialized the pmbootstrap configuration for the pinephone]], now is your second chance. It is particularly valuable to copy the SSH keys over if you do not have a serial UART cable that adapts USB to a 3.5mm audio jack. Otherwise, you can wait until we ge to to the section on [[*Configure x-forwarding][configuring x-forwarding]].
+Now is a good time to copy anything over from your computer that you would like on your phone. For example, if you chose not to allow ~pmbootstrap~ to copy your SSH keys when we [[*Initialize the pmbootstrap configuration for the pinephone][initialized the pmbootstrap configuration for the pinephone]], now is your second chance. It is particularly valuable to copy the SSH keys over if you do not have a serial UART cable that adapts USB to a 3.5mm audio jack. Otherwise, you can wait until we ge to the section on [[*Configure x-forwarding][configuring x-forwarding]].
 
 Once you are finished, unmount the device and close the luks volume.
 #+begin_src sh
@@ -1005,7 +1006,7 @@ Kernel 5.6.0 on an aarch64 (/dev/ttyS0)
 second-chance login:
 #+end_example
 
-You might notice some errors in the output, this is a work in progress and eventually those sorts of issues will be taken care of. Notice that the serial port that the login session is connected to on the device side is displayed in the welcome message above. You may now sign in by entering your user name and pin.
+You might notice some errors in the output. This is a work in progress and eventually those sorts of issues will be taken care of. Notice that the serial port that the login session is connected to on the device side is displayed in the welcome message above. You may now sign in by entering your user name and pin.
 
 #+begin_example
 Welcome to postmarketOS
@@ -1318,15 +1319,15 @@ The wireless interface is currently down. Now we are ready to configure a new ne
   second-chance:~$ nmtui edit
 #+end_src
 
-[[/post/install_and_configure_postmarketos_with_plasma_mobile/nmtui-edit-menu-no-connections-configured.png]]
+[[/post/install_and_configure_postmarketos_with_plasma_mobile_on_the_pinephone/nmtui-edit-menu-no-connections-configured.png]]
 
 The network configuration edit menu appears displaying a list of configured network connections. If this is your first time configuring a network connection, then the selection list will be empty as shown in the screen shot above. Press =<TAB>= so that the =<Add>= button is highlighted, then hit enter.
 
-[[/post/install_and_configure_postmarketos_with_plasma_mobile/nmtui-new-connection-menu.png]]
+[[/post/install_and_configure_postmarketos_with_plasma_mobile_on_the_pinephone/nmtui-new-connection-menu.png]]
 
 The /New Connection/ menu appears. Select /Wi-Fi/ from the list of connection types and then press =<TAB>= until the =<Create>= navigation control is highlighted, then press =<RET>=.
 
-[[/post/install_and_configure_postmarketos_with_plasma_mobile/nmtui-edit-connection-menu-initial-state.png]]
+[[/post/install_and_configure_postmarketos_with_plasma_mobile_on_the_pinephone/nmtui-edit-connection-menu-initial-state.png]]
 
 Now that the type of connection has been decided we have arrived at the /Edit Connection/ dialog. I will walk through filling out a possible valid configuration. Enter the following fields:
 
@@ -1340,18 +1341,18 @@ Now that the type of connection has been decided we have arrived at the /Edit Co
   BSSID: f2:33:7c:80:ba:d1
 #+end_example
 
-[[/post/install_and_configure_postmarketos_with_plasma_mobile/nmtui-edit-connection-menu-filled-in.png]]
+[[/post/install_and_configure_postmarketos_with_plasma_mobile_on_the_pinephone/nmtui-edit-connection-menu-filled-in.png]]
 
 This is a simple configuration, I left all fields not explicitly mentioned to their default values. However; I recommend that you review all the configuration options available and choose the most secure settings that your router is capable of providing. Once you are happy with your choices, press =<TAB>= until the =<OK>= navigation control is highlighted and hit =<RET>=.
 
 Look at the display on your phone. If the screen has locked, you will need to enter your pin in order to unlock it. The display should be showing a dialog prompting you to set a password for the KDE wallet. I entered a strong password and pressed the OK button. Do not choose the same password that you used for encrypting the root file system. It should also go without saying that you should not use the same password as your user's PIN.
 
 Now draw your attention back to your serial console session.
-[[/post/install_and_configure_postmarketos_with_plasma_mobile/nmtui-edit-menu-showing-configured-connection.png]]
+[[/post/install_and_configure_postmarketos_with_plasma_mobile_on_the_pinephone/nmtui-edit-menu-showing-configured-connection.png]]
 
 The UI should be back at the screen for selecting a network connection. The network selection box is no longer empty, it contains a single Wi-Fi connection with the profile name /Hidden SSID/. Hit the =<TAB>= key until =<Quit>= is highlighted, then press =<RET>= to exit ~nmtui~.
 
-[[/post/install_and_configure_postmarketos_with_plasma_mobile/nmtui-edit-connection-menu-filled-in.png]]
+[[/post/install_and_configure_postmarketos_with_plasma_mobile_on_the_pinephone/nmtui-edit-connection-menu-filled-in.png]]
 
 The configuration is saved to =/etc/NetworkManager/system-connection/=.
 
@@ -1612,9 +1613,9 @@ However; ~apk upgrade~ will not update U-Boot. I might cover updating U-Boot in 
 Early in my career I spent many long days staring at CRT monitors. Over time, the flickering as the screen refreshed began to affect my vision. Eventually the whole world seemed to flicker. After that experience I have been using dark themes whenever possible to reduce the amount of light that my eyes are subjected to on a daily basis. I now prefer dark themes simply for their aesthetic. To enable a dark theme on Plasma Mobile:
 
 1. Navigate to /Settings/ and select /Appearance/
-   # [[/post/install_and_configure_postmarketos_with_plasma_mobile/plasma-settings-appearance-selected.png]]
+   # [[/post/install_and_configure_postmarketos_with_plasma_mobile_on_the_pinephone/plasma-settings-appearance-selected.png]]
 2. select /Breeze Dark/, or whatever suits you
-   # [[/post/install_and_configure_postmarketos_with_plasma_mobile/plasma-settings-appearance-breeze-dark.png]]
+   # [[/post/install_and_configure_postmarketos_with_plasma_mobile_on_the_pinephone/plasma-settings-appearance-breeze-dark.png]]
 
 * Audio configuration
 The /ALSA/ ([[https://en.wikipedia.org/wiki/Advanced_Linux_Sound_Architecture][Advanced Linux Sound Architecture]]) package can be installed to provide sound support for postmarketOS. The package includes a large number of drivers and various tools, such as the venerable [[https://en.wikipedia.org/wiki/Alsamixer][alsamixer]]. To learn more about ALSA, checkout the [[https://alsa-project.org][ALSA project homepage]]. Also, be sure to check out the [[https://alsa.opensrc.org/][Independent ALSA and Linux audio support site]].
@@ -2059,7 +2060,7 @@ That should give you an idea of how to get information. Careful not to get your 
 ** Qt DBus Viewer
 The /Qt DBus Viewer/ is a reasonable choice since PlasmaMobile already uses /Qt/. The UI is partially touch friendly, but the layout is not responsive enough to be considered practicable while rendered in portrait view.
 
-[[/post/install_and_configure_postmarketos_with_plasma_mobile/qtdbusviewer-with-ofono-manager-get-modems-selected-mobile.png]]
+[[/post/install_and_configure_postmarketos_with_plasma_mobile_on_the_pinephone/qtdbusviewer-with-ofono-manager-get-modems-selected-mobile.png]]
 
 At the time of writing Plasma Mobile's screen rotation is not working, without some investigation it is not clear how to switch from portrait to landscape. Scrolling is also an issue since it requires that you touch and drag the narrow scroll bar with your wide fingers. If you attempt to touch and drag a window pane, you will select a region of text instead. If you choose to install Qt D-Bus Viewer, then I recommend that you [[*Configure x-forwarding][configure x-forwarding]] and forward the display to your desktop where the user experience will be as intended.
 
@@ -2143,7 +2144,7 @@ Once you have x-forwarding configured, you will be able to render the Qt D-Bus i
 dustfinger@galactica ~/ $ ssh dustfinger@second-chance qdbusviewer
 #+end_src
 
-[[/post/install_and_configure_postmarketos_with_plasma_mobile/qtdbusviewer-with-ofono-radio-settings-get-properties-selected-x-forwarding.png]]
+[[/post/install_and_configure_postmarketos_with_plasma_mobile_on_the_pinephone/qtdbusviewer-with-ofono-radio-settings-get-properties-selected-x-forwarding.png]]
 
 The tool is dead simple. Use the tab to switch between /Session/ and /System Bus/. Services which are registered with DBus are listed by name in the left pane. Selecting a service will cause Qt D-Bus Viewer to display a list of root level interfaces or object paths depending on what the service exposes. Root level interfaces are actually defined in the object path =/=, but the UI omits that object path for convenience. Expanding an object path will reveal its interface in a tree-view. To execute a method, simply double click it.
 
@@ -2153,10 +2154,10 @@ Take a moment and play around with it and don't forget to visit the [[https://do
 D-Feet is less mobile friendly than Qt DBus Viewer. Although you can scroll by touch-dragging a window pane, the UI frequently stops responding after selecting a bus name. Since, in my case at least, it is not practicable from the touch interface, I recommend that you [[*Configure x-forwarding][configure x-forwarding]] and interact with d-feet from your computer.
 
 To illustrate my experience I took a screen capture after I managed to call ~getProperties~ from the ~Sim Manager~:
-[[/post/install_and_configure_postmarketos_with_plasma_mobile/d-feet-with-ofono-quectelqmi-sim-manager-interface-get-properties-method-selected-mobile.png]]
+[[/post/install_and_configure_postmarketos_with_plasma_mobile_on_the_pinephone/d-feet-with-ofono-quectelqmi-sim-manager-interface-get-properties-method-selected-mobile.png]]
 
 I then selected another bus name which caused the UI to stop responding at the moment that both bus names were highlighted.
-[[/post/install_and_configure_postmarketos_with_plasma_mobile/d-feet-with-ofono-quectelqmi-sim-manager-service-and-freedesktop-login-service-selected-ui-unresponsive-mobile.png]]
+[[/post/install_and_configure_postmarketos_with_plasma_mobile_on_the_pinephone/d-feet-with-ofono-quectelqmi-sim-manager-service-and-freedesktop-login-service-selected-ui-unresponsive-mobile.png]]
 
 I discovered that swiping down to reveal the /Quick Settings Tray/ often, but not always, causes D-Feet UI to become responsive again. So if you are experimenting with D-Feet from the touch screen of your phone and the UI locks up, you could try swiping down to get it to respond. Failing that, there is always ~SIGINT~, i.e. ~kill -2 `pidof d-feet`~.
 
@@ -2212,7 +2213,7 @@ dustfinger@galactica ~/ $ ssh -Y dustfinger@second-chance d-feet
 
 Just like [[*Qt DBus Viewer][Qt DBus Viewer]], D-Feet is dead simple to use. Services which are registered with DBus are listed by name in the left pane. Selecting a service will cause D-Feet to display that service's /address/, /name/, /unique name/ and /object path/ in the right pane. Expanding an object path will reveal its interface in a tree-view. To execute a method, simply double click it.
 
-[[/post/install_and_configure_postmarketos_with_plasma_mobile/d-feet-with-ofono-quectelqmi-sim-manager-interface-get-properties-method-selected.png]]
+[[/post/install_and_configure_postmarketos_with_plasma_mobile_on_the_pinephone/d-feet-with-ofono-quectelqmi-sim-manager-interface-get-properties-method-selected.png]]
 
 Take a moment and play aroud with D-Feet via x-forwarding and don't forget to visit the [[https://wiki.gnome.org/Apps/DFeet][Gnome wiki D-Feet documentation]]. I also recommend that you keep this reference on [[https://developer.gnome.org/glib/stable/glib-GVariantType.html][GVariant types]] and the [[https://developer.gnome.org/gio/stable/gdbus-convenience.html][GLib APIs]] handy.
 
@@ -2378,7 +2379,7 @@ The /[[https://bloggerbust.ca/page/appendix/#line-speed][line speed]]/ for the [
 minicom -D /dev/ttyUSB2
 #+end_src
 
-[[/post/install_and_configure_postmarketos_with_plasma_mobile/minicom-welcome-screen.png]]
+[[/post/install_and_configure_postmarketos_with_plasma_mobile_on_the_pinephone/minicom-welcome-screen.png]]
 
 ** AT Command Basics
 Please refer to the [[https://wiki.pine64.org/images/2/2e/Quectel_EC25EC21_AT_Commands_Manual_V1.2.pdf][Quectel EC25 AT commands manual]] when following along. There is an appendix on page 192 with many useful tables, such as terms & abbreviations and error codes.
@@ -2426,12 +2427,12 @@ OK
 
 This step is no longer necessary to perform manually. PostmarketOS now has a service named ~pinephone_setup-modem-audio~ that calls ~/usr/bin/pinephone_setup-modem-audio~ which runs the ~AT+QDAI~ AT command for you. If you need to change your audio routing for some reason, then you will need to update that script or it will just reset the configuration on next reboot. You are welcome to read on for learning purposes, or [[*Check Audio Mode][skip to the next section]].
 
-It is time to [[https://xnux.eu/devices/feature/modem-pp.html#toc-setting-up-the-modem-for-voice-calling][configure the modem for audio]] by running the Quectel Digital Audio Interface (QDAI) configuration write command defined on page 186 of the /[[https://wiki.pine64.org/images/2/2e/Quectel_EC25EC21_AT_Commands_Manual_V1.2.pdf][AT commands manual]]/.
+It is time to [[https://xnux.eu/devices/feature/modem-pp.html#toc-setting-up-the-modem-for-voice-calling][configure the modem for audio]] by running the Quectel Digital Audio Interface (QDAI) configuration write command defined on page 193 of the /[[https://wiki.pine64.org/images/2/2e/Quectel_EC25EC21_AT_Commands_Manual_V1.2.pdf][AT commands manual]]/.
 #+begin_src sh
 AT+QDAI=1,0,0,2,0,1,1,1
 #+end_src
 
-[[/post/install_and_configure_postmarketos_with_plasma_mobile/minicom-configure-digital-audio-interface.png]]
+[[/post/install_and_configure_postmarketos_with_plasma_mobile_on_the_pinephone/minicom-configure-digital-audio-interface.png]]
 
 The command only needs to be run one time since the configuration is persistent, but the effects will not be realized until the module is rebooted.
 
@@ -2448,10 +2449,10 @@ This sets modem to:
   1 - map to first slot (the only slot)
 #+end_example
 
-See page 187 of the AT commands manual for a full explanation the parameters and their values.
+See page 194 of the AT commands manual for a full explanation the parameters and their values.
 
 ** Check Audio Mode
-The audio mode controls where the audio from the modem is sent. The audio mode has three states as defined on page 186:
+The audio mode controls where the audio from the modem is sent. The audio mode has three states as defined on page 192:
 
 | Value | Description                  |
 |-------+------------------------------|
@@ -2461,12 +2462,12 @@ The audio mode controls where the audio from the modem is sent. The audio mode h
 
 It is unlikely for this mode to be sent incorrect, but if you find that you are not hearing any sound after [[*Configure the modem for audio][configuring the modem for audio]], then it is easy enough to call the ~AT+QAUDMOD~ read command for confirmation.
 
-[[/post/install_and_configure_postmarketos_with_plasma_mobile/minicom-check-modem-audio-mode.png]]
+[[/post/install_and_configure_postmarketos_with_plasma_mobile_on_the_pinephone/minicom-check-modem-audio-mode.png]]
 
 ** Check Audio Mute
-If nobody can hear you during a phone call, you can check to see if uplink voice muting is enabled via the ~AT+CMUT~ command on page 182 of the AT commands manual.
+If nobody can hear you during a phone call, you can check to see if uplink voice muting is enabled via the ~AT+CMUT~ command on page 189 of the AT commands manual.
 
-[[/post/install_and_configure_postmarketos_with_plasma_mobile/minicom-check-modem-voice-uplink-mute-state.png]]
+[[/post/install_and_configure_postmarketos_with_plasma_mobile_on_the_pinephone/minicom-check-modem-voice-uplink-mute-state.png]]
 
 | Value | Description |
 |-------+-------------|
@@ -2490,9 +2491,9 @@ As was the case with audio configuration, the ~/usr/bin/pinephone_setup-modem-au
   # if audio routing was already configured.
 #+end_src
 
-To check that the modem's phone functionality is set to full run the ~AT+CFUN~ read command (pg 25).
+To check that the modem's phone functionality is set to full run the ~AT+CFUN~ read command (pg 26).
 
-[[/post/install_and_configure_postmarketos_with_plasma_mobile/minicom-check-modem-phone-functionality-setting.png]]
+[[/post/install_and_configure_postmarketos_with_plasma_mobile_on_the_pinephone/minicom-check-modem-phone-functionality-setting.png]]
 
 | Value | Description                         |
 |-------+-------------------------------------|
@@ -2507,9 +2508,9 @@ Unfortunately the manual does not clearly specify what /minimal functionality/ m
 Run ~AT+CFUN 1,1,~ to enable full modem functionality.
 
 ** Enable (U)SIM card detection
-Card detection is what allows a modem to detect a SIM card that was inserted after the modem was already powered on. SIM hot-swapping means that the modem supports the removal of one SIM card and the insertion of another SIM card without having to power-cycle the modem in between. Since the Pine Phone's SIM socket is obstructed by the battery when powered on, the Pine Phone doesn't truly support hot-swapping SIM cards. That being said, the Quectel EC25 modem does support hot-swapping and we can exploit that feature to validate that the modem has detected the SIM. To get the current settings we need to call the ~AT+QSIMDET~ read command on page 58.
+Card detection is what allows a modem to detect a SIM card that was inserted after the modem was already powered on. SIM hot-swapping means that the modem supports the removal of one SIM card and the insertion of another SIM card without having to power-cycle the modem in between. Since the PinePhone's SIM socket is obstructed by the battery when powered on, the PinePhone doesn't truly support hot-swapping SIM cards. That being said, the Quectel EC25 modem does support hot-swapping and we can exploit that feature to validate that the modem has detected the SIM. To get the current settings we need to call the ~AT+QSIMDET~ read command on page 70.
 
-[[/post/install_and_configure_postmarketos_with_plasma_mobile/minicom-check-modem-card-detection-and-set-high-level.png]]
+[[/post/install_and_configure_postmarketos_with_plasma_mobile_on_the_pinephone/minicom-check-modem-card-detection-and-set-high-level.png]]
 
 The result has the form =+QSIMDET: <enable>,<insert level>=.
 | Name         | Value | Description |
@@ -2519,21 +2520,21 @@ The result has the form =+QSIMDET: <enable>,<insert level>=.
 | insert level |     0 | low         |
 | insert level |     1 | high        |
 
-A modem power-cycle is required before hot-swap detection becomes effective. If the insert level you pick is inconsistent with the hardware design, then detection will not work. I found that SIM hot-swap detection worked when I enabled the high insert level. To check that the modem has detected a SIM, run the ~AT+QSIMSTAT~ read command on page 60. You can also enable /SIM insert status reporting/ via the ~AT+QSIMSTAT~ write command as seen below.
+A modem power-cycle is required before hot-swap detection becomes effective. If the insert level you pick is inconsistent with the hardware design, then detection will not work. I found that SIM hot-swap detection worked when I enabled the high insert level. To check that the modem has detected a SIM, run the ~AT+QSIMSTAT~ read command on page 71. You can also enable /SIM insert status reporting/ via the ~AT+QSIMSTAT~ write command as seen below.
 
-[[/post/install_and_configure_postmarketos_with_plasma_mobile/minicom-enable-sim-stat-reporting.png]]
+[[/post/install_and_configure_postmarketos_with_plasma_mobile_on_the_pinephone/minicom-enable-sim-stat-reporting.png]]
 
 Status reporting also requires a modem power-cycle before it becomes effective. You might wonder why you would want to enable /SIM insert status reporting/ since it is not possible to insert a SIM into a PinePhone while the battery is in place. I have a [[https://en.wikipedia.org/wiki/SIM_card#Nano-SIM][nano-SIM]] from a Nexus 6P. The PinePhone socket fits a [[https://en.wikipedia.org/wiki/SIM_card#Micro-SIM][micro-SIM]], so I had to fashion a nano-SIM to micro-SIM card adapter out of the cardboard packaging that my SD card came in. The nano-SIM is not only narrower and shorter, but also thinner than the micro-SIM. If the SIM contact area does not fully connect with that of the socket, then the modem will not be able to read the SIM. I enabled /SIM insert status reporting/ so that I can detect if at anytime the SIM's contact moves out of place. It might be that SIM status reporting isn't necessary for my use case; I have not experimented enough with the feature yet to know for sure.
 
 ** Power Saving
-The modem supports the ability to enter sleep mode. To find out whether or not sleep mode is enabled you can call the ~AT+QSCLK~ read command on page 190.
+The modem supports the ability to enter sleep mode. To find out whether or not sleep mode is enabled you can call the ~AT+QSCLK~ read command on page 207.
 
-[[/post/install_and_configure_postmarketos_with_plasma_mobile/minicom-enable-sleep-mode.png]]
+[[/post/install_and_configure_postmarketos_with_plasma_mobile_on_the_pinephone/minicom-enable-sleep-mode.png]]
 
 Since I am feeling adventurous, I decided to enable sleep mode to see if the battery life improves as a result. If you choose to do the same, take note in case it causes connectivity issues and needs to be disabled, i.e. enable at your own risk.
 
 ** Get the SIM's IMSI
-We are going to need the IMSI number when configuring APN settings in the next section. You can do that by running the ~AT+CIMI~ execute command. Remember not to share your IMSI with anyone.
+We are going to need the IMSI number when configuring APN settings in the next section. You can do that by running the ~AT+CIMI~ execute command (pg 60). Remember not to share your IMSI with anyone.
 
 #+begin_example
   AT+CIMI
@@ -2662,11 +2663,11 @@ method return time=1590502077.356864 sender=:1.72 -> destination=:1.92 serial=25
       }
 #+end_example
 
-** Shutdown the modem and Ofono service
-Since we are going to be manually configuring the APN settings, we must shutdown the ~ofonod~ daemon, otherwise our changes will not persist. We might as well power down the modem at the same time.
+** Shutdown Ofono service
+Since we are going to be manually configuring the APN settings, we must shutdown the ~ofonod~ daemon, otherwise our changes will not persist.
 
 #+begin_src sh
-second-chance:~$ sudo rc-service ofono stop && second-chance:~$ sudo rc-service eg25 stop
+second-chance:~$ sudo rc-service ofono stop
 #+end_src
 
 #+RESULTS:
@@ -2689,32 +2690,18 @@ For those that are curious: Quectel teamed up with Qualcomm a couple of years ag
   /sys/class/net/wwan0/qmi
 #+end_example
 
-Since we powered off the modem, you can see that the ~wwan0~ interface is currently in a ~DOWN~ state.
+** Configure APN settings (MVNO)
 
-#+begin_src sh
-second-chance:~$ ip link show wwan0
-#+end_src
-
-#+RESULTS:
-
-#+begin_example
-  4: wwan0: <POINTOPOINT,MULTICAST,NOARP> mtu 1500 qdisc pfifo_fast state DOWN qlen 1000
-      link/[65534]
-#+end_example
-
-** Configure APN settings
-
-I am going to be configuring my modem for =LTE/GPRS= coverage. The ~ofono~ framework keeps APN settings in files called stores which are kept in =/var/lib/ofono/<IMSI>/{gprs,lte,netreg,radiosetting,sms,voicecall}=. These settings files are essentially /INI/ files, so you will be setting key value pairs. You can find out what each key value pair is for by reading the appropriate [[https://git.kernel.org/pub/scm/network/ofono/ofono.git/tree/doc][doc files in the repository]].
+I am going to be configuring my modem for =LTE/GPRS= coverage. The ~ofono~ framework keeps settings in files called stores which are kept in =/var/lib/ofono/<IMSI>/{gprs,lte,netreg,radiosetting,sms,voicecall}=. These settings files are essentially /INI/ files, so you will be setting key value pairs. You can find out what each key value pair is for by reading the appropriate [[https://git.kernel.org/pub/scm/network/ofono/ofono.git/tree/doc][doc files in the repository]].
 - [[https://git.kernel.org/pub/scm/network/ofono/ofono.git/tree/doc/connman-api.txt][connman-api.txt]] :: contains properties relevant to APN
 - [[https://git.kernel.org/pub/scm/network/ofono/ofono.git/tree/doc/lte-api.txt][lte-api.txt]] :: contains properties relevant to lte
 
-Those documentation files are really about the ~ofonod~ so they are also valuable reference when making calls over ~DBus~. We only care about the /Properties/ section.
+Those documentation files are really about the ~ofonod~ so they are also valuable reference when making calls over ~DBus~. We only care about the /Properties/ section. 
 
 Here is what my =gprs= file contained before editing.
 
 #+begin_src sh
 second-chance:~$ sudo cat /var/lib/ofono/$(echo "AT+CIMI" | atinout - /dev/EG25.AT - | grep -iE '[0-9]')/gprs
-
 #+end_src
 
 #+RESULTS:
@@ -2735,7 +2722,7 @@ Type=internet
 Protocol=ip
 #+end_example
 
-First, we will edit the /lte/ settings. This is very straight forward, it just defines /APN/ which it will use as a fall back when /lte/ is not available.
+First, we will edit the /lte/ settings. This is very straight forward, it just defines /APN/ which it will used on the next automatic activation. If you set the DefaultAccessPointName to empty string, then it will clear the default APN from the modem's memory.
 
 #+begin_src sh
 second-chance:~$ sudo vi /var/lib/ofono/$(echo "AT+CIMI" | atinout - /dev/EG25.AT - | grep -iE '[0-9]')/lte
@@ -2752,8 +2739,9 @@ second-chance:~$ sudo vi /var/lib/ofono/$(echo "AT+CIMI" | atinout - /dev/EG25.A
   Password=
 #+end_example
 
-Configuring the =gprs= is more involved. Keep in mind that /Koodo/ is an /MVNO/, so between the two carrier services I was actually able to figure out a couple of different configurations that all worked fine. The only apparent difference was the DNS settings after connecting to the network.
+Configuring the =gprs= is more involved. Keep in mind that /Koodo/ is a /Mobile Virtual Network Operator/ (MVNO), so between the two carrier services I was actually able to figure out a couple of different configurations that all worked fine. The only apparent difference was the DNS settings after connecting to the network.
 
+I created a single context from the [[https://www.koodomobile.com/en/help/setting-data-your-non-koodo-phone][APN settings at koodomobile.com]]. 
 #+begin_src sh
 second-chance:~$ sudo vi /var/lib/ofono/$(echo "AT+CIMI" | atinout - /dev/EG25.AT - | grep -iE '[0-9]')/gprs
 #+end_src
@@ -2768,16 +2756,18 @@ RoamingAllowed=false
 [context1]
 Name=Koodo
 AccessPointName=sp.koodo.com
-Active=true
 Username=
 Password=
 AuthenticationMethod=none
 Type=mms
+Protocol=dual
 MessageCenter=http://aliasredirect.net/proxy/koodo/mmsc
 MessageProxy=74.49.0.18:80
 #+end_example
 
-Now start the ofono service
+I should mention that if you enter an invalid configuration, the system might revert your settings in =/var/lib/ofono/<IMSI>/{gprs,lte}= back to their defaults as soon as the ofono service has been started. In that case, you will need to shutdown the ofono service, edit the configuration and bring the service back online until the configuration is accepted.
+
+With that said, it is time to start the ofono service. 
 
 #+begin_src 
 second-chance:~$ sudo rc-service ofono start
@@ -2791,9 +2781,68 @@ second-chance:~$ sudo rc-service ofono start
  * Starting oFono ...                                                     [ ok ]
 #+end_example
 
-Bring modem online
+and checked DBus to see if the context was picked up by the modem.
 
-Then use ~ofonoctl~ to connect ~wann0~ and append DNS
+#+begin_src sh
+second-chance:~$ sudo qdbus --system org.ofono | grep -i context
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+/quectelqmi_0/context1
+/quectelqmi_0/context2
+#+end_example
+
+You might be surprised to see that the modem has two contexts in memory considering that I only configured a single context. Let's shutdown the ofono service and take another look at the gprs configuration.
+
+#+begin_src sh
+  second-chance:~$ sudo rc-service ofono stop && sudo vi /var/lib/ofono/$(echo "AT+CIMI" | atinout - /dev/EG25.AT - | grep -iE '[0-9]')/gprs
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+[Settings]
+Powered=true
+RoamingAllowed=false
+
+[context1]
+Name=Koodo
+AccessPointName=sp.koodo.com
+Username=
+Password=
+AuthenticationMethod=none
+Type=mms
+MessageCenter=http://aliasredirect.net/proxy/koodo/mmsc
+MessageProxy=74.49.0.18:80
+
+[context2]
+Name=attach.telus.com
+AccessPointName=
+Username=
+Password=
+AuthenticationMethod=chap
+Type=internet
+Protocol=ip
+#+end_example
+
+A new context was generated, but without an APN. After quite a bit of experimenting I decided to try making a second context, but with the APN set to the name of the context that was generated.
+
+#+begin_example
+[context2]
+Name=Telus           
+AccessPointName=attach.telus.com  
+Username=
+Password=
+AuthenticationMethod=none
+Type=mms     
+MessageCenter=http://aliasredirect.net/proxy/koodo/mmsc
+MessageProxy=74.49.0.18:80
+#+end_example
+ 
+I then used ~ofonoctl~ to connect ~wann0~ and append DNS.
+
 #+begin_src sh
 second-chance:~$ sudo ofonoctl wan --connect --append-dns
 #+end_src
@@ -2803,7 +2852,15 @@ second-chance:~$ sudo ofonoctl wan --connect --append-dns
 #+begin_example
 Interface    Protocol    APN               Method    Address         Gateway      DNS
 -----------  ----------  ----------------  --------  --------------  -----------  ----------------------------
-wwan0        ipv4        sp.koodo.com  static    <REDACTED>      <REDACTED>   <REDACTED>, <REDACTED>
+wwan0        ipv4        sp.koodo.com      static    <REDACTED>      <REDACTED>   <REDACTED>, <REDACTED>
+#+end_example
+
+Since LTE is activated automatically, sometimes the second context will be chosen and I will see this output from ~ofonoctl~.
+
+#+begin_example
+Interface    Protocol    APN               Method    Address         Gateway      DNS
+-----------  ----------  ----------------  --------  --------------  -----------  ----------------------------
+wwan0        ipv4        attach.telus.com  static    <REDACTED>      <REDACTED>   <REDACTED>, <REDACTED>
 #+end_example
 
 Now we should be able to ping a domain over the internet.
@@ -2819,27 +2876,7 @@ PING bloggerbust.ca (185.199.111.153): 56 data bytes
 64 bytes from 185.199.111.153: seq=2 ttl=42 time=27.031 ms
 #+end_example
 
-Remember when I said that I was able to get multiple configurations to work. It is actually /Telus/ that provides /Koodo/ with /lte/ service. I was able to add a second context to the =gprs= to use a /Telus/ =APN=.
-
-#+begin_example
-[context2]
-Name=Telus
-AccessPointName=attach.telus.com
-Active=true
-Username=
-Password=
-AuthenticationMethod=none
-Type=internet
-Protocol=dual
-#+end_example
-
-This resulted in different /APN/, /Gateway/ and /DNS/ output from ~ofonoctl~. Otherwise, everything worked fine.
-
-#+begin_example
-Interface    Protocol    APN               Method    Address         Gateway      DNS
------------  ----------  ----------------  --------  --------------  -----------  ----------------------------
-wwan0        ipv4        attach.telus.com  static    <REDACTED>      <REDACTED>   <REDACTED>, <REDACTED>
-#+end_example
+If your carrier service is an MVNO it might be essential to define a context for both APNS, especially if you are moving around. I seem to require the Telus context to be defined to make phone calls. More testing is required to know for certain.
 
 * Send and receive SMS
 Plasma Mobile has an SMS app named /Spacebar/, but at the time of writing I was not able to get /Spacebar/ working. Instead, we are going to test both sending and receiving SMS from the command line. To receive SMS we will run a ~dbus-monitor~ process in the background that copy all messages on the ~org.ofono.MessageManager~ interface and print it to ~STDOUT~.
@@ -2887,7 +2924,7 @@ Sent
 #+end_example
 
 * Make phone calls
-Plasma Mobile has a phone app that works fine for both sending and receiving phone calls. I do not hear any sound when dialing, but I do hear the phone ringing while I wait for someone to answer. When someone does answer, they can hear me clearly, but I have been told that I sound a bit "tinny".
+Plasma Mobile has a phone app that works fine for both sending and receiving phone calls. I do not hear any sound when dialing, but I do hear the phone ringing while I wait for someone to answer. When someone does answer, they can hear me clearly, but I have been told that I sound a bit "tinny". If the receiving phone is within a couple of meters of the PinePhone, then the audio of the PinePhone becomes noisy with interference.
 
 * Conclusion
-At this point you should be able to send and receive SMS and make phone calls. this was a long post and there was a lot that I didn't cover. The PostmarketOS PinePhone wiki has instructions for [[https://wiki.postmarketos.org/wiki/PINE64_PinePhone_(pine64-pinephone)#Components][setting up and experimenting with components]] not covered here. Enjoy!
+At this point you should be able to send and receive SMS and make phone calls. This was a long post and there was a lot that I didn't cover. The PostmarketOS PinePhone wiki has instructions for [[https://wiki.postmarketos.org/wiki/PINE64_PinePhone_(pine64-pinephone)#Components][setting up and experimenting with components]] not covered here. Enjoy!
