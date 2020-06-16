@@ -22,8 +22,8 @@ It is common for people to innocently reveal information that they shouldn't whe
 
 *Always* redact the following details from command line output, screen shots, configuration files, and written text that you share with others when seeking help or for any other reason. In the words of Gandalf the Grey - Keep it secret, keep it safe!
 
-- IMSI :: It is imperative that you never reveal your phone's [[https://en.wikipedia.org/wiki/International_mobile_subscriber_identity][International Mobile Subscriber Identity]] to anyone.
-- Private Cryptographic Keys ::
+- IMSI :: It is imperative that you never reveal your SIM card's [[https://en.wikipedia.org/wiki/International_mobile_subscriber_identity][International Mobile Subscriber Identity]] to anyone.
+- Private Cryptographic Keys :: Never reveal private keys of any kind. I have seen people accidentally send their private SSH keys to paste sites such as https://termbin.com. In the case of SSH, public keys have the file extension =pub= and the private ones have the same name without any file extension.
 
 It is a very good idea to not share the following information with anyone that you do not fully trust:
 - IP Address :: In particular your devices external IP Addresses, but I also redact or conceal information about the topology of my home network.
@@ -33,6 +33,7 @@ Information you might want to keep private because they could be used to leak so
 - ICCID :: Integrated Circuit Card Identifier can be used to identify the country and possibly the mobile network that the card was manufactured for.
 
 If you take photos of your SIM, you should know that many SIM cards have the /IMSI/ printed on their casing. It is also easy to take photos of serial numbers uniquely identifying your hardware such as the PinePhone's modem. This section is by no means complete, I include it simply to raise awareness. 
+
 * Setting up the build environment
 ** Ensure =~/.local/bin= exists
 Check that you have a =~/.local/bin= directory. If it does not exist, then create it using [[https://www.freedesktop.org/software/systemd/man/file-hierarchy.html#Home%20Directory][file-hierarchy man(7)]] as a guide. Below is the first level directory hierarchy of my =~/.local/= path, including group and owner permissions:
@@ -295,7 +296,7 @@ Canada/Mountain
 
 As you can see, Gentoo keeps the timezone in =/etc/timezone= and =/etc/localtime= is the actual timezone file rather than a symlink. If your timezone is not detected, then like me, you will have to set the timezone manually later.
 
-Step /18/: You can customize the hostname of your phone if you wish, or hit =<RET>= to accept the default. I am going to call my phone /Second Chance/ from Pter F. Hamilton's [[https://en.wikipedia.org/wiki/Commonwealth_Saga#Pandora's_Star][Pandora's Star]].
+Step /18/: You can customize the hostname of your phone if you wish, or hit =<RET>= to accept the default. I am going to call my phone /Second Chance/ from the sci-fi Novel [[https://en.wikipedia.org/wiki/Commonwealth_Saga#Pandora's_Star][Pandora's Star]] by Peter F. Hamilton.
 #+begin_example
   [11:31:07] Device hostname (short form, e.g. 'foo') [pine64-pinephone]: second-chance
 #+end_example
@@ -398,7 +399,7 @@ Invoking ~pmbootstrap install~ will perform the following steps:
 
 *CAUTION:* It is *crucial* that you pick the *[[*Identify the block special file name][correct device name]]*, because all existing data on the device will be removed. If you are unsure, simply remove the SD card and see if the device you think is your SD card still has one or more numbered block special file names, e.g ~ls /dev/sdb1/~. If the numbered device names are *only present while your card is inserted*, then you can be confident that you have the correct device name.
 
-Now that we know the correct device name, we can install postmarketOS + Plasma Mobile onto the SD card. I am going to tell pmbootstrap to encrypt my disk by passing the optional flag ~--fde~ which stands for /full disk encryption/, although it actually only encrypts the root partition leaving the boot partition encrypted.
+Now that we know the correct device name, we can install postmarketOS + Plasma Mobile onto the SD card. I am going to tell pmbootstrap to encrypt my disk by passing the optional flag ~--fde~ which stands for /full disk encryption/, although it actually only encrypts the root partition leaving the boot partition unencrypted.
 
 Despite the fact that the /L/ in /LUKS/ (Linux Unified Key Setup) stands for Linux, LUKS is a platform-independent on-disk encryption open standard. LUKS was a proof of concept for /[[https://clemens.endorphin.org/TKS1-draft.pdf][TKS1]]/ (Template Key Setup 1), but by [[https://gitlab.com/cryptsetup/cryptsetup/wikis/LUKS-standard/on-disk-format.pdf][LUKS version 1.0]] the specification switched to the /[[https://clemens.endorphin.org/nmihde/nmihde-A4-ds.pdf][TKS2]]/ variant, making it easier to implement a transparent hard disk encryption subsystem. The [[https://gitlab.com/cryptsetup/LUKS2-docs/blob/master/luks2_doc_wip.pdf][LUKS 2.0 specification]] is a work in progress, but as of [[https://gitlab.com/cryptsetup/cryptsetup/-/blob/master/docs/v2.1.0-ReleaseNotes][cryptsetup 2.1, LUKS2 has become the default format type]].
 
@@ -566,7 +567,7 @@ Command successful.
 #+end_example
 
 ** Determine the format of a LUKS encrypted partition
-The ~isLuks~ subcommand can also determine the format used in a LUKS encrypted partition simply by passing a type to the ~--type~ optional parameter. Valid types: plain, luks (default), luks1, luks2, loopaes or tcrypt.
+The ~isLuks~ subcommand can also determine the format used in a LUKS encrypted partition via the ~--type~ optional parameter. The valid types are: plain, luks (default), luks1, luks2, loopaes or tcrypt.
 #+begin_src sh
 sudo cryptsetup isLuks -v --type luks /dev/sdb2
 #+end_src
@@ -602,7 +603,7 @@ The LUKS format keeps metadata in the LUKS header. The LUKS header is what allow
 1. The header is visible making it obvious that the disk is encrypted with LUKS
 2. If the header is not backed up and becomes damaged, then the data on the disk is not recoverable unless you happen to still have the disk mounted.
 
-It is best not to post your header publicly because it provides an attacker with one piece of the puzzle to decrypt an encrypted volume even if the header has been stripped from the volume. Of course, they would still need a passphrase for one of the key slots. The ~luksDump~ subcommand can be used to send the header to standard output. This is what a LUKS2 header looks like:
+It is best not to post your header publicly because it provides an attacker with one piece of the puzzle to decrypt an encrypted volume even if the header has been stripped from the volume. Of course, an attacker would still need a passphrase for one of the key slots. The ~luksDump~ subcommand can be used to send the header to standard output. This is what a LUKS2 header looks like:
 #+begin_src sh
 sudo cryptsetup luksDump /dev/sdb2
 #+end_src
@@ -715,7 +716,7 @@ Number of targets: 1
 UUID: CRYPT-LUKS2-01c8d337e5504121ba3eaba823ee5c38-pinephone
 #+end_example
 
-Now we can mount =/dev/mapper/pinephone= somewhere. I will just use =/mnt/usb= again because I am lazy ;-)
+After the device has been decrypted, we still need to mount =/dev/mapper/pinephone= somewhere if we wish to interact with it using standard commands. I will just use =/mnt/usb= again because I am lazy ;-)
 
 #+begin_src sh :results output scalar replace :shebang #!/bin/bash :wrap example
   sudo mount /dev/mapper/pinephone /mnt/usb
@@ -749,9 +750,9 @@ drwxr-xr-x 10 root root 4.0K May 24 14:11 usr
 drwxr-xr-x 13 root root 4.0K May 24 14:11 var
 #+end_example
 
-Now is a good time to copy anything over from your computer that you would like on your phone. For example, if you chose not to allow ~pmbootstrap~ to copy your SSH keys when we [[*Initialize the pmbootstrap configuration for the pinephone][initialized the pmbootstrap configuration for the pinephone]], now is your second chance. It is particularly valuable to copy the SSH keys over if you do not have a serial UART cable that adapts USB to a 3.5mm audio jack. Otherwise, you can wait until we ge to the section on [[*Configure x-forwarding][configuring x-forwarding]].
+Now is a good time to copy anything over from your computer that you would like on your phone. For example, if you chose not to allow ~pmbootstrap~ to copy your SSH keys when we [[*Initialize the pmbootstrap configuration for the pinephone][initialized the pmbootstrap configuration for the pinephone]], now is your second chance. It is particularly valuable to copy the SSH keys over if you do not have a serial UART cable that adapts USB to a 3.5mm audio jack. Otherwise, you can wait until we get to the section on [[*Configure x-forwarding][configuring x-forwarding]].
 
-Once you are finished, unmount the device and close the luks volume.
+Once you are finished, unmount the device and close the LUKS volume.
 #+begin_src sh
 sudo umount /mnt/usb
 sudo cryptsetup luksClose pinephone
@@ -911,7 +912,7 @@ The last line of output should indicate the number of blocks on the device. If y
 
 At this point, the /initramfs/ is waiting for the passphrase required to unlock the encrypted root filesystem. The PinePhone screen should now be displaying an input field to enter the passphrase as well as a full virtual keyboard. Remember that you have two passwords; one is for opening the LUKS encrypted partition and the other is a simple numeric pin that is actually your postmarketOS user account password.
 
-Enter your password for disk decryption. The initrd will then open the LUKS encrypted file system and continue with the boot process. You will see output similar to the following in your serial console screen.
+Enter your password for disk decryption. The initramfs will then open the LUKS encrypted file system and continue with the boot process. You will see output similar to the following in your serial console screen.
 
 #+begin_example
 Check/repair root filesystem (/dev/mapper/root)
@@ -1025,7 +1026,7 @@ You may change this message by editing /etc/motd.
 second-chance:~$
 #+end_example
 
-Once signed in, you will probably be interested in knowing that the PostmarketOS default shell is ash ([[https://www.in-ulm.de/~mascheck/various/ash/][Almquist Shell]]).
+Once signed in, you will probably be interested in knowing that the PostmarketOS default shell is ash ([[https://www.in-ulm.de/~mascheck/various/ash/][Almquist Shell]]). If you are familiar with bash, you should feel right at home with ash since it is essentially a light weight fork.
 
 * Resize the screen
 The device side has no way of knowing the size of the terminal display. Use the ~stty~ command (see [[https://linux.die.net/man/1/stty][stty(1)]]) to print the number of rows and columns that the phone's kernel thinks that your terminal has.
@@ -1040,7 +1041,7 @@ The device side has no way of knowing the size of the terminal display. Use the 
   52 80
 #+end_example
 
-To set a specific number of rows and columns you can use ~stty rows 56 columns 192~. If you are not sure the true number of rows and columns that your terminal has you can simply run the ~resize~ (see [[https://linux.die.net/man/1/resize][resize(1)]]) command.
+To set a specific number of rows and columns you can use ~stty rows 56 columns 192~. If you are not sure the true number of rows and columns that your terminal has, you can simply run the ~resize~ (see [[https://linux.die.net/man/1/resize][resize(1)]]) command.
 
 #+begin_src sh
   second-chance:~$ resize
@@ -1055,7 +1056,7 @@ To set a specific number of rows and columns you can use ~stty rows 56 columns 1
 I have found that I need to run ~resize~ each time I connect over serial. Be sure to set the size again if the terminals dimensions change at any point. This could be automated, but I won't be covering automation of screen resizing in this post.
 
 * Set the timezone, date & time
-For some reason pmbootstrap did not detect my host's timezone, that means I will need to set it manually. Unfortunately I was not able to do this with the PlasmaMobile UI. The date controls seem to not be integrated yet. Thankfully, setting the timezone, date and time is straight forward to do via command line.
+For some reason pmbootstrap did not detect the timezone of the host machine, that means I will need to set it manually. Unfortunately, I was not able to do this with the Plasma Mobile UI. The date controls seem to not be integrated yet. Thankfully, setting the timezone, date and time is straight forward to do via command line.
 
 We can use the date command to find out what the current timezone, date and time are set to.
 #+begin_src sh
@@ -1259,7 +1260,7 @@ second-chance:~$ ls -lh /etc/terminfo/**/*
 -rw-r--r--    1 root     root        2.2K May 24  2020 /etc/terminfo/x/xterm-xfree86
 #+end_example
 
-You need to choose a Terminfo that is compatible with the terminal emulator that you will be using when connecting to the PinePhone over serial. Since I am running ~xterm~, one of the names under =/etc/terminfo/x/= would be appropriate, but what if one day I need to login using ~tmux~? That is why =vt100= was chosen, it is compatible with a larg variety of terminal emulators. A more modern safe choice would be =/etc/terminfo/l/linux= which is another common default for ~getty~ over serial. I recommend testing a few of them out to help you make the best decision. To do that, you can change the current ~$TERM~ on the command line using ~env~. To put our ~terminfo~ of choice to the test, we can use the ~nmtui~ command. First run ~nmtui~ without modifying the Terminfo so that you have a basis, then try out a few reasonable options.
+It is important that you set a Terminfo that is compatible with the terminal emulator that you will be using when connecting to the PinePhone over serial. Since I am running ~xterm~, one of the names under =/etc/terminfo/x/= would be appropriate, but what if one day I need to login using ~tmux~? That is why =vt100= was chosen, it is compatible with a large variety of terminal emulators. A more modern, and reasonably safe, alternative is =/etc/terminfo/l/linux= and is another common default for ~getty~ over serial. I recommend testing a few of them out to help you make the best decision. To do that, you can set the ~TERM~ environment variable for the lifetime of a single command using ~env~. To put our ~terminfo~ of choice to the test, we can use the ~nmtui~ command. First run ~nmtui~ without modifying the Terminfo so that you have a basis by which to compare, then try out a few reasonable options.
 
 #+begin_src sh
   env TERM=linux nmtui
@@ -1269,13 +1270,14 @@ Choosing an incompatible Terminfo when running ~nmtui~ may result in problems ra
 
 Some of the issues that you might run into may be subtle. For example, linux, xterm, xterm-color and xterm-xfree86 Terminfo generally all worked well during my testing, but the first screen of ~nmtui~ was always drawn twice. I even notice some artifacts while the screen is being rendered when using ~xterm-color~. However; xterm-256color renders the screen only once and seems much faster to navigate. The fastest Terminfo by far is vt100, but it lacks color which is nice for screen shots ;-)
 
-Once you have made your decision, use vi to edit =/etc/inittab= and replace ~vt100~ in the ~getty~ which opens =/dev/ttyS0=.
+Once you have made your decision, use ~vi~ to edit =/etc/inittab= and locate the ~getty~ command which opens =/dev/ttyS0=.
 
 #+begin_src sh
   sudo vi /etc/inittab
 #+end_src
 
-Or, if you are feeling confident, you can simply use ~sed~ (see [[https://man7.org/linux/man-pages/man1/sed.1.html][sed(1)]]). A backup will be saved to =/etc/inittab.bk=.
+Replace ~vt100~ in that command with your chosen Terminfo. Or, if you are feeling confident, you can simply use ~sed~ (see [[https://man7.org/linux/man-pages/man1/sed.1.html][sed(1)]]). A backup will be saved to =/etc/inittab.bk=.
+
 #+begin_src sh
   second-chance:~$ sed -ibk 's/ttyS0 115200 vt100/ttyS0 115200 xterm-256color/' /etc/inittab
 #+end_src
@@ -1348,6 +1350,7 @@ This is a simple configuration, I left all fields not explicitly mentioned to th
 Look at the display on your phone. If the screen has locked, you will need to enter your pin in order to unlock it. The display should be showing a dialog prompting you to set a password for the KDE wallet. I entered a strong password and pressed the OK button. Do not choose the same password that you used for encrypting the root file system. It should also go without saying that you should not use the same password as your user's PIN.
 
 Now draw your attention back to your serial console session.
+
 [[/post/install_and_configure_postmarketos_with_plasma_mobile_on_the_pinephone/nmtui-edit-menu-showing-configured-connection.png]]
 
 The UI should be back at the screen for selecting a network connection. The network selection box is no longer empty, it contains a single Wi-Fi connection with the profile name /Hidden SSID/. Hit the =<TAB>= key until =<Quit>= is highlighted, then press =<RET>= to exit ~nmtui~.
@@ -1356,7 +1359,7 @@ The UI should be back at the screen for selecting a network connection. The netw
 
 The configuration is saved to =/etc/NetworkManager/system-connection/=.
 
-In the console use the nmcli to see the connection
+From the console, use the ~nmcli~ to see the connection.
 #+begin_example
   second-chance:~$ nmcli connection show
   NAME         UUID                                  TYPE  DEVICE
@@ -1405,6 +1408,8 @@ Try pinging a domain on the internet that you know responds to ICMP echo request
   second-chance:~$ ping bloggerbust.ca -c 3
 #+end_src
 
+#+RESULTS:
+
 #+begin_example
 PING bloggerbust.ca (185.199.111.153): 56 data bytes
 64 bytes from 185.199.111.153: seq=0 ttl=42 time=27.402 ms
@@ -1415,6 +1420,8 @@ PING bloggerbust.ca (185.199.111.153): 56 data bytes
 3 packets transmitted, 3 packets received, 0% packet loss
 round-trip min/avg/max = 27.031/27.541/28.191 ms
 #+end_example
+
+You should now be able to enable and disable Wi-Fi using the /Quick Settings Tray/.
 
 * NTP time syncing
 
@@ -1448,7 +1455,7 @@ cat /etc/chrony/chrony.conf
   makestep 1 -1
 #+end_example
 
-So if there is nothing to do, then why did I include a section on NTP at all? Well, as you have been made aware, NTP has known vulnerabilities. These vulnerabilities can be mitigated, but I felt it was important to raise awareness about the issue. You might want to [[https://tor.stackexchange.com/questions/3754/what-is-the-recommended-way-for-handling-ntp#3755][handle NTP differently over Tor]]. Consider the possibility of somehow using time skew corrections to deanonymize unsuspecting travellers on [[https://www.torproject.org/][the Tor network]]. Perhaps through some sort of fuzzy fingerprinting technique. That is all just me speculating of course, this is a subject matter I have much to learn about. At any rate, it is never a waste of time to learn more about how your system is configured, especially when that system is societies primary form of communication.
+So if there is nothing to do, then why did I include a section on NTP at all? Well, as you have been made aware, NTP has known vulnerabilities. These vulnerabilities can be mitigated, but I felt it was important to raise awareness about the issue. Now that you are aware that there are issues, perhaps you will want to [[https://tor.stackexchange.com/questions/3754/what-is-the-recommended-way-for-handling-ntp#3755][handle NTP differently over Tor]]. Consider the possibility of somehow using time skew corrections to deanonymize unsuspecting travellers on [[https://www.torproject.org/][the Tor network]]; perhaps through some sort of fuzzy fingerprinting technique. That is all speculation of course, this is a subject matter that I have much to learn about. At any rate, it is never a waste of time to learn more about how your system is configured, especially when that system is societies primary form of communication.
 
 See also [[https://tails.boum.org/contribute/design/Time_syncing/][Tails Time syncing]].
 
@@ -1489,8 +1496,9 @@ OK: 16469 distinct packages available
 
 * Configure Logging
 
-Alpine Linux default logger is [[https://wiki.alpinelinux.org/wiki/Syslog#busybox_syslog][busybox syslog]]. You can find the log configuration in your PinePhone at =/etc/conf.d/syslog=. Run ~syslogd --help~ for configuration options. Busybox syslog is simple to configure, but I prefer a logging facility that is more customizable. My preferred logging facility is ~syslog-ng~ because it is also easy to configure, but it offers the ability to direct logging to appropriately named files, which keeps your logs organized and makes it easier to find what you are looking for. Perhaps the same is possible with ~syslogd~, but it wasn't immediately clear to me how to do that.
+Alpine Linux default logger is [[https://wiki.alpinelinux.org/wiki/Syslog#busybox_syslog][busybox syslog]]. You can find the log configuration at =/etc/conf.d/syslog=. Run ~syslogd --help~ for configuration options. Busybox syslog is simple to configure, but I prefer a logging facility that is more customizable. [[https://www.syslog-ng.com/products/open-source-log-management/][Syslog-ng]] is also easy to configure, and it offers the ability to direct logging to appropriately named files which will keep your logs organized and make it easier to find what you are looking for. Perhaps the same is possible with ~syslogd~, but it wasn't immediately clear to me how to do that.
 
+To install ~syslog-ng~ run:
 #+begin_src sh
 second-chance:~$ sudo apk add syslog-ng
 #+end_src
@@ -1610,12 +1618,19 @@ OK: 1352 MiB in 591 packages
 However; ~apk upgrade~ will not update U-Boot. I might cover updating U-Boot in a future post.
 
 * Set a theme
-Early in my career I spent many long days staring at CRT monitors. Over time, the flickering as the screen refreshed began to affect my vision. Eventually the whole world seemed to flicker. After that experience I have been using dark themes whenever possible to reduce the amount of light that my eyes are subjected to on a daily basis. I now prefer dark themes simply for their aesthetic. To enable a dark theme on Plasma Mobile:
+Early in my career, I spent many long days staring at CRT monitors. CRT monitors flicker each time the screen refreshes. Over time, the constant flickering began to affect my vision. Eventually, the whole world seemed to flicker. I found that dark themed applications reduced the effect that the flickering was having on my eyes. After that experience, I have been using dark themes whenever possible to reduce the amount of light that my eyes are subjected to on a daily basis. Modern flat screen monitors do not have a noticeable flicker. I now prefer dark themes for their aesthetic and light reducing affect. To enable a dark theme on Plasma Mobile:
 
 1. Navigate to /Settings/ and select /Appearance/
-   # [[/post/install_and_configure_postmarketos_with_plasma_mobile_on_the_pinephone/plasma-settings-appearance-selected.png]]
+
+  [[/post/install_and_configure_postmarketos_with_plasma_mobile_on_the_pinephone/plasma-settings-appearance-selected.png]]
+
 2. select /Breeze Dark/, or whatever suits you
-   # [[/post/install_and_configure_postmarketos_with_plasma_mobile_on_the_pinephone/plasma-settings-appearance-breeze-dark.png]]
+
+  [[/post/install_and_configure_postmarketos_with_plasma_mobile_on_the_pinephone/plasma-settings-appearance-breeze-dark.png]]
+
+I quite like Oxygen as well:
+
+[[/post/install_and_configure_postmarketos_with_plasma_mobile_on_the_pinephone/plasma-settings-appearance-oxygen.png]]
 
 * Audio configuration
 The /ALSA/ ([[https://en.wikipedia.org/wiki/Advanced_Linux_Sound_Architecture][Advanced Linux Sound Architecture]]) package can be installed to provide sound support for postmarketOS. The package includes a large number of drivers and various tools, such as the venerable [[https://en.wikipedia.org/wiki/Alsamixer][alsamixer]]. To learn more about ALSA, checkout the [[https://alsa-project.org][ALSA project homepage]]. Also, be sure to check out the [[https://alsa.opensrc.org/][Independent ALSA and Linux audio support site]].
@@ -2076,7 +2091,7 @@ You might already think that you have ~qdbusviewer~ installed because the comman
   /usr/bin/qdbusviewer
 #+end_example
 
-However, if you execute the command, it becomes clear that it is missing implementation binaries.
+However, if you execute the command, it will become clear that it is missing at least one implementation binary.
 #+begin_src sh
 second-chance:~$ qdbusviewer
 #+end_src
@@ -2141,17 +2156,17 @@ qt5-qdbusviewer-5.14.2-r0 license:
 
 Once you have x-forwarding configured, you will be able to render the Qt D-Bus instance that is running on your phone on your computer's monitor:
 #+begin_src sh
-dustfinger@galactica ~/ $ ssh dustfinger@second-chance qdbusviewer
+dustfinger@galactica ~/ $ ssh second-chance qdbusviewer
 #+end_src
 
 [[/post/install_and_configure_postmarketos_with_plasma_mobile_on_the_pinephone/qtdbusviewer-with-ofono-radio-settings-get-properties-selected-x-forwarding.png]]
 
 The tool is dead simple. Use the tab to switch between /Session/ and /System Bus/. Services which are registered with DBus are listed by name in the left pane. Selecting a service will cause Qt D-Bus Viewer to display a list of root level interfaces or object paths depending on what the service exposes. Root level interfaces are actually defined in the object path =/=, but the UI omits that object path for convenience. Expanding an object path will reveal its interface in a tree-view. To execute a method, simply double click it.
 
-Take a moment and play around with it and don't forget to visit the [[https://doc.qt.io/qt-5/qtdbus-index.html][Qt D-Bus documentation]] and keep the [[https://doc.qt.io/qt-5/qdbustypesystem.html][Qt D-Bus type system]] handy for reference.
+Take a moment to play around with it. Don't forget to visit the [[https://doc.qt.io/qt-5/qtdbus-index.html][Qt D-Bus documentation]] and keep the [[https://doc.qt.io/qt-5/qdbustypesystem.html][Qt D-Bus type system]] handy for reference.
 
 ** GNOME D-Feet D-Bus Debugger
-D-Feet is less mobile friendly than Qt DBus Viewer. Although you can scroll by touch-dragging a window pane, the UI frequently stops responding after selecting a bus name. Since, in my case at least, it is not practicable from the touch interface, I recommend that you [[*Configure x-forwarding][configure x-forwarding]] and interact with d-feet from your computer.
+D-Feet is buggy when operated from the PinePhone touch display. Although you can scroll by touch-dragging a window pane, the UI frequently stops responding after selecting a bus name. Since, in my case at least, it is not practicable from the touch interface, I recommend that you [[*Configure x-forwarding][configure x-forwarding]] and interact with d-feet from your computer.
 
 To illustrate my experience I took a screen capture after I managed to call ~getProperties~ from the ~Sim Manager~:
 [[/post/install_and_configure_postmarketos_with_plasma_mobile_on_the_pinephone/d-feet-with-ofono-quectelqmi-sim-manager-interface-get-properties-method-selected-mobile.png]]
@@ -2159,7 +2174,7 @@ To illustrate my experience I took a screen capture after I managed to call ~get
 I then selected another bus name which caused the UI to stop responding at the moment that both bus names were highlighted.
 [[/post/install_and_configure_postmarketos_with_plasma_mobile_on_the_pinephone/d-feet-with-ofono-quectelqmi-sim-manager-service-and-freedesktop-login-service-selected-ui-unresponsive-mobile.png]]
 
-I discovered that swiping down to reveal the /Quick Settings Tray/ often, but not always, causes D-Feet UI to become responsive again. So if you are experimenting with D-Feet from the touch screen of your phone and the UI locks up, you could try swiping down to get it to respond. Failing that, there is always ~SIGINT~, i.e. ~kill -2 `pidof d-feet`~.
+I discovered that swiping down to reveal the /quick settings tray/ often, but not always, causes D-Feet UI to become responsive again. So if you are experimenting with D-Feet from the touch screen of your phone and the UI locks up, you could try swiping down to get it to respond. Failing that, there is always ~SIGINT~, i.e. ~kill -2 `pidof d-feet`~.
 
 To install dFeet run the following command:
 
@@ -2208,7 +2223,7 @@ Start the daemon if it is not running:
 
 From your home computer launch ~d-feet~:
 #+begin_src sh
-dustfinger@galactica ~/ $ ssh -Y dustfinger@second-chance d-feet
+dustfinger@galactica ~/ $ ssh second-chance d-feet
 #+end_src
 
 Just like [[*Qt DBus Viewer][Qt DBus Viewer]], D-Feet is dead simple to use. Services which are registered with DBus are listed by name in the left pane. Selecting a service will cause D-Feet to display that service's /address/, /name/, /unique name/ and /object path/ in the right pane. Expanding an object path will reveal its interface in a tree-view. To execute a method, simply double click it.
@@ -2290,7 +2305,7 @@ In my case, /dustfinger/ is not a member of the /dialout/ group. I will add /dus
   Adding user dustfinger to group dialout
 #+end_example
 
-You might be wondering how we know which of the four serial ports to connect to. Thankfully postmarketOS created descriptive symlinks to each of these ports. We can use the find command to locate those symlinks:
+You might be wondering how we know which of the four serial ports to connect to. Thankfully postmarketOS created descriptive symlinks to each of these ports. We can use the ~find~ command to locate those symlinks:
 
 #+begin_src sh
   second-chance:~$ find /dev -maxdepth 1 -type l -exec ls -la '{}' \; | grep ttyUSB
@@ -2304,7 +2319,7 @@ You might be wondering how we know which of the four serial ports to connect to.
   lrwxrwxrwx    1 root     root             7 Jun  4 05:09 /dev/EG25.NMEA -> ttyUSB1
 #+end_example
 
-It should be obvious that when establishing an interactive session with the modem using a tool like ~minicom~ the correct port is the one with the alis ~EG25.MODEM~. In fact, we can simply use the alias if we prefer.
+It should be obvious that when establishing an interactive session with the modem using a tool like ~minicom~ the correct port is the one with the alias ~EG25.MODEM~. In fact, we can simply use the alias if we prefer.
 
 ** Enable oFono debug logging
 
@@ -2384,11 +2399,6 @@ minicom -D /dev/ttyUSB2
 ** AT Command Basics
 Please refer to the [[https://wiki.pine64.org/images/2/2e/Quectel_EC25EC21_AT_Commands_Manual_V1.2.pdf][Quectel EC25 AT commands manual]] when following along. There is an appendix on page 192 with many useful tables, such as terms & abbreviations and error codes.
 
-To get a value from an AT command, end the command with a question mark.
-#+begin_src sh
-AT+QDAI?
-#+end_src
-
 There are three categories of AT commands supported by the Quectel EC25.
 1. Basic Syntax :: =AT<x><n>= where =<x>= is the command and =<n>= represents 0 or more arguments
 2. S parameter syntax :: =ATS<n>=<m>= where =<n>= is a register index and =<m>= is the value to assign
@@ -2425,7 +2435,7 @@ OK
 
 ** Configure the modem for audio
 
-This step is no longer necessary to perform manually. PostmarketOS now has a service named ~pinephone_setup-modem-audio~ that calls ~/usr/bin/pinephone_setup-modem-audio~ which runs the ~AT+QDAI~ AT command for you. If you need to change your audio routing for some reason, then you will need to update that script or it will just reset the configuration on next reboot. You are welcome to read on for learning purposes, or [[*Check Audio Mode][skip to the next section]].
+It is no longer necessary to perform this step manually. PostmarketOS now has a service named ~pinephone_setup-modem-audio~ that calls ~/usr/bin/pinephone_setup-modem-audio~ which runs the ~AT+QDAI~ AT command for you. If you need to change your audio routing for some reason, then you will need to update that script or it will just reset the configuration on next reboot. You are welcome to read on for learning purposes, or [[*Check Audio Mode][skip to the next section]].
 
 It is time to [[https://xnux.eu/devices/feature/modem-pp.html#toc-setting-up-the-modem-for-voice-calling][configure the modem for audio]] by running the Quectel Digital Audio Interface (QDAI) configuration write command defined on page 193 of the /[[https://wiki.pine64.org/images/2/2e/Quectel_EC25EC21_AT_Commands_Manual_V1.2.pdf][AT commands manual]]/.
 #+begin_src sh
@@ -2449,7 +2459,7 @@ This sets modem to:
   1 - map to first slot (the only slot)
 #+end_example
 
-See page 194 of the AT commands manual for a full explanation the parameters and their values.
+See page 194 of the AT commands manual for a full explanation of the parameters and their values.
 
 ** Check Audio Mode
 The audio mode controls where the audio from the modem is sent. The audio mode has three states as defined on page 192:
@@ -2460,7 +2470,7 @@ The audio mode controls where the audio from the modem is sent. The audio mode h
 |     1 | audio configured for headset |
 |     2 | audio configured for speaker |
 
-It is unlikely for this mode to be sent incorrect, but if you find that you are not hearing any sound after [[*Configure the modem for audio][configuring the modem for audio]], then it is easy enough to call the ~AT+QAUDMOD~ read command for confirmation.
+It is unlikely for this mode to be set incorrect, but if you find that you are not hearing any sound after [[*Configure the modem for audio][configuring the modem for audio]], then it is easy enough to call the ~AT+QAUDMOD~ read command for confirmation.
 
 [[/post/install_and_configure_postmarketos_with_plasma_mobile_on_the_pinephone/minicom-check-modem-audio-mode.png]]
 
@@ -2502,7 +2512,7 @@ To check that the modem's phone functionality is set to full run the ~AT+CFUN~ r
 |     4 | radio (transmit & receive) disabled |
 
 Unfortunately the manual does not clearly specify what /minimal functionality/ means. Here are two known symptoms that might indicate that the modem is not in /full functionality/ mode.
-1. Checking operator registration and mode with ~AT+COPS?~ returns a 0 meaning that the operator mode and registration is ~UNKNOWN~
+1. ~AT+COPS?~ returns a 0, meaning that the operator mode and registration are ~UNKNOWN~
 2. Checking /PIN/ status with ~AT+CPIN?~ returns ~+CME ERROR: 13~
 
 Run ~AT+CFUN 1,1,~ to enable full modem functionality.
@@ -2592,7 +2602,7 @@ Before we can send or receive /SMS/ and make phone calls we need to first config
 2. Search your carrier service for published APN Settings
 3. Here is a DuckDuckGo search for [[https://duckduckgo.com/?q=complete+list+of+APN+settings][/complete list of APN settings/]]
 
-My carrier is Koodo and I was able to find the [[https://www.koodomobile.com/en/help/setting-data-your-non-koodo-phone][APN settings at koodomobile.com]]. Hopefully you were able to find your APN settings before moving on.
+My carrier is Koodo and I was able to find the [[https://www.koodomobile.com/en/help/setting-data-your-non-koodo-phone][APN settings at koodomobile.com]]. Hopefully you are able to find your APN settings without difficulty.
 
 ** Determine your operator service name
 
@@ -2664,7 +2674,7 @@ method return time=1590502077.356864 sender=:1.72 -> destination=:1.92 serial=25
 #+end_example
 
 ** Shutdown Ofono service
-Since we are going to be manually configuring the APN settings, we must shutdown the ~ofonod~ daemon, otherwise our changes will not persist.
+Since we are going to be manually configuring the APN settings, we must shutdown the oFono daemon, otherwise our changes will not persist.
 
 #+begin_src sh
 second-chance:~$ sudo rc-service ofono stop
@@ -2690,15 +2700,15 @@ For those that are curious: Quectel teamed up with Qualcomm a couple of years ag
   /sys/class/net/wwan0/qmi
 #+end_example
 
+The resulting path has the following form: =/sys/class/net/<network interface>/qmi=.
+
 ** Configure APN settings (MVNO)
 
-I am going to be configuring my modem for =LTE/GPRS= coverage. The ~ofono~ framework keeps settings in files called stores which are kept in =/var/lib/ofono/<IMSI>/{gprs,lte,netreg,radiosetting,sms,voicecall}=. These settings files are essentially /INI/ files, so you will be setting key value pairs. You can find out what each key value pair is for by reading the appropriate [[https://git.kernel.org/pub/scm/network/ofono/ofono.git/tree/doc][doc files in the repository]].
+I am going to configure my modem for =LTE/GPRS= coverage. The oFono framework keeps settings in files called stores which are kept in =/var/lib/ofono/<IMSI>/{gprs,lte,netreg,radiosetting,sms,voicecall}=. These settings files are essentially /INI/ files, so you will be setting key value pairs. You can find out what each key value pair is for by reading the appropriate [[https://git.kernel.org/pub/scm/network/ofono/ofono.git/tree/doc][doc files in the repository]].
 - [[https://git.kernel.org/pub/scm/network/ofono/ofono.git/tree/doc/connman-api.txt][connman-api.txt]] :: contains properties relevant to APN
 - [[https://git.kernel.org/pub/scm/network/ofono/ofono.git/tree/doc/lte-api.txt][lte-api.txt]] :: contains properties relevant to lte
 
-Those documentation files are really about the ~ofonod~ so they are also valuable reference when making calls over ~DBus~. We only care about the /Properties/ section. 
-
-Here is what my =gprs= file contained before editing.
+Those documentation files are really about the oFono daemon so they are also valuable reference when making calls over ~DBus~. For our purpose, we only care about the /Properties/ section. Here is what my =gprs= file contained before editing.
 
 #+begin_src sh
 second-chance:~$ sudo cat /var/lib/ofono/$(echo "AT+CIMI" | atinout - /dev/EG25.AT - | grep -iE '[0-9]')/gprs
@@ -2722,7 +2732,7 @@ Type=internet
 Protocol=ip
 #+end_example
 
-First, we will edit the /lte/ settings. This is very straight forward, it just defines /APN/ which it will used on the next automatic activation. If you set the DefaultAccessPointName to empty string, then it will clear the default APN from the modem's memory.
+First, we will edit the /lte/ settings. The configurable properties for /lte/ are straight forward. The most interesting property is the ~DefaultAccessPointName~ which defines the /APN/ that will be selected for the next automatic activation. If you set the ~DefaultAccessPointName~ to empty string, then it will clear the default APN from the modem's memory.
 
 #+begin_src sh
 second-chance:~$ sudo vi /var/lib/ofono/$(echo "AT+CIMI" | atinout - /dev/EG25.AT - | grep -iE '[0-9]')/lte
@@ -2739,9 +2749,12 @@ second-chance:~$ sudo vi /var/lib/ofono/$(echo "AT+CIMI" | atinout - /dev/EG25.A
   Password=
 #+end_example
 
-Configuring the =gprs= is more involved. Keep in mind that /Koodo/ is a /Mobile Virtual Network Operator/ (MVNO), so between the two carrier services I was actually able to figure out a couple of different configurations that all worked fine. The only apparent difference was the DNS settings after connecting to the network.
+There will not be a one-to-one relationship between the APN settings that you find online for your carrier and what you need to configure for oFono, but it should be fairly straight forward to translate. For example, since the [[https://www.koodomobile.com/en/help/setting-data-your-non-koodo-phone][Koodo APN settings page]] shows /Blank/ for ~Username~ and ~Password~ it made sense to set ~AuthenticationMethod~ to =None= and leave both ~Username~ and ~Password~ values empty. How did I know to set ~AuthenticationMethod~ to =None= rather than leaving it blank like I did with ~Username~ and ~Password~? Look at the properties section in the [[https://git.kernel.org/pub/scm/network/ofono/ofono.git/tree/doc/lte-api.txt][lte-api.txt]] and locate the documentation for the ~AuthenticationMethod~ property, there you will find a list of valid values. Similarly, the Koodo APN page shows the field ~IP Type~ set to =IPv4v6=, so I set the ~Protocol~ property to =dual=; again, referring to [[https://git.kernel.org/pub/scm/network/ofono/ofono.git/tree/doc/lte-api.txt][lte-api.txt]].
 
-I created a single context from the [[https://www.koodomobile.com/en/help/setting-data-your-non-koodo-phone][APN settings at koodomobile.com]]. 
+Configuring the =gprs= is more involved. Keep in mind that /Koodo/ is a /Mobile Virtual Network Operator/ (MVNO), that means another operator provides the network infrastructure which Koodo makes use of. Between the two operators I was actually able to figure out a couple of different configurations that all worked fine. The only apparent difference was the DNS settings after connecting to the network.
+
+Using the [[https://www.koodomobile.com/en/help/setting-data-your-non-koodo-phone][APN settings at koodomobile.com]] as a guide, I translated each field into an appropriate property understood by ~ofonod~ by looking them up in the /Connection Context hierarchy - Properties/ section of [[https://git.kernel.org/pub/scm/network/ofono/ofono.git/tree/doc/connman-api.txt][connman-api.txt]]. I then updated the =gprs= section named /context1/ as shown below.
+
 #+begin_src sh
 second-chance:~$ sudo vi /var/lib/ofono/$(echo "AT+CIMI" | atinout - /dev/EG25.AT - | grep -iE '[0-9]')/gprs
 #+end_src
@@ -2765,9 +2778,7 @@ MessageCenter=http://aliasredirect.net/proxy/koodo/mmsc
 MessageProxy=74.49.0.18:80
 #+end_example
 
-I should mention that if you enter an invalid configuration, the system might revert your settings in =/var/lib/ofono/<IMSI>/{gprs,lte}= back to their defaults as soon as the ofono service has been started. In that case, you will need to shutdown the ofono service, edit the configuration and bring the service back online until the configuration is accepted.
-
-With that said, it is time to start the ofono service. 
+I should mention that if you enter an invalid configuration, the system might revert your settings in =/var/lib/ofono/<IMSI>/{gprs,lte}= back to their defaults as soon as the oFono service has been started. In that case, you will need to shutdown the oFono service, edit the configuration and bring the service back online until the configuration is accepted. With that said, it is time to start the oFono service. 
 
 #+begin_src 
 second-chance:~$ sudo rc-service ofono start
@@ -2781,7 +2792,7 @@ second-chance:~$ sudo rc-service ofono start
  * Starting oFono ...                                                     [ ok ]
 #+end_example
 
-and checked DBus to see if the context was picked up by the modem.
+and check DBus to see if the context was picked up by the modem.
 
 #+begin_src sh
 second-chance:~$ sudo qdbus --system org.ofono | grep -i context
@@ -2794,7 +2805,7 @@ second-chance:~$ sudo qdbus --system org.ofono | grep -i context
 /quectelqmi_0/context2
 #+end_example
 
-You might be surprised to see that the modem has two contexts in memory considering that I only configured a single context. Let's shutdown the ofono service and take another look at the gprs configuration.
+You might be surprised to see that the modem has two contexts in memory considering that I only configured a single context. Let's shutdown the oFono service and take another look at the =gprs= configuration.
 
 #+begin_src sh
   second-chance:~$ sudo rc-service ofono stop && sudo vi /var/lib/ofono/$(echo "AT+CIMI" | atinout - /dev/EG25.AT - | grep -iE '[0-9]')/gprs
@@ -2827,7 +2838,7 @@ Type=internet
 Protocol=ip
 #+end_example
 
-A new context was generated, but without an APN. After quite a bit of experimenting I decided to try making a second context, but with the APN set to the name of the context that was generated.
+It turns out that /context2/ has no value set for ~AccessPointName~, but it does have an interesting ~Name~ property. After quite a bit of experimenting I decided to try assigning the ~AccessPointName~ property the same value as the ~Name~ property. I then assigned a meaningful name to the ~Name~ property and set the other fields exactly the same as /context1/.
 
 #+begin_example
 [context2]
@@ -2841,10 +2852,73 @@ MessageCenter=http://aliasredirect.net/proxy/koodo/mmsc
 MessageProxy=74.49.0.18:80
 #+end_example
  
-I then used ~ofonoctl~ to connect ~wann0~ and append DNS.
+Telus is the name of the /Mobile Network Operator/ (MNO) that /Koodo/ uses for its network infrastructure.
+
+With that change in place, let's start the oFono daemon and double checked that both contexts are recognized by oFono.
 
 #+begin_src sh
-second-chance:~$ sudo ofonoctl wan --connect --append-dns
+second-chance:~$ sudo rc-service ofono start 1> /dev/null && sudo qdbus --system org.ofono | grep -i context
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+/quectelqmi_0/context1
+/quectelqmi_0/context2
+#+end_example
+
+Both contexts were recognized, but it never hurts to double check the settings after a significant change.
+
+#+begin_src sh
+second-chance:~$ qdbus --system org.ofono /quectelqmi_0/context1 org.ofono.ConnectionContext.GetProperties && qdbus --system org.ofono /quectelqmi_0/context2 org.ofono.ConnectionContext.GetProperties
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+AccessPointName: sp.koodo.com
+Active: false
+AuthenticationMethod: none
+IPv6.Settings: MessageCenter: http://aliasredirect.net/proxy/koodo/mmsc
+MessageProxy: 74.49.0.18:80
+Name: Koodo
+Password: 
+Protocol: ip
+Settings: Type: mms
+Username: 
+AccessPointName: attach.telus.com
+Active: false
+AuthenticationMethod: none
+IPv6.Settings: MessageCenter: http://aliasredirect.net/proxy/koodo/mmsc
+MessageProxy: 74.49.0.18:80
+Name: Telus
+Password: 
+Protocol: ip
+Settings: Type: mms
+Username:
+#+end_example
+
+If the settings were rejected by oFono, then they will be reverted. In that case, you will need to stop the oFono daemon and try tweaking your configuration settings before moving on. You might have noticed that neither context is active. I will be talking about what to do if your context does not become active in the next section.
+
+** Ensure a context is Active
+A context should be activated automatically. To see if =context1= is activate, filter the results of ~org.ofono.ConnectionContext.GetProperties~ using grep.
+
+#+begin_src sh
+second-chance:~$ qdbus --system org.ofono /quectelqmi_0/context1 org.ofono.ConnectionContext.GetProperties | grep Active
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+Active: false
+#+end_example
+
+Context activation might take several seconds after the oFono daemon has started, so if you check for an active context immediately after oFono starts you might not find one. In that case, wait a few seconds and try again.
+
+If you have ever called ~ofonoctl wan~ only to find an empty record set, that is because it was unable to find /IPv4/ or /IPv6/ settings which is a symptom of not having an active context.
+
+#+begin_src sh
+sudo ofonoctl wan
 #+end_src
 
 #+RESULTS:
@@ -2852,34 +2926,235 @@ second-chance:~$ sudo ofonoctl wan --connect --append-dns
 #+begin_example
 Interface    Protocol    APN               Method    Address         Gateway      DNS
 -----------  ----------  ----------------  --------  --------------  -----------  ----------------------------
+#+end_example
+
+The reason why the context was not able to activate is because the connection manager is not attached.
+#+begin_src sh
+second-chance:~$ qdbus --system org.ofono /quectelqmi_0 org.ofono.ConnectionManager.GetProperties | grep Attached
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+Attached: false
+#+end_example
+
+The obvious question to ask now is, how do we get the connection manager to return ~true~ for the =Attached= property? The easiest thing to do is restart the ~eg25~ service.
+
+#+begin_src sh
+second-chance:~$ sudo rc-service eg25 restart && sudo rc-service ofono restart
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+ * Disabling EG25 WWAN module ...
+ * Enabling EG25 WWAN module ...
+ * Stopping oFono ...                                         [ ok ]
+ * AT debugging is enabled by config
+ * command_args_foreground = -d -n
+ * Starting oFono ...                                         [ ok ]
+#+end_example
+
+... and like magic, everything is happy once again
+
+#+begin_src sh
+second-chance:~$ qdbus --system org.ofono /quectelqmi_0 org.ofono.ConnectionManager.GetProperties | grep Attached && qdbus --system org.ofono /quectelqmi_0/context1 org.ofono.ConnectionContext.GetProperties | grep Active && ofonoctl wan
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+Attached: true
+Active: true
+Interface    Protocol    APN               Method    Address         Gateway      DNS
+-----------  ----------  ----------------  --------  --------------  -----------  ----------------------------
 wwan0        ipv4        sp.koodo.com      static    <REDACTED>      <REDACTED>   <REDACTED>, <REDACTED>
 #+end_example
 
-Since LTE is activated automatically, sometimes the second context will be chosen and I will see this output from ~ofonoctl~.
+You are probably wondering how we got into this state in the first place. Unfortunately, I am not sure. I have seen it happen quite a few times now though. If you know the reason, please comment.
+
+** Static IP allocation
+There are two prerequisite that must be met before adding a route
+1. you must [[*Ensure a context is Active][ensure that a context is active]]
+2. the method of configuring the host must be /static/
+
+To determine if IP allocation is static, simply ask the connection manager.
+#+begin_src sh
+second-chance:~$ qdbus --system org.ofono /quectelqmi_0/context1 org.ofono.ConnectionContext.GetProperties | grep -E '^Method'
+#+end_src
+
+#+RESULTS:
 
 #+begin_example
-Interface    Protocol    APN               Method    Address         Gateway      DNS
------------  ----------  ----------------  --------  --------------  -----------  ----------------------------
-wwan0        ipv4        attach.telus.com  static    <REDACTED>      <REDACTED>   <REDACTED>, <REDACTED>
+Method: static
 #+end_example
 
-Now we should be able to ping a domain over the internet.
+If the =Method= is =dhcp=, then you will need to use [[http://pkgs.postmarketos.org/package/master/postmarketos/armv7/dhcpcd][a dhcp client]], such as [[https://wiki.alpinelinux.org/wiki/Udhcpc][udhcpc]] (already installed), for dynamic IP allocation. I won't be covering =dhcp= in this post since that is not my use case.
+
+At this point we have established that manual IP allocation is necessary. Now, we must obtain our assigned /IP Address/ and /Gateway/ from the connection context. I think it will be a bit easier to take a look at all of the connection properties at once, rather than filtering fields using grep.
 
 #+begin_src sh
-  second-chance:~$ ping bloggerbust.ca -c 3
+second-chance:~$ qdbus --system org.ofono /quectelqmi_0/context1 org.ofono.ConnectionContext.GetProperties
 #+end_src
+
+#+RESULTS:
+
+#+begin_example
+AccessPointName: sp.koodo.com
+Active: true
+AuthenticationMethod: none
+IPv6.Settings: MessageCenter: http://aliasredirect.net/proxy/koodo/mmsc
+MessageProxy: 74.49.0.18:80
+Name: Koodo
+Password: 
+Protocol: ip
+Settings: Address: <REDACTED>
+DomainNameServers: <REDACTED>
+<REDACTED>
+Gateway: <REDACTED>
+Interface: wwan0
+Method: static
+Netmask: 255.255.255.0
+Type: mms
+Username: 
+#+end_example
+
+The first thing I want to mention is that ~qdbus~ doesn't format this output perfectly. Whenever a property is a dictionary, ~qdbus~ prints the next property on the same line. For example, =Message Center= and =Address= should both be on their own lines. I will reformat the output for clarity.
+
+#+begin_example
+AccessPointName: sp.koodo.com
+Active: true
+AuthenticationMethod: none
+IPv6.Settings: 
+MessageCenter: http://aliasredirect.net/proxy/koodo/mmsc
+MessageProxy: 74.49.0.18:80
+Name: Koodo
+Password: 
+Protocol: ip
+Settings:
+  Address: <REDACTED-ADDRESS>
+  DomainNameServers: <REDACTED-DNS-1>
+  <REDACTED-DNS-2>
+  Gateway: <REDACTED-GATEWAY>
+  Interface: wwan0
+  Method: static
+  Netmask: 255.255.255.0
+Type: mms
+Username: 
+#+end_example
+
+The second thing to notice is that the =Protocol= property is set to =ip=. That means that the carrier service has assigned me an IPv4 address. All of the IPv4 settings are found in the =Settings= property. If the protocol had been =ipv6= instead, then the =IPv6.Settings= property would have been populated. 
+
+Let's make sure we are in a consistent starting state by purging all allocated addresses from the interface
+#+begin_src sh
+second-chance:~$ sudo ip addr flush dev wwan0
+#+end_src
+
+The routing table should not show any routes for interface ~wwan0~, but you will see routes for ~wlan0~ if you have /Wi-Fi/ up.
+#+begin_src sh
+ip route show
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+172.16.0.0/16 dev usb0 scope link  src 172.16.42.1
+#+end_example
+
+Before we can add an IP address, we need to calculate the prefix length based on the netmask. Thankfully, the ~ipcalc~ command can do the math for us.
+
+#+begin_src sh
+second-chance:~$ ipcalc -p <REDACTED-ADDRESS> 255.255.255.0
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+PREFIX=24
+#+end_example
+
+Now that we know the prefix length, we can add the address to our interface using [[https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing#CIDR_notation][Classless Inter-Domain Routing]] (CIDR) notation.
+
+#+begin_example
+second-chance:~$ sudo ip addr add <REDACTED-ADDRESS>/24 dev wwan0
+#+end_example
+
+Let's see if that had any effect on our routing table.
+#+begin_src sh
+second-chance:~$ ip route show
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+<REDACTED-SUBNET>/24 dev wwan0 scope link  src <REDACTED-ADDRESS>
+172.16.0.0/16 dev usb0 scope link  src 172.16.42.1 
+#+end_example
+
+Before our network interface can be used to access the internet, we must first add an route to the gateway defined in our active context for the ~wwan0~ interface. Let's add a default route (for all addresses) via the gateway =<REDACTED-GATEWAY>= now.
+
+#+begin_src sh
+second-chance:~$ sudo ip route add default via <REDACTED-GATEWAY> dev wwan0
+#+end_src
+
+Another look at our routing table will show the newly added route.
+#+begin_src sh
+second-chance:~$ ip route show
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+default via <REDACTED-GATEWAY> dev wwan0
+<REDACTED-SUBNET>/24 dev wwan0 scope link  src <REDACTED-ADDRESS>
+172.16.0.0/16 dev usb0 scope link  src 172.16.42.1 
+#+end_example
+
+The connection context tells us which DNS addressess our carrier service would like us to use when resolving domain names. If you are wondering whether or not you should trust your carrier service's DNS or a third party, such as [[https://servers.opennic.org/][OpenNic]], [[https://www.opendns.com/][OpenDNS]] , [[https://www.dnscrypt.org/][DNSCrypt]] etc., then I recommend reading [[https://www.grepular.com/DNSCrypt_Reduces_Privacy][DNSCrypt Reduces Privacy]]. I am not suggesting that defending ones privacy is hopeless, but it is a topic deserving of its own series of blog posts. For the purposes of this article, I will be adding my carrier service's DNS to resolv.conf.
+
+#+begin_src sh
+ echo "nameserver <REDACTED-DNS-1>" | sudo tee -a /etc/resolv.conf
+ echo "nameserver <REDACTED-DNS-2>" | sudo tee -a /etc/resolv.conf
+#+end_src
+
+Now we should be able to ping a domain on the Internet:
+#+begin_src sh
+ping bloggerbust.ca
+#+end_src
+
+#+RESULTS:
 
 #+begin_example
 PING bloggerbust.ca (185.199.111.153): 56 data bytes
 64 bytes from 185.199.111.153: seq=0 ttl=42 time=27.402 ms
 64 bytes from 185.199.111.153: seq=1 ttl=42 time=28.191 ms
 64 bytes from 185.199.111.153: seq=2 ttl=42 time=27.031 ms
+
+--- bloggerbust.ca ping statistics ---
+3 packets transmitted, 3 packets received, 0% packet loss
+round-trip min/avg/max = 27.031/27.541/28.191 ms
 #+end_example
 
-If your carrier service is an MVNO it might be essential to define a context for both APNS, especially if you are moving around. I seem to require the Telus context to be defined to make phone calls. More testing is required to know for certain.
+You have probably heard of [[https://git.sr.ht/~martijnbraam/ofonoctl/][ofonoctl]] by Martin Braam. When you run ofonoctl wan, it locates your active context and tabulates the IP Address, Gateway and DNS just as we did above. When you add the ~--connect~ optional parameter, ~ofonoctl~ flushes your ~wwan0~ interface and adds the IP Address and DNS that it found in the active context. When you add the ~--append-dns~ optional parameter, then it will append the DNS to your =/etc/resolv.conf= for you. So why the heck did I just make you do it all manually? Now you know how it works. Now you will have an idea what might be wrong the next time you run:
+
+#+begin_src sh
+ofonoctl wan --connect --append-dns
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+Interface    Protocol    APN               Method    Address         Gateway      DNS
+-----------  ----------  ----------------  --------  --------------  -----------  ----------------------------
+#+end_example
+
+... and an empty record-set is displayed.
+
+There is still an issue that you will be dealing with. Every time you bring up or down the =Wi-Fi= connection, Network Manager will completely override =/etc/resolv.conf=. I will be posting back later how to deal with this issue. For now, just be aware that is happening and know that you will have to re-append the DNS each time. You might want to write yourself a script to do that for you for the time being.
 
 * Send and receive SMS
-Plasma Mobile has an SMS app named /Spacebar/, but at the time of writing I was not able to get /Spacebar/ working. Instead, we are going to test both sending and receiving SMS from the command line. To receive SMS we will run a ~dbus-monitor~ process in the background that copy all messages on the ~org.ofono.MessageManager~ interface and print it to ~STDOUT~.
+Plasma Mobile has an SMS app named /Spacebar/, but at the time of writing I was not able to get /Spacebar/ working. Instead, we are going to test both sending and receiving SMS from the command line. To receive SMS we will run a ~dbus-monitor~ process in the background that will read all messages on the ~org.ofono.MessageManager~ interface and print it to ~STDOUT~.
 
 #+begin_src sh
 second-chance:~$ sudo env DISPLAY=:0.0 dbus-monitor --system "type='signal',interface='org.ofono.MessageManager',member='IncomingMessage'"&
