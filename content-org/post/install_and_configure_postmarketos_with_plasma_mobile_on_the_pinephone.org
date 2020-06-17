@@ -1617,6 +1617,111 @@ OK: 1352 MiB in 591 packages
 
 However; ~apk upgrade~ will not update U-Boot. I might cover updating U-Boot in a future post.
 
+* Configure x-forwarding
+
+Before we begin, I should mention that [[https://unix.stackexchange.com/questions/236482/is-there-a-downside-to-enabling-x11-forwarding-in-ssh][X-forwarding poses a security risk to the client side]]. That said, there might be times when you would like to use a GUI app on your mobile phone, but the GUI wasn't designed for touch screens. For example, perhaps you would like to explore a dbus interface using [[https://github.com/GNOME/d-feet][dFeet]]. Unfortunately dFeet does not have a CLI and is not mobile friendly. In such cases, I will start ~sshd~ on the PinePhone and use x-forwarding to my development box. Once I am finished, I always shut down ~sshd~. No sense in leaving it running since I have ~serial~.
+
+First, let's configure the server side (PinePhone) by editing =/etc/ssh/sshd_config= (see [[http://man7.org/linux/man-pages/man5/sshd_config.5.html][sshd_config(5)]]).
+
+#+begin_src sh
+  sudo vi /etc/ssh/sshd_config
+#+end_src
+
+Page down to the bottom of the file and add the following conditional block which will override the system wide ~X11Forwarding~ and ~X11UseLocalhost~ settings for your user.
+
+#+begin_example
+  Match User dustfinger
+    X11Forwarding yes
+    X11UseLocalhost yes
+#+end_example
+
+Start the SSH daemon.
+
+#+begin_src sh
+  second-chance:~$ sudo rc-service sshd start
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+ * Starting sshd ...                       [ ok ]
+#+end_example
+
+If it is was already started, then you will have to restart it for the changes to take effect. Back on the client side, generate a new RSA key.
+#+begin_src sh
+ mkdir -p ~/.ssh
+ ssh-keygen -f ~/.ssh/id_second-chance_rsa
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+Generating public/private rsa key pair.
+Enter passphrase (empty for no passphrase):
+Enter same passphrase again:
+Your identification has been saved in /home/dustfinger/.ssh/id_second-chance_rsa.
+Your public key has been saved in /home/dustfinger/.ssh/id_second-chance_rsa.pub.
+The key fingerprint is:
+SHA256:3KcVsaPW0FxMatRMkX+/JKN21OPItaxi5P1wZBRliGo dustfinger@galactica
+The key's randomart image is:
++---[RSA 3072]----+
+|            oB==+|
+|           +.=*..|
+|          ..O  o |
+|       . .E= o. o|
+|        S.+ + .oo|
+|         . = +o=.|
+|          + =.O.+|
+|           * =o= |
+|          o o.o. |
++----[SHA256]-----+
+#+end_example
+
+Edit =$HOME/.ssh/config= (see [[http://man7.org/linux/man-pages/man5/ssh_config.5.html][ssh_config(5)]]) creating a new file if it does not already exist. Add the following host specific configuration. Replace =second-chance= with the host name or IP address of your PinePhone.
+
+#+begin_example
+  host second-chance
+       Hostname second-chance
+       ForwardAgent yes
+       ForwardX11 yes
+       # ForwardX11Trusted yes
+       IdentityFile ~/.ssh/id_second-chance_rsa
+       User dustfinger
+#+end_example
+
+I commented out =ForwardX11Trusted yes= on purpose. Only set =ForwardX11Trusted yes= if you fully trust the server, i.e. your PinePhone. You may choose to leave that option commented out and instead pass =-Y= optional flag only when you require x-forwarding and untrusted X11 forwarding fails. For the purposes of this post I have uncommented that option for my own convenience.
+
+Copy ssh id to remote authorized keys (see [[https://linux.die.net/man/1/ssh-copy-id][ssh-copy-id(1)]]).
+#+begin_src sh
+ssh-copy-id -i ~/.ssh/id_second-chance_rsa dustfinger@second-chance
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+/usr/bin/ssh-copy-id: INFO: Source of key(s) to be installed: "/home/dustfinger/.ssh/id_second-chance_rsa.pub"
+/usr/bin/ssh-copy-id: INFO: attempting to log in with the new key(s), to filter out any that are already installed
+/usr/bin/ssh-copy-id: INFO: 1 key(s) remain to be installed -- if you are prompted now it is to install the new keys
+dustfinger@second-chance's password:
+
+Number of key(s) added: 1
+
+Now try logging into the machine, with:   "ssh 'dustfinger@second-chance'"
+and check to make sure that only the key(s) you wanted were added.
+#+end_example
+
+As long as you don't see any warnings, such as /Warning: untrusted X11 forwarding setup failed: xauth key data not generated/, your /SSH/ requests should have access to the display. You can test this by running seeing if the ~$DISPLAY~ variable is set.
+
+#+begin_src sh
+ssh dustfinger@second-chance 'echo $DISPLAY'
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+localhost:10.0
+#+end_example
+
 * Set a theme
 Early in my career, I spent many long days staring at CRT monitors. CRT monitors flicker each time the screen refreshes. Over time, the constant flickering began to affect my vision. Eventually, the whole world seemed to flicker. I found that dark themed applications reduced the effect that the flickering was having on my eyes. After that experience, I have been using dark themes whenever possible to reduce the amount of light that my eyes are subjected to on a daily basis. Modern flat screen monitors do not have a noticeable flicker. I now prefer dark themes for their aesthetic and light reducing affect. To enable a dark theme on Plasma Mobile:
 
@@ -1631,6 +1736,125 @@ Early in my career, I spent many long days staring at CRT monitors. CRT monitors
 I quite like Oxygen as well:
 
 [[/post/install_and_configure_postmarketos_with_plasma_mobile_on_the_pinephone/plasma-settings-appearance-oxygen.png]]
+
+* How to take a screen shot
+You might be wondering how I was able to take those screen shots when [[*Set a theme][setting a theme]]. The /quick settings tray/ contains a screen shot action item. To invoke it, swipe downwards from the top of the display and touch the icon labelled /Screenshot/.
+
+[[/post/install_and_configure_postmarketos_with_plasma_mobile_on_the_pinephone/plasma-mobile-quick-settings-tray.png]]
+
+Unfortunately, the screen shot action item only captures a portion of the display. This will be fixed in a future update, but in the meantime I wanted another solution. I wanted to be able to take screen shots from a serial or SSH connection. The postmarketOS Plasma Mobile wiki page has a section on [[https://wiki.postmarketos.org/wiki/Plasma_Mobile#Taking_screenshots][taking screenshots]] using ~qdbus~. That sounded perfect to me. Their example uses the ~org.kde.KWin~ DBus service, but unfortunately ~qdbus~ couldn't find it on the session bus. In fact, I didn't have access to a session bus at all.
+
+#+begin_src sh
+second-chance:~$ qdbus org.kde.KWin
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+Could not connect to D-Bus server: org.freedesktop.DBus.Error.NotSupported: Unable to autolaunch a dbus-daemon without a $DISPLAY for X11
+#+end_example
+
+Looking above the /Taking screenshots/ heading, I noticed a section on [[https://wiki.postmarketos.org/wiki/Plasma_Mobile#Running_Apps_from_SSH_session][running apps from an SSH session]] where they recommend exporting all of the environment variables available to the ~plasmashell~ process. After researching this a bit further, I discovered that having [[https://docs.plasma-mobile.org/RunningApps.html][an environment setup similar to plasmashell is necessary for running many applications]]. So I decided to try it out.
+
+#+begin_src sh
+second-chance:~$ export $(cat /proc/`pidof plasmashell`/environ | tr '\0' '\n')
+#+end_src
+
+
+Unfortunately, the first time I tried to take a screen shot using ~org.kde.kwin.Screenshot.screenshotArea~ the request timed out waiting for a response.
+#+begin_src sh
+second-chance:~$qdbus org.kde.KWin /Screenshot org.kde.kwin.Screenshot.screenshotArea 0 0 1440 720
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+Error: org.freedesktop.DBus.Error.NoReply
+Did not receive a reply. Possible causes include: the remote application did not send a reply, the message bus security policy blocked the reply, the reply timeout expired, or the network connection was broken
+#+end_example
+
+Subsequent attempts at taking a screenshot would result in an error complaining that one was already being taken.
+
+#+begin_src sh
+second-chance:~$qdbus org.kde.KWin /Screenshot org.kde.kwin.Screenshot.screenshotArea 0 0 1440 720
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+Error: org.kde.kwin.Screenshot.Error.AlreadyTaking
+A screenshot is already been taken
+#+end_example
+
+I am sure that there is a way to recover gracefully from that state, but I simply rebooted. How then was I able to take screen shots you ask? By exporting only the ~DBUS_SESSION_BUS_ADDRESS~ from the ~plasmashell~ environment, I gained access to that session bus.
+
+#+begin_src sh
+  second-chance:~$ export $(cat /proc/`pidof plasmashell`/environ | tr '\0' '\n' | grep -i dbus_session_bus_address)
+  second-chance:~$ qdbus
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+:1.1
+ org.freedesktop.ScreenSaver
+ org.kde.KWin
+ org.kde.kglobalaccel
+ org.kde.screensaver
+:1.10
+ org.kde.GtkConfig
+ org.kde.StatusNotifierWatcher
+ org.kde.kappmenu
+ org.kde.kcookiejar5
+ org.kde.kded5
+ org.kde.kscreen.osdService
+ org.kde.plasmanetworkmanagement
+:1.11
+ org.kde.ksmserver
+:1.12
+ org.kde.baloo
+:1.13
+:1.14
+:1.15
+ org.freedesktop.Notifications
+ org.kde.JobViewServer
+ org.kde.StatusNotifierHost-2905
+ org.kde.kuiserver
+ org.kde.plasmashell
+:1.16
+ org.kde.calindac
+:1.17
+ org.kde.polkit-kde-authentication-agent-1
+:1.18
+ local.org_kde_powerdevil
+ org.freedesktop.PowerManagement
+ org.freedesktop.PowerManagement.Inhibit
+ org.kde.Solid.PowerManagement
+ org.kde.Solid.PowerManagement.PolicyAgent
+:1.19
+ org.kde.ActivityManager
+:1.20
+ org.PulseAudio1
+ org.pulseaudio.Server
+:1.3
+:1.31
+:1.35
+:1.36
+:1.6
+:1.8
+ org.kde.klauncher5
+org.freedesktop.DBus
+#+end_example
+
+Then I simply called the ~org.kde.kwin.Screenshot.interactive~ method, as opposed to ~org.kde.kwin.Screenshot.screenshotArea~, which prompted me to select the window that I would like to take a screen shot of.
+
+#+begin_src sh
+second-chance:~$ qdbus org.kde.KWin /Screenshot org.kde.kwin.Screenshot.interactive
+#+end_src
+
+[[/post/install_and_configure_postmarketos_with_plasma_mobile_on_the_pinephone/plasma-mobile-desktop-without-header-and-footer.png]]
+
+In this example I simply touched the desktop. Since the desktop window is separate from both the header and footer, the resulting image does not include features such as mobile signal strength and the current time. If you figure out how to take a full screen capture please comment and let us know the details. I have also tried ~org.kde.kwin.Screenshot.screenshotFullscreen~, but at the time of this writing that only captured a portion of the display.
 
 * Audio configuration
 The /ALSA/ ([[https://en.wikipedia.org/wiki/Advanced_Linux_Sound_Architecture][Advanced Linux Sound Architecture]]) package can be installed to provide sound support for postmarketOS. The package includes a large number of drivers and various tools, such as the venerable [[https://en.wikipedia.org/wiki/Alsamixer][alsamixer]]. To learn more about ALSA, checkout the [[https://alsa-project.org][ALSA project homepage]]. Also, be sure to check out the [[https://alsa.opensrc.org/][Independent ALSA and Linux audio support site]].
@@ -1856,111 +2080,6 @@ second-chance:~$ sudo rc-update add alsa default
 
 #+begin_example
  * service alsa added to runlevel default
-#+end_example
-
-* Configure x-forwarding
-
-Before we begin, I should mention that [[https://unix.stackexchange.com/questions/236482/is-there-a-downside-to-enabling-x11-forwarding-in-ssh][X-forwarding poses a security risk to the client side]]. That said, there might be times when you would like to use a GUI app on your mobile phone, but the GUI wasn't designed for touch screens. For example, perhaps you would like to explore a dbus interface using [[https://github.com/GNOME/d-feet][dFeet]]. Unfortunately dFeet does not have a CLI and is not mobile friendly. In such cases, I will start ~sshd~ on the PinePhone and use x-forwarding to my development box. Once I am finished, I always shut down ~sshd~. No sense in leaving it running since I have ~serial~.
-
-First, let's configure the server side (PinePhone) by editing =/etc/ssh/sshd_config= (see [[http://man7.org/linux/man-pages/man5/sshd_config.5.html][sshd_config(5)]]).
-
-#+begin_src sh
-  sudo vi /etc/ssh/sshd_config
-#+end_src
-
-Page down to the bottom of the file and add the following conditional block which will override the system wide ~X11Forwarding~ and ~X11UseLocalhost~ settings for your user.
-
-#+begin_example
-  Match User dustfinger
-    X11Forwarding yes
-    X11UseLocalhost yes
-#+end_example
-
-Start the SSH daemon.
-
-#+begin_src sh
-  second-chance:~$ sudo rc-service sshd start
-#+end_src
-
-#+RESULTS:
-
-#+begin_example
- * Starting sshd ...                       [ ok ]
-#+end_example
-
-If it is was already started, then you will have to restart it for the changes to take effect. Back on the client side, generate a new RSA key.
-#+begin_src sh
- mkdir -p ~/.ssh
- ssh-keygen -f ~/.ssh/id_second-chance_rsa
-#+end_src
-
-#+RESULTS:
-
-#+begin_example
-Generating public/private rsa key pair.
-Enter passphrase (empty for no passphrase):
-Enter same passphrase again:
-Your identification has been saved in /home/dustfinger/.ssh/id_second-chance_rsa.
-Your public key has been saved in /home/dustfinger/.ssh/id_second-chance_rsa.pub.
-The key fingerprint is:
-SHA256:3KcVsaPW0FxMatRMkX+/JKN21OPItaxi5P1wZBRliGo dustfinger@galactica
-The key's randomart image is:
-+---[RSA 3072]----+
-|            oB==+|
-|           +.=*..|
-|          ..O  o |
-|       . .E= o. o|
-|        S.+ + .oo|
-|         . = +o=.|
-|          + =.O.+|
-|           * =o= |
-|          o o.o. |
-+----[SHA256]-----+
-#+end_example
-
-Edit =$HOME/.ssh/config= (see [[http://man7.org/linux/man-pages/man5/ssh_config.5.html][ssh_config(5)]]) creating a new file if it does not already exist. Add the following host specific configuration. Replace =second-chance= with the host name or IP address of your PinePhone.
-
-#+begin_example
-  host second-chance
-       Hostname second-chance
-       ForwardAgent yes
-       ForwardX11 yes
-       # ForwardX11Trusted yes
-       IdentityFile ~/.ssh/id_second-chance_rsa
-       User dustfinger
-#+end_example
-
-I commented out =ForwardX11Trusted yes= on purpose. Only set =ForwardX11Trusted yes= if you fully trust the server, i.e. your PinePhone. You may choose to leave that option commented out and instead pass =-Y= optional flag only when you require x-forwarding and untrusted X11 forwarding fails. For the purposes of this post I have uncommented that option for my own convenience.
-
-Copy ssh id to remote authorized keys (see [[https://linux.die.net/man/1/ssh-copy-id][ssh-copy-id(1)]]).
-#+begin_src sh
-ssh-copy-id -i ~/.ssh/id_second-chance_rsa dustfinger@second-chance
-#+end_src
-
-#+RESULTS:
-
-#+begin_example
-/usr/bin/ssh-copy-id: INFO: Source of key(s) to be installed: "/home/dustfinger/.ssh/id_second-chance_rsa.pub"
-/usr/bin/ssh-copy-id: INFO: attempting to log in with the new key(s), to filter out any that are already installed
-/usr/bin/ssh-copy-id: INFO: 1 key(s) remain to be installed -- if you are prompted now it is to install the new keys
-dustfinger@second-chance's password:
-
-Number of key(s) added: 1
-
-Now try logging into the machine, with:   "ssh 'dustfinger@second-chance'"
-and check to make sure that only the key(s) you wanted were added.
-#+end_example
-
-As long as you don't see any warnings, such as /Warning: untrusted X11 forwarding setup failed: xauth key data not generated/, your /SSH/ requests should have access to the display. You can test this by running seeing if the ~$DISPLAY~ variable is set.
-
-#+begin_src sh
-ssh dustfinger@second-chance 'echo $DISPLAY'
-#+end_src
-
-#+RESULTS:
-
-#+begin_example
-localhost:10.0
 #+end_example
 
 * DBus Basics
@@ -3200,6 +3319,8 @@ Sent
 
 * Make phone calls
 Plasma Mobile has a phone app that works fine for both sending and receiving phone calls. I do not hear any sound when dialing, but I do hear the phone ringing while I wait for someone to answer. When someone does answer, they can hear me clearly, but I have been told that I sound a bit "tinny". If the receiving phone is within a couple of meters of the PinePhone, then the audio of the PinePhone becomes noisy with interference.
+
+NOTE: A recent update has resulted in my inability to hear others speaking and for others to hear me speaking during phone calls. I will make an update once I have it figured out.
 
 * Conclusion
 At this point you should be able to send and receive SMS and make phone calls. This was a long post and there was a lot that I didn't cover. The PostmarketOS PinePhone wiki has instructions for [[https://wiki.postmarketos.org/wiki/PINE64_PinePhone_(pine64-pinephone)#Components][setting up and experimenting with components]] not covered here. Enjoy!
