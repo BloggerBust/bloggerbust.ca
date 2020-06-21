@@ -20,7 +20,7 @@ You might notice that sometimes I add ~env TEMP=/dev/tmp~ to the beginning of so
 * What not to post online
 It is common for people to innocently reveal information that they shouldn't when seeking help online. After all, the very fact that they are asking for help indicates that they lack some level of knowledge, which is fine, we all need to begin our journey of learning somehow and asking questions is a great starting point. Sometimes people reveal information that can cause them serious trouble.
 
-*Always* redact the following details from command line output, screen shots, configuration files, and written text that you share with others when seeking help or for any other reason. In the words of Gandalf the Grey - Keep it secret, keep it safe!
+*Always* redact the following details from command line output, configuration files, logs, screen shots, and written text that you share with others when seeking help or for any other reason. *Never post a log or config file without sanitizing it!!* In the words of Gandalf the Grey - Keep it secret, keep it safe!
 
 - IMSI :: It is imperative that you never reveal your SIM card's [[https://en.wikipedia.org/wiki/International_mobile_subscriber_identity][International Mobile Subscriber Identity]] to anyone.
 - Private Cryptographic Keys :: Never reveal private keys of any kind. I have seen people accidentally send their private SSH keys to paste sites such as https://termbin.com. In the case of SSH, public keys have the file extension =pub= and the private ones have the same name without any file extension.
@@ -71,7 +71,6 @@ Exactly how you do this in a persistent way depends on the shell being used. In 
 After that, run ~source ~/bash_profile~ in each of your open shells. The next time you login, it will be sourced automatically.
 
 ** Install or clone pmbootstrap
-
 You have two choices. You can install pmbootstrap using pip by following [[https://wiki.postmarketos.org/wiki/Installing_pmbootstrap#Installing_automatically][these instructions]], or you can [[https://wiki.postmarketos.org/wiki/Installing_pmbootstrap#Installing_manually][clone the pmbootstrap repository and link to the executable]]. I chose to clone the repository and link to the executable. There are two reasons for this: it will make it easier for me to debug the code and contribute to the project if I choose to, and I find that having the source code on my local system makes it more convenient to use as a reference.
 
 #+begin_src sh
@@ -660,7 +659,6 @@ Digests:
 See the [[https://gitlab.com/cryptsetup/LUKS2-docs/blob/master/luks2_doc_wip.pdf][LUKS 2.0 specification]] for details on each field in the header.
 
 ** Test mounting our LUKS Encrypted Partition
-
 In order to reveal the contents of a LUKS encrypted disk, we must call ~cryptsetup luksOpen~ subcommand, which maps the encrypted file system to a LVM logical device using the Linux device mapper. Remember that your block device name might be something other than =/dev/sdb=, so be sure to edit the command below with the correct device name.
 
 #+begin_src sh :results output scalar replace :shebang #!/bin/bash :wrap example
@@ -759,7 +757,6 @@ sudo cryptsetup luksClose pinephone
 #+end_src
 
 * NCurses Over Serial
-
 I wrote an article that covers how to [[https://bloggerbust.ca/post/my-first-experience-connecting-to-the-phinephone-via-serial-console/][connect to the PinePhone via serial console]] using emacs =serial-term=. In this article we are going to be using /ncurses/ applications which [[https://bloggerbust.ca/post/how-to-configure-minicom-to-connect-over-usb-serial-uart/#minicom-might-not-be-the-best-tool-for-the-job][can appear garbled]] if unintended escape interpretation mangles byte sequences meant to be displayed as part of the the UI. I have written another article where I explain [[https://bloggerbust.ca/post/let-socket-cat-be-thy-glue-over-serial/][how to use SOcket CAT to relay STDIO and serial in raw mode]] which solves this problem. I will be using [[http://www.dest-unreach.org/socat/][SOcket CAT]] to connect to the PinePhone, if you would like to use a different tool then that is fine. Otherwise, take the time now to [[https://pkgs.org/search/?q=socat][install SOcket CAT for your distro]] before moving on.
 
 * Boot into postmarketOS
@@ -1183,7 +1180,6 @@ second-chance:~$ sudo rc-service sshd stop
 #+end_example
 
 * Improve our getty configuration
-
 In order to have a modern terminal experience over the serial connection, we need to modify the terminal capabilities of the =TTY= at the login prompt. To accomplish that, we first need to select a /Terminfo/ (see [[https://linux.die.net/man/5/terminfo][terminfo(5)]], [[https://linux.die.net/HOWTO/Text-Terminal-HOWTO-16.html#ss16.1][Intro to Terminfo]]) which meets our requirements.
 
 To see the currently selected /Terminfo/ output the value of the [[https://linux.die.net/HOWTO/Text-Terminal-HOWTO-16.html#ss16.6][TERM environment variable]]:
@@ -1424,7 +1420,6 @@ round-trip min/avg/max = 27.031/27.541/28.191 ms
 You should now be able to enable and disable Wi-Fi using the /Quick Settings Tray/.
 
 * NTP time syncing
-
 Before continuing, please check the [[http://support.ntp.org/bin/view/Main/SecurityNotice#Recent_Vulnerabilities][ntp security notice]] page for news about recent vulnerabilities and mitigation's. NTP is already configured.
 
 #+begin_src sh
@@ -1495,7 +1490,6 @@ OK: 16469 distinct packages available
 #+end_example
 
 * Configure Logging
-
 Alpine Linux default logger is [[https://wiki.alpinelinux.org/wiki/Syslog#busybox_syslog][busybox syslog]]. You can find the log configuration at =/etc/conf.d/syslog=. Run ~syslogd --help~ for configuration options. Busybox syslog is simple to configure, but I prefer a logging facility that is more customizable. [[https://www.syslog-ng.com/products/open-source-log-management/][Syslog-ng]] is also easy to configure, and it offers the ability to direct logging to appropriately named files which will keep your logs organized and make it easier to find what you are looking for. Perhaps the same is possible with ~syslogd~, but it wasn't immediately clear to me how to do that.
 
 To install ~syslog-ng~ run:
@@ -1618,7 +1612,6 @@ OK: 1352 MiB in 591 packages
 However; ~apk upgrade~ will not update U-Boot. I might cover updating U-Boot in a future post.
 
 * Configure x-forwarding
-
 Before we begin, I should mention that [[https://unix.stackexchange.com/questions/236482/is-there-a-downside-to-enabling-x11-forwarding-in-ssh][X-forwarding poses a security risk to the client side]]. That said, there might be times when you would like to use a GUI app on your mobile phone, but the GUI wasn't designed for touch screens. For example, perhaps you would like to explore a dbus interface using [[https://github.com/GNOME/d-feet][dFeet]]. Unfortunately dFeet does not have a CLI and is not mobile friendly. In such cases, I will start ~sshd~ on the PinePhone and use x-forwarding to my development box. Once I am finished, I always shut down ~sshd~. No sense in leaving it running since I have ~serial~.
 
 First, let's configure the server side (PinePhone) by editing =/etc/ssh/sshd_config= (see [[http://man7.org/linux/man-pages/man5/sshd_config.5.html][sshd_config(5)]]).
@@ -2441,7 +2434,6 @@ You might be wondering how we know which of the four serial ports to connect to.
 It should be obvious that when establishing an interactive session with the modem using a tool like ~minicom~ the correct port is the one with the alias ~EG25.MODEM~. In fact, we can simply use the alias if we prefer.
 
 ** Enable oFono debug logging
-
 There are two debugging features that you can enable to gain some insight when trouble shooting issues with your modem or SIM configuration. To enable them, I found it easiest to create the following config file for ~ofonod~.
 
 #+begin_src sh
@@ -2504,7 +2496,6 @@ second-chance:~$ sudo rc-service ofono restart
 You probably don't want to leave all that debugging enabled permanently, so don't forget to disable it once you are happy with your configuration.
 
 ** Connect to the modem
-
 You may skip this step if you would prefer to [[*Send an AT command from the shell][send the AT commands directly from the shell]]. 
 
 The /[[https://bloggerbust.ca/page/appendix/#line-speed][line speed]]/ for the [[http://files.pine64.org/doc/datasheet/pinephone/Quectel_EG25-G_LTE_Specification_V1.0.pdf][Quectel EG25]] is 1152008n1 which is the default line speed for ~minicom~. The only thing we need to tell ~minicom~ is the port.
@@ -2553,7 +2544,6 @@ OK
 #+end_example
 
 ** Configure the modem for audio
-
 It is no longer necessary to perform this step manually. PostmarketOS now has a service named ~pinephone_setup-modem-audio~ that calls ~/usr/bin/pinephone_setup-modem-audio~ which runs the ~AT+QDAI~ AT command for you. If you need to change your audio routing for some reason, then you will need to update that script or it will just reset the configuration on next reboot. You are welcome to read on for learning purposes, or [[*Check Audio Mode][skip to the next section]].
 
 It is time to [[https://xnux.eu/devices/feature/modem-pp.html#toc-setting-up-the-modem-for-voice-calling][configure the modem for audio]] by running the Quectel Digital Audio Interface (QDAI) configuration write command defined on page 193 of the /[[https://wiki.pine64.org/images/2/2e/Quectel_EC25EC21_AT_Commands_Manual_V1.2.pdf][AT commands manual]]/.
@@ -2604,7 +2594,6 @@ If nobody can hear you during a phone call, you can check to see if uplink voice
 |     1 | Mute on     |
 
 ** Enable Full Functionality
-
 As was the case with audio configuration, the ~/usr/bin/pinephone_setup-modem-audio~ will enable full phone functionality. However, at the time of writing there is a bug in the code such that if your modem was previously configured with the [[*Configure the modem for audio][recommended audio routing]], then the script will exit before ensuring that full functionality is also configured.
 
 #+begin_src sh
@@ -2724,7 +2713,6 @@ Before we can send or receive /SMS/ and make phone calls we need to first config
 My carrier is Koodo and I was able to find the [[https://www.koodomobile.com/en/help/setting-data-your-non-koodo-phone][APN settings at koodomobile.com]]. Hopefully you are able to find your APN settings without difficulty.
 
 ** Determine your operator service name
-
 If your SIM is already registered with a carrier service, then you will be able to get the current service name, status and technology from the modem using DBus:
 
 #+begin_src sh
@@ -2822,7 +2810,6 @@ For those that are curious: Quectel teamed up with Qualcomm a couple of years ag
 The resulting path has the following form: =/sys/class/net/<network interface>/qmi=.
 
 ** Configure APN settings (MVNO)
-
 I am going to configure my modem for =LTE/GPRS= coverage. The oFono framework keeps settings in files called stores which are kept in =/var/lib/ofono/<IMSI>/{gprs,lte,netreg,radiosetting,sms,voicecall}=. These settings files are essentially /INI/ files, so you will be setting key value pairs. You can find out what each key value pair is for by reading the appropriate [[https://git.kernel.org/pub/scm/network/ofono/ofono.git/tree/doc][doc files in the repository]].
 - [[https://git.kernel.org/pub/scm/network/ofono/ofono.git/tree/doc/connman-api.txt][connman-api.txt]] :: contains properties relevant to APN
 - [[https://git.kernel.org/pub/scm/network/ofono/ofono.git/tree/doc/lte-api.txt][lte-api.txt]] :: contains properties relevant to lte
@@ -3075,7 +3062,7 @@ second-chance:~$ sudo rc-service eg25 restart && sudo rc-service ofono restart
  * Starting oFono ...                                         [ ok ]
 #+end_example
 
-... and like magic, everything is happy once again
+... and like magic, everything is happy once again.
 
 #+begin_src sh
 second-chance:~$ qdbus --system org.ofono /quectelqmi_0 org.ofono.ConnectionManager.GetProperties | grep Attached && qdbus --system org.ofono /quectelqmi_0/context1 org.ofono.ConnectionContext.GetProperties | grep Active && ofonoctl wan
@@ -3109,7 +3096,7 @@ second-chance:~$ qdbus --system org.ofono /quectelqmi_0/context1 org.ofono.Conne
 Method: static
 #+end_example
 
-If the =Method= is =dhcp=, then you will need to use [[http://pkgs.postmarketos.org/package/master/postmarketos/armv7/dhcpcd][a dhcp client]], such as [[https://wiki.alpinelinux.org/wiki/Udhcpc][udhcpc]] (already installed), for dynamic IP allocation. I won't be covering =dhcp= in this post since that is not my use case.
+If the =Method= is =dhcp=, then you will need to use [[http://pkgs.postmarketos.org/package/master/postmarketos/armv7/dhcpcd][a dhcp client]], such as [[https://wiki.alpinelinux.org/wiki/Udhcpc][udhcpc]] (already installed), for dynamic IP allocation. Technically, you can still add the route while following along, even if the method is dynamic, but realize that your IP could expire during use. I won't be covering =dhcp= in this post since that is not my use case, but in a future post I hope to show how to configure /Network Manager/ with /oFono/ which will handle dynamic IP allocation for you.
 
 At this point we have established that manual IP allocation is necessary. Now, we must obtain our assigned /IP Address/ and /Gateway/ from the connection context. I think it will be a bit easier to take a look at all of the connection properties at once, rather than filtering fields using grep.
 
@@ -3165,7 +3152,8 @@ Username:
 
 The second thing to notice is that the =Protocol= property is set to =ip=. That means that the carrier service has assigned me an IPv4 address. All of the IPv4 settings are found in the =Settings= property. If the protocol had been =ipv6= instead, then the =IPv6.Settings= property would have been populated. 
 
-Let's make sure we are in a consistent starting state by purging all allocated addresses from the interface
+Let's make sure we are in a consistent starting state by purging all allocated addresses from the interface using the ~flush~ sub command. Please be aware that the ~flush~ sub command will ruthlessly remove all routes linked to the device's interface. As you become comfortable with manipulating routes you will find that you can modify or remove an invalid route. So you can see that flushing is usually not necessary, but it will ensure we are in an consistent state moving forward.
+
 #+begin_src sh
 second-chance:~$ sudo ip addr flush dev wwan0
 #+end_src
@@ -3181,7 +3169,7 @@ ip route show
 172.16.0.0/16 dev usb0 scope link  src 172.16.42.1
 #+end_example
 
-Before we can add an IP address, we need to calculate the prefix length based on the netmask. Thankfully, the ~ipcalc~ command can do the math for us.
+As you can see, there exists a link scope route for =usb0=. Notice that the IP address is followed by a forward slash and then a decimal number. The decimal number actually represents the prefix length which is the count of leading one bits in the routing mask, traditionally called the network mask. We can use, the ~ipcalc~ command to calculate the prefix length of any IP address given a routing mask.
 
 #+begin_src sh
 second-chance:~$ ipcalc -p <REDACTED-ADDRESS> 255.255.255.0
@@ -3193,10 +3181,10 @@ second-chance:~$ ipcalc -p <REDACTED-ADDRESS> 255.255.255.0
 PREFIX=24
 #+end_example
 
-Now that we know the prefix length, we can add the address to our interface using [[https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing#CIDR_notation][Classless Inter-Domain Routing]] (CIDR) notation.
+The arrangement of =IP/PREFIX= is known as [[https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing#CIDR_notation][Classless Inter-Domain Routing]] (CIDR) notation and is equivalent to the more traditional representation of =IP/Netmask=. We can use the ~ip~ (see [[https://man7.org/linux/man-pages/man8/ip.8.html][ip(8)]]) command to add the address provided by oFono to our interface using either CIDR or traditional notation (thank you sicelo). However; we can avoid unnecessarily calculating the prefix length by sticking with tradition using the netmask already provided to us by oFono.
 
 #+begin_example
-second-chance:~$ sudo ip addr add <REDACTED-ADDRESS>/24 dev wwan0
+second-chance:~$ sudo ip addr add <REDACTED-ADDRESS>/255.255.255.0 dev wwan0
 #+end_example
 
 Let's see if that had any effect on our routing table.
@@ -3211,7 +3199,7 @@ second-chance:~$ ip route show
 172.16.0.0/16 dev usb0 scope link  src 172.16.42.1 
 #+end_example
 
-Before our network interface can be used to access the internet, we must first add an route to the gateway defined in our active context for the ~wwan0~ interface. Let's add a default route (for all addresses) via the gateway =<REDACTED-GATEWAY>= now.
+Our newly added link scope route for =wwan0= represented in CIDR notation is now in the routing table. Before our network interface can be used to access the internet, we must first add an route to the gateway defined in our active context for the ~wwan0~ interface. Let's add a default route (for all addresses) via the gateway =<REDACTED-GATEWAY>= now.
 
 #+begin_src sh
 second-chance:~$ sudo ip route add default via <REDACTED-GATEWAY> dev wwan0
@@ -3255,7 +3243,7 @@ PING bloggerbust.ca (185.199.111.153): 56 data bytes
 round-trip min/avg/max = 27.031/27.541/28.191 ms
 #+end_example
 
-You have probably heard of [[https://git.sr.ht/~martijnbraam/ofonoctl/][ofonoctl]] by Martin Braam. When you run ofonoctl wan, it locates your active context and tabulates the IP Address, Gateway and DNS just as we did above. When you add the ~--connect~ optional parameter, ~ofonoctl~ flushes your ~wwan0~ interface and adds the IP Address and DNS that it found in the active context. When you add the ~--append-dns~ optional parameter, then it will append the DNS to your =/etc/resolv.conf= for you. So why the heck did I just make you do it all manually? Now you know how it works. Now you will have an idea what might be wrong the next time you run:
+You have probably heard of [[https://git.sr.ht/~martijnbraam/ofonoctl/][ofonoctl]] by Martin Braam. When you run ~ofonoctl wan~, it locates your active context and tabulates the IP Address, Gateway and DNS just as we did above. When you add the ~--connect~ optional parameter, ~ofonoctl~ flushes your ~wwan0~ interface (only if the allocation method is static) and adds the IP Address and DNS that it found in the active context. When you add the ~--append-dns~ optional parameter, then it will append the DNS to your =/etc/resolv.conf= for you. So why the heck did I just make you do it all manually? Now you know how it works. Now you will have an idea what might be wrong the next time you run:
 
 #+begin_src sh
 ofonoctl wan --connect --append-dns
@@ -3270,9 +3258,11 @@ Interface    Protocol    APN               Method    Address         Gateway    
 
 ... and an empty record-set is displayed.
 
-There is still an issue that you will be dealing with. Every time you bring up or down the =Wi-Fi= connection, Network Manager will completely override =/etc/resolv.conf=. I will be posting back later how to deal with this issue. For now, just be aware that is happening and know that you will have to re-append the DNS each time. You might want to write yourself a script to do that for you for the time being.
+There is still an issue that you will be dealing with. Every time you bring up or down the =Wi-Fi= connection, Network Manager will completely override =/etc/resolv.conf=. In a future post I will write about how to deal with this issue. For now, just be aware that this is happening and know that you will have to re-append the DNS each time. You might want to write yourself a script to do that for you.
 
 * Send and receive SMS
+*UPDATE:* /Spacebar/ is now working. Message history is not persistentn yet. Phone numbers in /Spacebar/ are not yet resolved to contact names added to the /Phone Book/ app. I have found that the first time I start space bar it often crashes and I have to start it again.
+
 Plasma Mobile has an SMS app named /Spacebar/, but at the time of writing I was not able to get /Spacebar/ working. Instead, we are going to test both sending and receiving SMS from the command line. To receive SMS we will run a ~dbus-monitor~ process in the background that will read all messages on the ~org.ofono.MessageManager~ interface and print it to ~STDOUT~.
 
 #+begin_src sh
@@ -3320,7 +3310,9 @@ Sent
 * Make phone calls
 Plasma Mobile has a phone app that works fine for both sending and receiving phone calls. I do not hear any sound when dialing, but I do hear the phone ringing while I wait for someone to answer. When someone does answer, they can hear me clearly, but I have been told that I sound a bit "tinny". If the receiving phone is within a couple of meters of the PinePhone, then the audio of the PinePhone becomes noisy with interference.
 
-NOTE: A recent update has resulted in my inability to hear others speaking and for others to hear me speaking during phone calls. I will make an update once I have it figured out.
+*UPDATE:* for a while I was unable to hear or be heard during phone calls. An update this weekend fixed whatever was wrong. I can now both make and receive phone calls. I have found that sometimes I need to restart the ~eg25~ and ~ofono~ services once before phone calls work properly: ~sudo rc-service eg25 restart && sudo rc-service ofono restart~, then wait about 10 seconds or so before making a phone call. There are new updates nearly every day, so your experience might be different.
 
 * Conclusion
-At this point you should be able to send and receive SMS and make phone calls. This was a long post and there was a lot that I didn't cover. The PostmarketOS PinePhone wiki has instructions for [[https://wiki.postmarketos.org/wiki/PINE64_PinePhone_(pine64-pinephone)#Components][setting up and experimenting with components]] not covered here. Enjoy!
+At this point you should be able to send and receive SMS and make phone calls. This was a long post and there was a lot that I didn't cover. I have updated this post several times and I am now ready to move on. You can watch for new related posts under the [[https://bloggerbust.ca/categories/mobile/][mobile category]], or use the tags: [[https://bloggerbust.ca/tags/pinephone/][Pine Phone]], [[https://bloggerbust.ca/tags/postmarketos/][PostmarketOS]], [[https://bloggerbust.ca/tags/plasma_mobile][Plasma Mobile]]/. The PostmarketOS PinePhone wiki has instructions for [[https://wiki.postmarketos.org/wiki/PINE64_PinePhone_(pine64-pinephone)#Components][setting up and experimenting with components]] not covered here. Enjoy!
+
+In my next post, I am going to write about my first attempt at configuring Network Manager with oFono as the modem manager.
