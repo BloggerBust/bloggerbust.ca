@@ -1,0 +1,215 @@
+2020/05/21 06:16:54 galactica socat[3366] D getpid()
+2020/05/21 06:16:54 galactica socat[3366] D getpid() -> 3366
+2020/05/21 06:16:54 galactica socat[3366] D setenv("SOCAT_PID", "3366", 1)
+2020/05/21 06:16:54 galactica socat[3366] D setenv() -> 0
+2020/05/21 06:16:54 galactica socat[3366] D setenv("SOCAT_PPID", "3366", 1)
+2020/05/21 06:16:54 galactica socat[3366] D setenv() -> 0
+2020/05/21 06:16:54 galactica socat[3366] I socat by Gerhard Rieger and contributors - see www.dest-unreach.org
+2020/05/21 06:16:54 galactica socat[3366] I This product includes software developed by the OpenSSL Project for use in the OpenSSL Toolkit. (http://www.openssl.org/)
+2020/05/21 06:16:54 galactica socat[3366] I This product includes software written by Tim Hudson (tjh@cryptsoft.com)
+2020/05/21 06:16:54 galactica socat[3366] D socat version 1.7.3.2 on May 12 2020 06:33:39
+2020/05/21 06:16:54 galactica socat[3366] D setenv("SOCAT_VERSION", "1.7.3.2", 1)
+2020/05/21 06:16:54 galactica socat[3366] D setenv() -> 0
+2020/05/21 06:16:54 galactica socat[3366] D running on Linux version #12 SMP Wed May 6 06:21:20 MDT 2020, release 5.4.28-gentoo, machine x86_64
+
+2020/05/21 06:16:54 galactica socat[3366] D argv[0]: "socat"
+2020/05/21 06:16:54 galactica socat[3366] D argv[1]: "-v"
+2020/05/21 06:16:54 galactica socat[3366] D argv[2]: "-d"
+2020/05/21 06:16:54 galactica socat[3366] D argv[3]: "-d"
+2020/05/21 06:16:54 galactica socat[3366] D argv[4]: "-d"
+2020/05/21 06:16:54 galactica socat[3366] D argv[5]: "-d"
+2020/05/21 06:16:54 galactica socat[3366] D argv[6]: "-D"
+2020/05/21 06:16:54 galactica socat[3366] D argv[7]: "-lh"
+2020/05/21 06:16:54 galactica socat[3366] D argv[8]: "-lf"
+2020/05/21 06:16:54 galactica socat[3366] D argv[9]: "/home/dustfinger/dev/log/socat_debug.log"
+2020/05/21 06:16:54 galactica socat[3366] D argv[10]: "-,rawer,escape=0x0f"
+2020/05/21 06:16:54 galactica socat[3366] D argv[11]: "/dev/ttyUSB0,b115200,rawer"
+2020/05/21 06:16:54 galactica socat[3366] D sigaction(1, 0x7ffc14e5b5c0, 0x0)
+2020/05/21 06:16:54 galactica socat[3366] D sigaction() -> 0
+2020/05/21 06:16:54 galactica socat[3366] D sigaction(2, 0x7ffc14e5b5c0, 0x0)
+2020/05/21 06:16:54 galactica socat[3366] D sigaction() -> 0
+2020/05/21 06:16:54 galactica socat[3366] D sigaction(3, 0x7ffc14e5b5c0, 0x0)
+2020/05/21 06:16:54 galactica socat[3366] D sigaction() -> 0
+2020/05/21 06:16:54 galactica socat[3366] D sigaction(4, 0x7ffc14e5b5c0, 0x0)
+2020/05/21 06:16:54 galactica socat[3366] D sigaction() -> 0
+2020/05/21 06:16:54 galactica socat[3366] D sigaction(6, 0x7ffc14e5b5c0, 0x0)
+2020/05/21 06:16:54 galactica socat[3366] D sigaction() -> 0
+2020/05/21 06:16:54 galactica socat[3366] D sigaction(7, 0x7ffc14e5b5c0, 0x0)
+2020/05/21 06:16:54 galactica socat[3366] D sigaction() -> 0
+2020/05/21 06:16:54 galactica socat[3366] D sigaction(8, 0x7ffc14e5b5c0, 0x0)
+2020/05/21 06:16:54 galactica socat[3366] D sigaction() -> 0
+2020/05/21 06:16:54 galactica socat[3366] D sigaction(11, 0x7ffc14e5b5c0, 0x0)
+2020/05/21 06:16:54 galactica socat[3366] D sigaction() -> 0
+2020/05/21 06:16:54 galactica socat[3366] D sigaction(15, 0x7ffc14e5b5c0, 0x0)
+2020/05/21 06:16:54 galactica socat[3366] D sigaction() -> 0
+2020/05/21 06:16:54 galactica socat[3366] D signal(13, 0x1)
+2020/05/21 06:16:54 galactica socat[3366] D signal() -> 0x0
+2020/05/21 06:16:54 galactica socat[3366] D atexit(0x55ef9e112db0)
+2020/05/21 06:16:54 galactica socat[3366] D atexit() -> 0
+2020/05/21 06:16:54 galactica socat[3366] D calloc(1, 848)
+2020/05/21 06:16:54 galactica socat[3366] D calloc() -> 0x55ef9ff14bd0
+2020/05/21 06:16:54 galactica socat[3366] D malloc(1024)
+2020/05/21 06:16:54 galactica socat[3366] D malloc() -> 0x55ef9ff176b0
+2020/05/21 06:16:54 galactica socat[3366] I setting option "termios-rawer"
+2020/05/21 06:16:54 galactica socat[3366] I setting option "escape" to 15
+2020/05/21 06:16:54 galactica socat[3366] D calloc(1, 848)
+2020/05/21 06:16:54 galactica socat[3366] D calloc() -> 0x55ef9ff17ac0
+2020/05/21 06:16:54 galactica socat[3366] D calloc(1, 848)
+2020/05/21 06:16:54 galactica socat[3366] D calloc() -> 0x55ef9ff17e20
+2020/05/21 06:16:54 galactica socat[3366] D isatty(0)
+2020/05/21 06:16:54 galactica socat[3366] D isatty() -> 1
+2020/05/21 06:16:54 galactica socat[3366] D tcgetattr(0, 0x55ef9ff17c1c)
+2020/05/21 06:16:54 galactica socat[3366] D tcgetattr(, {00004500,00000005,000000bf,00008a3b,03,1c,08,15,04,00,01,00,11,13,1a,00,12,0f,17,16,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00}) -> 0
+2020/05/21 06:16:54 galactica socat[3366] D isatty(1)
+2020/05/21 06:16:54 galactica socat[3366] D isatty() -> 1
+2020/05/21 06:16:54 galactica socat[3366] D tcgetattr(1, 0x55ef9ff17f7c)
+2020/05/21 06:16:54 galactica socat[3366] D tcgetattr(, {00004500,00000005,000000bf,00008a3b,03,1c,08,15,04,00,01,00,11,13,1a,00,12,0f,17,16,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00}) -> 0
+2020/05/21 06:16:54 galactica socat[3366] D malloc(384)
+2020/05/21 06:16:54 galactica socat[3366] D malloc() -> 0x55ef9ff14f50
+2020/05/21 06:16:54 galactica socat[3366] D malloc(384)
+2020/05/21 06:16:54 galactica socat[3366] D malloc() -> 0x55ef9ff18180
+2020/05/21 06:16:54 galactica socat[3366] D tcgetattr(0, 0x7ffc14e5b350)
+2020/05/21 06:16:54 galactica socat[3366] D tcgetattr(, {00004500,00000005,000000bf,00008a3b,03,1c,08,15,04,00,01,00,11,13,1a,00,12,0f,17,16,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00}) -> 0
+2020/05/21 06:16:54 galactica socat[3366] D tcsetattr(0, 1, {00000000,00000000,00000030,00000000,03,1c,08,15,04,00,01,00,11,13,1a,00,12,0f,17,16,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00})
+2020/05/21 06:16:54 galactica socat[3366] D tcsetattr() -> 0
+2020/05/21 06:16:54 galactica socat[3366] D tcgetattr(1, 0x7ffc14e5b350)
+2020/05/21 06:16:54 galactica socat[3366] D tcgetattr(, {00000000,00000000,000000b0,00000000,03,1c,08,15,04,00,01,00,11,13,1a,00,12,0f,17,16,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00}) -> 0
+2020/05/21 06:16:54 galactica socat[3366] D tcsetattr(1, 1, {00000000,00000000,00000030,00000000,03,1c,08,15,04,00,01,00,11,13,1a,00,12,0f,17,16,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00})
+2020/05/21 06:16:54 galactica socat[3366] D tcsetattr() -> 0
+2020/05/21 06:16:54 galactica socat[3366] N reading from and writing to stdio
+2020/05/21 06:16:54 galactica socat[3366] D calloc(1, 848)
+2020/05/21 06:16:54 galactica socat[3366] D calloc() -> 0x55ef9ff18310
+2020/05/21 06:16:54 galactica socat[3366] I interpreting address "/dev/ttyUSB0" as file name
+2020/05/21 06:16:54 galactica socat[3366] D malloc(1024)
+2020/05/21 06:16:54 galactica socat[3366] D malloc() -> 0x55ef9ff186b0
+2020/05/21 06:16:54 galactica socat[3366] I setting option "b115200"
+2020/05/21 06:16:54 galactica socat[3366] I setting option "termios-rawer"
+2020/05/21 06:16:54 galactica socat[3366] D stat64(/dev/ttyUSB0, 0x7ffc14e5b250)
+2020/05/21 06:16:54 galactica socat[3366] D stat64(, {6,4477029,020660,1,0,14,48128,0,4096,0,...}) -> 0
+2020/05/21 06:16:54 galactica socat[3366] I "/dev/ttyUSB0" is not a socket, open()'ing it
+2020/05/21 06:16:54 galactica socat[3366] N opening character device "/dev/ttyUSB0" for reading and writing
+2020/05/21 06:16:54 galactica socat[3366] D open("/dev/ttyUSB0", 02002, 0666)
+2020/05/21 06:16:54 galactica socat[3366] I open("/dev/ttyUSB0", 02002, 0666) -> 6
+2020/05/21 06:16:54 galactica socat[3366] D isatty(6)
+2020/05/21 06:16:54 galactica socat[3366] D isatty() -> 1
+2020/05/21 06:16:54 galactica socat[3366] D tcgetattr(6, 0x55ef9ff1846c)
+2020/05/21 06:16:54 galactica socat[3366] D tcgetattr(, {00000500,00000005,00000cbd,00008a3b,03,1c,7f,15,04,00,01,00,11,13,1a,00,12,0f,17,16,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00}) -> 0
+2020/05/21 06:16:54 galactica socat[3366] D tcgetattr(6, 0x7ffc14e5b190)
+2020/05/21 06:16:54 galactica socat[3366] D tcgetattr(, {00000500,00000005,00000cbd,00008a3b,03,1c,7f,15,04,00,01,00,11,13,1a,00,12,0f,17,16,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00}) -> 0
+2020/05/21 06:16:54 galactica socat[3366] D tcsetattr(6, 1, {00000500,00000005,00001cb2,00008a3b,03,1c,7f,15,04,00,01,00,11,13,1a,00,12,0f,17,16,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00})
+2020/05/21 06:16:54 galactica socat[3366] D tcsetattr() -> 0
+2020/05/21 06:16:54 galactica socat[3366] D tcgetattr(6, 0x7ffc14e5b190)
+2020/05/21 06:16:54 galactica socat[3366] D tcgetattr(, {00000500,00000005,00001cb2,00008a3b,03,1c,7f,15,04,00,01,00,11,13,1a,00,12,0f,17,16,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00}) -> 0
+2020/05/21 06:16:54 galactica socat[3366] D tcsetattr(6, 1, {00000000,00000000,00000030,00000000,03,1c,7f,15,04,00,01,00,11,13,1a,00,12,0f,17,16,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00})
+2020/05/21 06:16:54 galactica socat[3366] D tcsetattr() -> 0
+2020/05/21 06:16:54 galactica socat[3366] D fcntl(6, 2, 1)
+2020/05/21 06:16:54 galactica socat[3366] D fcntl() -> 0
+2020/05/21 06:16:54 galactica socat[3366] I resolved and opened all sock addresses
+2020/05/21 06:16:54 galactica socat[3366] D malloc(16385)
+2020/05/21 06:16:54 galactica socat[3366] D malloc() -> 0x55ef9ff19ad0
+2020/05/21 06:16:54 galactica socat[3366] N starting data transfer loop with FDs [0,1] and [6,6]
+2020/05/21 06:16:54 galactica socat[3366] D data loop: sock1->eof=0, sock2->eof=0, closing=0, wasaction=1, total_to={0.000000}
+2020/05/21 06:16:54 galactica socat[3366] D select(7, &0x41, &0x42, &0x0, NULL/0.000000)
+2020/05/21 06:16:54 galactica socat[3366] D select -> (, 0x0, 0x42, 0x0, NULL/0.000000), 2
+2020/05/21 06:16:54 galactica socat[3366] D data loop: sock1->eof=0, sock2->eof=0, closing=0, wasaction=1, total_to={0.000000}
+2020/05/21 06:16:54 galactica socat[3366] D select(7, &0x41, &0x0, &0x0, NULL/0.000000)
+2020/05/21 06:16:57 galactica socat[3366] D select -> (, 0x1, 0x0, 0x0, NULL/0.000000), 1
+2020/05/21 06:16:57 galactica socat[3366] D read(0, 0x55ef9ff19ad0, 8192)
+2020/05/21 06:16:57 galactica socat[3366] D read -> 1
+2020/05/21 06:16:57 galactica socat[3366] D write(6, 0x55ef9ff19ad0, 1)
+2020/05/21 06:16:57 galactica socat[3366] D write -> 1
+2020/05/21 06:16:57 galactica socat[3366] I transferred 1 bytes from 0 to 6
+2020/05/21 06:16:57 galactica socat[3366] D data loop: sock1->eof=0, sock2->eof=0, closing=0, wasaction=1, total_to={0.000000}
+2020/05/21 06:16:57 galactica socat[3366] D select(7, &0x41, &0x40, &0x0, NULL/0.000000)
+2020/05/21 06:16:57 galactica socat[3366] D select -> (, 0x0, 0x40, 0x0, NULL/0.000000), 1
+2020/05/21 06:16:57 galactica socat[3366] D data loop: sock1->eof=0, sock2->eof=0, closing=0, wasaction=1, total_to={0.000000}
+2020/05/21 06:16:57 galactica socat[3366] D select(7, &0x41, &0x0, &0x0, NULL/0.000000)
+2020/05/21 06:16:57 galactica socat[3366] D select -> (, 0x40, 0x0, 0x0, NULL/0.000000), 1
+2020/05/21 06:16:57 galactica socat[3366] D read(6, 0x55ef9ff19ad0, 8192)
+2020/05/21 06:16:57 galactica socat[3366] D read -> 1
+2020/05/21 06:16:57 galactica socat[3366] D write(1, 0x55ef9ff19ad0, 1)
+2020/05/21 06:16:57 galactica socat[3366] D write -> 1
+2020/05/21 06:16:57 galactica socat[3366] I transferred 1 bytes from 6 to 1
+2020/05/21 06:16:57 galactica socat[3366] D data loop: sock1->eof=0, sock2->eof=0, closing=0, wasaction=1, total_to={0.000000}
+2020/05/21 06:16:57 galactica socat[3366] D select(7, &0x41, &0x2, &0x0, NULL/0.000000)
+2020/05/21 06:16:57 galactica socat[3366] D select -> (, 0x0, 0x2, 0x0, NULL/0.000000), 1
+2020/05/21 06:16:57 galactica socat[3366] D data loop: sock1->eof=0, sock2->eof=0, closing=0, wasaction=1, total_to={0.000000}
+2020/05/21 06:16:57 galactica socat[3366] D select(7, &0x41, &0x0, &0x0, NULL/0.000000)
+2020/05/21 06:16:57 galactica socat[3366] D select -> (, 0x1, 0x0, 0x0, NULL/0.000000), 1
+2020/05/21 06:16:57 galactica socat[3366] D read(0, 0x55ef9ff19ad0, 8192)
+2020/05/21 06:16:57 galactica socat[3366] D read -> 1
+2020/05/21 06:16:57 galactica socat[3366] D write(6, 0x55ef9ff19ad0, 1)
+2020/05/21 06:16:57 galactica socat[3366] D write -> 1
+2020/05/21 06:16:57 galactica socat[3366] I transferred 1 bytes from 0 to 6
+2020/05/21 06:16:57 galactica socat[3366] D data loop: sock1->eof=0, sock2->eof=0, closing=0, wasaction=1, total_to={0.000000}
+2020/05/21 06:16:57 galactica socat[3366] D select(7, &0x41, &0x40, &0x0, NULL/0.000000)
+2020/05/21 06:16:57 galactica socat[3366] D select -> (, 0x0, 0x40, 0x0, NULL/0.000000), 1
+2020/05/21 06:16:57 galactica socat[3366] D data loop: sock1->eof=0, sock2->eof=0, closing=0, wasaction=1, total_to={0.000000}
+2020/05/21 06:16:57 galactica socat[3366] D select(7, &0x41, &0x0, &0x0, NULL/0.000000)
+2020/05/21 06:16:57 galactica socat[3366] D select -> (, 0x40, 0x0, 0x0, NULL/0.000000), 1
+2020/05/21 06:16:57 galactica socat[3366] D read(6, 0x55ef9ff19ad0, 8192)
+2020/05/21 06:16:57 galactica socat[3366] D read -> 1
+2020/05/21 06:16:57 galactica socat[3366] D write(1, 0x55ef9ff19ad0, 1)
+2020/05/21 06:16:57 galactica socat[3366] D write -> 1
+2020/05/21 06:16:57 galactica socat[3366] I transferred 1 bytes from 6 to 1
+2020/05/21 06:16:57 galactica socat[3366] D data loop: sock1->eof=0, sock2->eof=0, closing=0, wasaction=1, total_to={0.000000}
+2020/05/21 06:16:57 galactica socat[3366] D select(7, &0x41, &0x2, &0x0, NULL/0.000000)
+2020/05/21 06:16:57 galactica socat[3366] D select -> (, 0x0, 0x2, 0x0, NULL/0.000000), 1
+2020/05/21 06:16:57 galactica socat[3366] D data loop: sock1->eof=0, sock2->eof=0, closing=0, wasaction=1, total_to={0.000000}
+2020/05/21 06:16:57 galactica socat[3366] D select(7, &0x41, &0x0, &0x0, NULL/0.000000)
+2020/05/21 06:16:59 galactica socat[3366] D select -> (, 0x1, 0x0, 0x0, NULL/0.000000), 1
+2020/05/21 06:16:59 galactica socat[3366] D read(0, 0x55ef9ff19ad0, 8192)
+2020/05/21 06:16:59 galactica socat[3366] D read -> 1
+2020/05/21 06:16:59 galactica socat[3366] D write(6, 0x55ef9ff19ad0, 1)
+2020/05/21 06:16:59 galactica socat[3366] D write -> 1
+2020/05/21 06:16:59 galactica socat[3366] I transferred 1 bytes from 0 to 6
+2020/05/21 06:16:59 galactica socat[3366] D data loop: sock1->eof=0, sock2->eof=0, closing=0, wasaction=1, total_to={0.000000}
+2020/05/21 06:16:59 galactica socat[3366] D select(7, &0x41, &0x40, &0x0, NULL/0.000000)
+2020/05/21 06:16:59 galactica socat[3366] D select -> (, 0x0, 0x40, 0x0, NULL/0.000000), 1
+2020/05/21 06:16:59 galactica socat[3366] D data loop: sock1->eof=0, sock2->eof=0, closing=0, wasaction=1, total_to={0.000000}
+2020/05/21 06:16:59 galactica socat[3366] D select(7, &0x41, &0x0, &0x0, NULL/0.000000)
+2020/05/21 06:16:59 galactica socat[3366] D select -> (, 0x40, 0x0, 0x0, NULL/0.000000), 1
+2020/05/21 06:16:59 galactica socat[3366] D read(6, 0x55ef9ff19ad0, 8192)
+2020/05/21 06:16:59 galactica socat[3366] D read -> 2
+2020/05/21 06:16:59 galactica socat[3366] D write(1, 0x55ef9ff19ad0, 2)
+2020/05/21 06:16:59 galactica socat[3366] D write -> 2
+2020/05/21 06:16:59 galactica socat[3366] I transferred 2 bytes from 6 to 1
+2020/05/21 06:16:59 galactica socat[3366] D data loop: sock1->eof=0, sock2->eof=0, closing=0, wasaction=1, total_to={0.000000}
+2020/05/21 06:16:59 galactica socat[3366] D select(7, &0x41, &0x2, &0x0, NULL/0.000000)
+2020/05/21 06:16:59 galactica socat[3366] D select -> (, 0x0, 0x2, 0x0, NULL/0.000000), 1
+2020/05/21 06:16:59 galactica socat[3366] D data loop: sock1->eof=0, sock2->eof=0, closing=0, wasaction=1, total_to={0.000000}
+2020/05/21 06:16:59 galactica socat[3366] D select(7, &0x41, &0x0, &0x0, NULL/0.000000)
+2020/05/21 06:16:59 galactica socat[3366] D select -> (, 0x40, 0x0, 0x0, NULL/0.000000), 1
+2020/05/21 06:16:59 galactica socat[3366] D read(6, 0x55ef9ff19ad0, 8192)
+2020/05/21 06:16:59 galactica socat[3366] D read -> 97
+2020/05/21 06:16:59 galactica socat[3366] D write(1, 0x55ef9ff19ad0, 97)
+2020/05/21 06:16:59 galactica socat[3366] D write -> 97
+2020/05/21 06:16:59 galactica socat[3366] I transferred 97 bytes from 6 to 1
+2020/05/21 06:16:59 galactica socat[3366] D data loop: sock1->eof=0, sock2->eof=0, closing=0, wasaction=1, total_to={0.000000}
+2020/05/21 06:16:59 galactica socat[3366] D select(7, &0x41, &0x2, &0x0, NULL/0.000000)
+2020/05/21 06:16:59 galactica socat[3366] D select -> (, 0x0, 0x2, 0x0, NULL/0.000000), 1
+2020/05/21 06:16:59 galactica socat[3366] D data loop: sock1->eof=0, sock2->eof=0, closing=0, wasaction=1, total_to={0.000000}
+2020/05/21 06:16:59 galactica socat[3366] D select(7, &0x41, &0x0, &0x0, NULL/0.000000)
+2020/05/21 06:16:59 galactica socat[3366] D select -> (, 0x1, 0x0, 0x0, NULL/0.000000), 1
+2020/05/21 06:16:59 galactica socat[3366] D read(0, 0x55ef9ff19ad0, 8192)
+2020/05/21 06:16:59 galactica socat[3366] D read -> 8
+2020/05/21 06:16:59 galactica socat[3366] D write(6, 0x55ef9ff19ad0, 8)
+2020/05/21 06:16:59 galactica socat[3366] D write -> 8
+2020/05/21 06:16:59 galactica socat[3366] I transferred 8 bytes from 0 to 6
+2020/05/21 06:16:59 galactica socat[3366] D data loop: sock1->eof=0, sock2->eof=0, closing=0, wasaction=1, total_to={0.000000}
+2020/05/21 06:16:59 galactica socat[3366] D select(7, &0x41, &0x40, &0x0, NULL/0.000000)
+2020/05/21 06:16:59 galactica socat[3366] D select -> (, 0x0, 0x40, 0x0, NULL/0.000000), 1
+2020/05/21 06:16:59 galactica socat[3366] D data loop: sock1->eof=0, sock2->eof=0, closing=0, wasaction=1, total_to={0.000000}
+2020/05/21 06:16:59 galactica socat[3366] D select(7, &0x41, &0x0, &0x0, NULL/0.000000)
+2020/05/21 06:17:15 galactica socat[3366] N socat_signal(): handling signal 2
+2020/05/21 06:17:15 galactica socat[3366] N exiting on signal 2
+2020/05/21 06:17:15 galactica socat[3366] N socat_signal(): finishing signal 2
+2020/05/21 06:17:15 galactica socat[3366] N exit(130)
+2020/05/21 06:17:15 galactica socat[3366] D starting xioexit()
+2020/05/21 06:17:15 galactica socat[3366] D tcsetattr(0, 0, {00004500,00000005,000000bf,00008a3b,03,1c,08,15,04,00,01,00,11,13,1a,00,12,0f,17,16,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00})
+2020/05/21 06:17:15 galactica socat[3366] D tcsetattr() -> 0
+2020/05/21 06:17:15 galactica socat[3366] D tcsetattr(1, 0, {00004500,00000005,000000bf,00008a3b,03,1c,08,15,04,00,01,00,11,13,1a,00,12,0f,17,16,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00})
+2020/05/21 06:17:15 galactica socat[3366] D tcsetattr() -> 0
+2020/05/21 06:17:15 galactica socat[3366] D tcsetattr(6, 0, {00000500,00000005,00000cbd,00008a3b,03,1c,7f,15,04,00,01,00,11,13,1a,00,12,0f,17,16,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00})
+2020/05/21 06:17:15 galactica socat[3366] D tcsetattr() -> 0
+2020/05/21 06:17:15 galactica socat[3366] D finished xioexit()

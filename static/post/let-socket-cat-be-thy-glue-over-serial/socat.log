@@ -1,0 +1,15 @@
+  FD  type	device	inode	mode	links	uid	gid	rdev	size	blksize	blocks	atime				mtime				ctime				cloexec	flags	sigown	sigio
+   0: chrdev	0,44	7	020620	1	1000	5	136,4	0	1024	0	Thu May 21 06:16:49 2020	Thu May 21 06:16:49 2020	Sat May 16 07:35:11 2020	0	x008002	0	0	/dev/pts/4 	IFLAGS=00000000 OFLAGS=00000000 CFLAGS=000000b0 LFLAGS=00000000 cc[0]=^C cc[1]=^\ cc[2]=^H cc[3]=^U cc[4]=^D cc[5]=^@ cc[6]=^A cc[7]=^@ cc[8]=^Q cc[9]=^S cc[10]=^Z cc[11]=^@ cc[12]=^R cc[13]=^O cc[14]=^W cc[15]=^V cc[16]=^@ cc[17]=^@ cc[18]=^@ cc[19]=^@ cc[20]=^@ cc[21]=^@ cc[22]=^@ cc[23]=^@ cc[24]=^@ cc[25]=^@ cc[26]=^@ cc[27]=^@ cc[28]=^@ cc[29]=^@ cc[30]=^@ cc[31]=^@poll: OUT,
+   1: chrdev	0,44	7	020620	1	1000	5	136,4	0	1024	0	Thu May 21 06:16:49 2020	Thu May 21 06:16:49 2020	Sat May 16 07:35:11 2020	0	x008002	0	0	/dev/pts/4 	IFLAGS=00000000 OFLAGS=00000000 CFLAGS=000000b0 LFLAGS=00000000 cc[0]=^C cc[1]=^\ cc[2]=^H cc[3]=^U cc[4]=^D cc[5]=^@ cc[6]=^A cc[7]=^@ cc[8]=^Q cc[9]=^S cc[10]=^Z cc[11]=^@ cc[12]=^R cc[13]=^O cc[14]=^W cc[15]=^V cc[16]=^@ cc[17]=^@ cc[18]=^@ cc[19]=^@ cc[20]=^@ cc[21]=^@ cc[22]=^@ cc[23]=^@ cc[24]=^@ cc[25]=^@ cc[26]=^@ cc[27]=^@ cc[28]=^@ cc[29]=^@ cc[30]=^@ cc[31]=^@poll: OUT,
+   6: chrdev	0,6	4477029	020660	1	0	14	188,0	0	4096	0	Thu May 21 06:13:44 2020	Thu May 21 06:13:44 2020	Thu May 21 04:38:53 2020	1	x008402	0	0	/dev/ttyUSB0 	IFLAGS=00000000 OFLAGS=00000000 CFLAGS=00000030 LFLAGS=00000000 cc[0]=^C cc[1]=^\ cc[2]=x7F cc[3]=^U cc[4]=^D cc[5]=^@ cc[6]=^A cc[7]=^@ cc[8]=^Q cc[9]=^S cc[10]=^Z cc[11]=^@ cc[12]=^R cc[13]=^O cc[14]=^W cc[15]=^V cc[16]=^@ cc[17]=^@ cc[18]=^@ cc[19]=^@ cc[20]=^@ cc[21]=^@ cc[22]=^@ cc[23]=^@ cc[24]=^@ cc[25]=^@ cc[26]=^@ cc[27]=^@ cc[28]=^@ cc[29]=^@ cc[30]=^@ cc[31]=^@poll: OUT,
+> 2020/05/21 06:16:57.085563  length=1 from=0 to=0
+l< 2020/05/21 06:16:57.087128  length=1 from=0 to=0
+l> 2020/05/21 06:16:57.421553  length=1 from=1 to=1
+s< 2020/05/21 06:16:57.422932  length=1 from=1 to=1
+s> 2020/05/21 06:16:59.501568  length=1 from=2 to=2
+\r< 2020/05/21 06:16:59.503115  length=2 from=2 to=3
+\r
+< 2020/05/21 06:16:59.527226  length=97 from=4 to=100
+.[1;34mPictures.[m       .[0;0mdialer.log.[m     .[0;0mdialer.log.bk.[m\r
+pine64-pinephone:~$ .[6n> 2020/05/21 06:16:59.529196  length=8 from=3 to=10
+.[57;21R
