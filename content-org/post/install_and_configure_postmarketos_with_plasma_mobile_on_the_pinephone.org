@@ -1686,7 +1686,7 @@ I commented out =ForwardX11Trusted yes= on purpose. Only set =ForwardX11Trusted 
 
 Copy ssh id to remote authorized keys (see [[https://linux.die.net/man/1/ssh-copy-id][ssh-copy-id(1)]]).
 #+begin_src sh
-ssh-copy-id -i ~/.ssh/id_second-chance_rsa dustfinger@second-chance
+ssh-copy-id -i ~/.ssh/id_second-chance_rsa.pub dustfinger@second-chance
 #+end_src
 
 #+RESULTS:
