@@ -13,7 +13,7 @@
 #+options: toc:2
 
 * What is the issue?
-There is [[https://gitlab.com/postmarketOS/pmaports/-/merge_requests/1398][a known issue]] that root and boot partitions are being mounted by fstab when they should be mounted from the initramfs.
+There are a number of known issues ([[https://gitlab.com/postmarketOS/pmaports/-/issues/258][#258]], [[https://gitlab.com/postmarketOS/pmaports/-/issues/661][#661]], [[https://gitlab.com/postmarketOS/pmaports/-/issues/664][#664]]) related to the mounting of the root and boot partitions by fstab when they should be mounted from the initramfs. There is a merge request (=https://gitlab.com/postmarketOS/pmaports/-/merge_requests/1398=) to address these issues.
 
 * How to tell if your system is impacted
 At the moment the fix is not merged, so we are all impacted. However, to verify you can open up =/etc/fstab= and see if it lists the root and boot mount points:
