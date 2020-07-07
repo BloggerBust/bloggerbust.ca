@@ -1,0 +1,137 @@
+#+author: Trevor Wilson
+#+email: trevor.wilson@bloggerbust.ca
+#+title: "postmarketOS pmaports Mount Issue"
+#+date: 2020-07-07T09:04:03Z
+#+HUGO_BASE_DIR: ../../
+#+HUGO_SECTION: post
+#+HUGO_DRAFT: false
+#+HUGO_CATEGORIES: Mobile
+#+HUGO_TAGS: pinephone postmarketOS issue
+#+HUGO_AUTO_SET_LASTMOD: true
+#+startup: showeverything
+#+options: d:(not "notes")
+#+options: toc:2
+
+* What is the issue?
+There is [[https://gitlab.com/postmarketOS/pmaports/-/merge_requests/1398][a known issue]] that root and boot partitions are being mounted by fstab when they should be mounted from the initramfs.
+
+* How to tell if your system is impacted
+At the moment the fix is not merged, so we are all impacted. However, to verify you can open up =/etc/fstab= and see if it lists the root and boot mount points:
+#+begin_example
+# <file system> <mount point>   <type>  <options>               <dump>  <pass>
+LABEL="pmOS_root"       /       ext4    relatime,data=ordered   0       1
+LABEL="pmOS_boot"       /boot   auto    defaults                0       2
+#+end_example
+
+When the fix has been merged =/etc/fstab= will have a comment stating that it is not being used to mount boot or root. Having said that, even if the fix has been merged, if the impacted packages have not been upgraded you might still have old artifacts in the boot partition.
+
+* What is the impact?
+Sometimes when you boot your device the boot partition will not be mounted. Other times it will be mounted. To test if boot was mounted properly you can simply use the [[https://man7.org/linux/man-pages/man1/mountpoint.1.html][mountpoint(1)]] command.
+#+begin_src sh
+second-chance:~$ mountpoint /boot
+/boot is not a mountpoint
+#+end_src
+
+You can see that the contents of what should be in boot were actually written to the root file system in a directory named boot.
+#+begin_src sh
+second-chance:~$ ls /boot
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+initramfs-postmarketos-allwinner        sun50i-a64-pinephone-1.1.dtb            uInitrd-postmarketos-allwinner
+initramfs-postmarketos-allwinner-extra  uImage-postmarketos-allwinner           vmlinuz-postmarketos-allwinner
+#+end_example
+
+There were probably written there during an upgrade, that means that the real =/boot= partition might not have the latest version of those files.
+
+* What to do about it?
+You may wish to backup the contents of the =/boot= directory before proceeding. I decided to not assume that the contents of the =/boot= directory are the latest version of those files. I have upgraded several times with this issue and perhaps only some of those times the boot partition was not mounted. I decided to remove the contents of the directory (not the partition) =/boot= and then mount the boot partition manually. After that we will reinstall the packages responsible for these files.
+
+#+begin_src sh
+second-chance:~$ sudo rm /boot/*
+second-chance:~$ sudo mount /dev/mmcblk0p1 /boot
+second-chance:~$ ls -lah /boot
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+total 41M    
+drwxr-xr-x    3 root     root        1.0K Jul  6 07:44 .
+drwxr-xr-x   21 root     root        4.0K May 31 12:40 ..
+-rw-r--r--    1 root     root         949 Jun 17 03:19 boot.scr
+-rw-r--r--    1 root     root        1.4M Jul  6 07:44 initramfs-postmarketos-allwinner
+-rw-r--r--    1 root     root        6.6M Jul  6 07:44 initramfs-postmarketos-allwinner-extra
+drwx------    2 root     root       12.0K May 31 12:40 lost+found
+-rwxr-xr-x    1 root     root       34.9K Jul  6 07:44 sun50i-a64-pinephone-1.1.dtb
+-rw-r--r--    1 root     root       15.7M Jul  6 07:44 uImage-postmarketos-allwinner
+-rw-r--r--    1 root     root        1.4M Jul  6 07:44 uInitrd-postmarketos-allwinner
+-rw-r--r--    1 root     root       15.7M Jul  5 11:56 vmlinuz-postmarketos-allwinner
+#+end_example
+
+The ~apk info --who-owns~ command can be used to identify some of the packages which are responsible for deploying payloads to the boot partition.
+#+begin_src sh
+second-chance:~$ find /boot -type f -exec apk info --who-owns '{}' \;
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+find: /boot/lost+found: Permission denied
+ERROR: /boot/sun50i-a64-pinephone-1.1.dtb: Could not find owner package
+/boot/boot.scr is owned by device-pine64-pinephone-0.3-r2
+/boot/vmlinuz-postmarketos-allwinner is owned by linux-postmarketos-allwinner-5.7.0_git20200704-r0
+ERROR: /boot/uInitrd-postmarketos-allwinner: Could not find owner package
+ERROR: /boot/initramfs-postmarketos-allwinner-extra: Could not find owner package
+ERROR: /boot/uImage-postmarketos-allwinner: Could not find owner package
+ERROR: /boot/initramfs-postmarketos-allwinner: Could not find owner package
+#+end_example
+
+From the output we can see that we will need to run a fix on at least =device-pine64-pinephone= and =linux-postmarketos-allwinner=. The GitLab issue mentions ~postmarketos-mkinitfs~ and after asking on IRC what packages were responsible for payloads to the boot partition, it was suggested that =postmarketos-mkinitfs= is also important.
+
+Now, let's run the ~apk fix~ command for all three of the identified packages and their dependencies. When typing the command, be careful not to make a typo in any of the package names because nvalid package names will be silently ignored. For that reason, I will run a simulation first so that I may visually verify that all three packages will be reinstalled.
+
+#+begin_src sh
+second-chance:~$ apk fix -sr  device-pine64-pinephone linux-postmarketos-allwinner postmarketos-mkinitfs
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+(1/3) Reinstalling postmarketos-mkinitfs (0.12.2-r0)
+(2/3) Reinstalling linux-postmarketos-allwinner (5.7.0_git20200704-r0)
+(3/3) Reinstalling device-pine64-pinephone (0.3-r2)
+OK: 1413 MiB in 616 packages
+#+end_example
+
+After that, drop the simulation flag ~-s~, add the dependency flag ~-d~ and run the command again:
+#+begin_src sh
+second-chance:~$ sudo apk fix -rd  device-pine64-pinephone linux-postmarketos-allwinner postmarketos-mkinitfs
+#+end_src
+
+I omitted the output because the list is quite long.
+
+Now, when I list the contents of =/boot= you can see that many of the payloads were updated:
+
+#+begin_src sh
+second-chance:~$ ls -lh /boot
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+total 41M    
+-rw-r--r--    1 root     root         949 Jun 17 03:19 boot.scr
+-rw-r--r--    1 root     root        1.4M Jul  7 08:29 initramfs-postmarketos-allwinner
+-rw-r--r--    1 root     root        6.6M Jul  7 08:29 initramfs-postmarketos-allwinner-extra
+drwx------    2 root     root       12.0K May 31 12:40 lost+found
+-rwxr-xr-x    1 root     root       34.9K Jul  7 08:29 sun50i-a64-pinephone-1.1.dtb
+-rw-r--r--    1 root     root       15.7M Jul  7 08:29 uImage-postmarketos-allwinner
+-rw-r--r--    1 root     root        1.4M Jul  7 08:29 uInitrd-postmarketos-allwinner
+-rw-r--r--    1 root     root       15.7M Jul  5 11:56 vmlinuz-postmarketos-allwinner
+#+end_example
+
+* After thoughts
+Until this issue is fixed, you will want to double check that =/boot= is mounted before running ~apk upgrade -a~. otherwise, the updated initramfs will be deployed to a directory named =/boot= once again, rather than to the boot partition where it belongs.
