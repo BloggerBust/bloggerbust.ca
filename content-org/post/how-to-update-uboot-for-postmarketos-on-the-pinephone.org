@@ -1,0 +1,504 @@
+#+author: Trevor Wilson
+#+email: trevor.wilson@bloggerbust.ca
+#+title: "How To Update U-Boot For PostmarketOS On The Pine Phone"
+#+date: 2020-08-20T05:54:21Z
+#+HUGO_BASE_DIR: ../../
+#+HUGO_SECTION: post
+#+HUGO_DRAFT: false
+#+HUGO_CATEGORIES: Mobile
+#+HUGO_TAGS: pinephone postmarketOS uboot
+#+HUGO_AUTO_SET_LASTMOD: true
+#+startup: showeverything
+#+options: d:(not "notes")
+#+options: toc:2
+
+* Introduction
+If you are in a hurry to update U-Boot and the SPL on your PinePhone, then please proceed directly to [[*Write U-Boot+SPL to bootable storage][Write U-Boot+SPL to bootable storage]].
+
+In this article, I am going to explain what U-Boot, SoC and the SPL are. After that, I will describe the sunxi bootable storage layout as well as the PinePhone boot procedure, so you will understand what you will be updating and why. Then, I will teach you how to determine if an upgrade is required, and I will explain two different ways of upgrading U-Boot. As a special treat for the curious, I will show you the first steps to reverse engineer the U-Boot+SPL firmware blob. I hope this article peeks your curiosity and encourages you to learn more.
+
+* What is U-Boot?
+U-Boot, or rather [[https://en.wikipedia.org/wiki/Das_U-Boot][Das U-Boot]] a.k.a /the Universal Boot Loader/, is a small program that is loaded into /read-only memory/ (ROM) and is ultimately responsible for loading the Linux kernel. Designed with flexibility in mind, U-Boot now supports [[https://gitlab.denx.de/u-boot/u-boot/-/tree/master/arch][a wide variety of architectures]] for [[https://gitlab.denx.de/u-boot/u-boot/-/tree/master/board][embedded boards]], each of which may support multiple boot methods. This article is only concerned with U-Boot as it is configured for the [[https://gitlab.denx.de/u-boot/u-boot/-/blob/master/board/sunxi/README.sunxi64][Allwinner 64-bit boards]], specifically the [[https://linux-sunxi.org/A64][Allwinner A64 SoC]].
+
+* What is a SoC?
+No, it does not refer to the stinky fabric covering your feet. /SoC/ stands for /System on a Chip/. The PinePhone contains the [[https://linux-sunxi.org/A64][Allwinner A64 SoC]], featuring a Quad-Core [[https://en.wikipedia.org/wiki/ARM_Cortex-A53][ARM Cortex-A53 ARMv8-A CPU]] and an [[https://linux-sunxi.org/Mali400][ARM Mali400 MP2 GPU]]. See the [[https://linux-sunxi.org/A64#Documentation][Allwinner A64 documentation]] for more details.
+
+* What is the SPL?
+The /Secondary Program Loader's/ (SPL) primary function is to load U-Boot proper, the /flattened device tree/ ([[https://devicetree-specification.readthedocs.io/en/latest/flattened-format.html][FDT]]) and the /Arm Trusted Firmware/ ([[https://www.trustedfirmware.org/about/][ATF]]), ultimately passing execution to the ATF. In particular, execution is passed to /Trusted Firmware-A/ ([[https://trustedfirmware-a.readthedocs.io/en/latest/index.html][TF-A]]), which is [[https://github.com/ARM-software/arm-trusted-firmware][the official reference implementation]] used by SoCs with armv8- cores, such as [[https://trustedfirmware-a.readthedocs.io/en/latest/plat/allwinner.html][Allwinner Armv8-A SoCs]].
+
+* What installs the SPL?
+The SPL is installed via the =u-boot-pinephone= package from the [[http://postmarketos1.brixit.nl/postmarketos/master/aarch64/][postmarketOS aarch64 APK repository]]. The package is built from the [[https://gitlab.com/pine64-org/u-boot/][pine64 u-boot fork]] in which they added a [[https://gitlab.com/pine64-org/u-boot/-/blob/master/.gitlab-ci-pine64.yml][pine64 specific GitLab CI/CD pipeline configuration]]. By listing the contents of the package using the [[https://wiki.alpinelinux.org/wiki/Alpine_Linux_package_management#apk_info][apk info]] command we can see where the SPL binary is actually installed to the root file system.
+
+#+begin_src sh
+second-chance:~$ apk info -L u-boot-pinephone
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+u-boot-pinephone-2020.04_git20200421-r1 contains:
+usr/share/u-boot/pine64-pinephone/u-boot-sunxi-with-spl.bin
+#+end_example
+
+However, this is just a convenient location to deliver the binary. The SPL must be deployed to a specific location on disk so that the BootROM can load it.
+
+* A bit about bytes
+I suspect that not all of those reading this article are familiar with the various standards when it comes to measuring information. Allow me to digress with a brief introduction to these standards with respect to how they both measure and represent a /kilobyte/. Many of the articles that I have linked herein use the /[[https://en.wikipedia.org/wiki/JEDEC_memory_standards#Unit_prefixes_for_semiconductor_storage_capacity][Joint Electron Device Engineering Council]]/ (JEDEC) memory standards in which the unit for /kilobyte/ is denoted by (=KB=), in upper case letters and represents =1024B=. This is not to be confused with the kilobyte from the /[[https://en.wikipedia.org/wiki/Metric_prefix/][International System of Quantities]]/ (SI) in which /kilo/ is denoted with a lower case =k=, such that =kB= means =1000B=. My preference is to use the [[https://en.wikipedia.org/wiki/Kibibyte][kibibyte]] (pron. KI-BEE-BYTE), which was established by the /[[https://en.wikipedia.org/wiki/International_Electrotechnical_Commission][International Electrotechnical commission]]/ (IEC) and is recognized by all major standards organizations, including those aforementioned. 
+
+| Decimal |             | Binary |              |             |
+|   Value | Metric      |  Value | IEC          | JEDEC       |
+|---------+-------------+--------+--------------+-------------|
+|       1 | B byte      |      1 | B byte       | B byte      |
+|    1000 | kB kilobyte |   1024 | KiB kibibyte | KB kilobyte |
+|  1000^2 | MB megabyte | 1024^2 | MiB mebibyte | MB megabyte |
+|  1000^3 | GB gigabyte | 1024^3 | GiB gibibyte | GB gigabyte |
+|  1000^4 | TB terabyte | 1024^4 | TiB tebibyte | -           |
+
+The reasoning behind my preference is two fold:
+1. The JEDEC [[https://www.jedec.org/document_search?search_api_views_fulltext=JESD100B01][Terms, Definitions, and Letter Symbols for Microcomputers, Microprocessors, and Memory Integrated Circuits]] only defines the first three higher order prefixes: /kilo/ (K), /mega/ (M), /giga/ (G), referring to them for common usage. The prefix /tera/ was later added to the JEDEC terms dictionary to reflect [[https://www.jedec.org/standards-documents/dictionary/terms/mega-m-prefix-units-semiconductor-storage-capacity][common prefix usage for modern semiconductor storage capacity]].
+2. IEC prefixes cannot be confused with Metric prefixes.
+
+To make matters more confusing, sometimes lowercase =k= is used to mean 1024, e.g. see [[https://man7.org/linux/man-pages/man1/tar.1.html#OPTIONS][tar(1) OPTIONS]] sub section =Size Suffixes= located [[https://man7.org/linux/man-pages/man1/tar.1.html#RETURN_VALUE][above the RETURN VALUE section]]. Understanding which system of measurement is being used is essential when calculating offsets.
+
+* Layout of sunxi bootable storage
+The first 40 plus =KiB= of bootable storage for an Allwinner based board has the [[https://linux-sunxi.org/Bootable_SD_card#SD_Card_Layout][following default layout]]:
+
+| Start | Size  | Usage                            |
+|-------+-------+----------------------------------|
+| 0KiB  | 8KiB  | Reserved for optional MBR or GPT |
+| 8KiB  | 32KiB | Initial SPL                      |
+| 40KiB | -     | U-Boot Proper                    |
+
+From the layout, one can conclude that upgrading the SPL and U-Boot for the PinePhone must involve writing the =u-boot-sunxi-with-spl.bin= to bootable storage starting at =8192B=.
+
+* PinePhone boot procedure
+Bootstrapping is complicated by initial memory address space limitations. The [[https://linux-sunxi.org/BROM#U-Boot_SPL_limitations][SPL is limited to 32 KiB]], most likely because the BootROM, or BROM, loads the SPL into [[https://linux-sunxi.org/A64/Memory_map][SRAM A1]], which is a =32 KiB= subsection. If the SPL is larger than =32 KiB= the BROM will refuse to load it. After the SPL loads U-Boot proper and passes execution to the ATF, U-Boot proper in turn runs [[https://gitlab.com/postmarketOS/pmaports/-/blob/master/device/community/device-pine64-pinephone/uboot-script.cmd][the Pine Phone's u-boot command script]]. The command script sets the default bootargs for init and calls the [[https://gitlab.denx.de/u-boot/u-boot/-/blob/master/cmd/booti.c][booti command]], which boots the Linux Kernel Image from memory given the /flattend device tree/ ([[https://devicetree-specification.readthedocs.io/en/latest/flattened-format.html][FDT]]) and the /initial ramdisk/ ([[https://en.wikipedia.org/wiki/Initrd][initrd]]), ultimately passing execution to Linux init.
+
+#+begin_center
+#+begin_example
+
++-----------------------+
+|        BootROM        |
++-----------.-----------+
+|
+|
++-----------V-----------+
+|     u-boot.itb+SPL    |
++-----------.-----------+
+|
+|
++-----------V-----------+
+|       TF-A BL31       |
++-----------.-----------+
+|
+|
++-----------V-----------+
+| U-Boot Proper (=BL33) |
++-----------.-----------+
+|
+|
++-----------V-----------+
+|        Linux          |
++-----------------------+
+
+#+end_example
+#+end_center
+
+You might have noticed that =/usr/share/u-boot/pine64-pinephone/u-boot-sunxi-with-spl.bin= is much larger than =32KiB=.
+
+#+begin_example
+second-chance:~$ ls -lh /usr/share/u-boot/pine64-pinephone/u-boot-sunxi-with-spl.bin
+-rw-r--r--    1 root     root      486.0K Jun 20 12:41 /usr/share/u-boot/pine64-pinephone/u-boot-sunxi-with-spl.bin
+#+end_example
+
+That is because the SPL binary image includes a /Flattened uImage Tree/ ([[https://gitlab.com/pine64-org/u-boot/-/blob/master/doc/uImage.FIT/source_file_format.txt][FIT image]]) named =u-boot.itb= that contains the rest of the firmware.
+
+* Determine which bootable storage device is relevant
+Before you can [[*How to determine if U-Boot needs to be upgraded?][determine if U-Boot needs to be upgraded]], you need to know which storage device your PinePhone is booting from. This can be easily determined by using the [[https://linux.die.net/man/8/lsblk][lsblk(8)]] command to list the running operating system's current mount points. Below is the output of [[https://linux.die.net/man/8/lsblk][lsblk(8)]] run on my PinePhone booted from an =SD= card:
+
+#+begin_src sh
+second-chance:~$ lsblk --output NAME,TYPE,MOUNTPOINT
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+NAME         TYPE MOUNTPOINT
+mmcblk0      disk 
+├─mmcblk0p1  part /boot
+└─mmcblk0p2  part 
+mmcblk2      disk 
+├─mmcblk2p1  part 
+├─mmcblk2p2  part 
+├─mmcblk2p1  part 
+└─mmcblk2p2  part 
+mmcblk2boot0 disk 
+mmcblk2boot1 disk 
+#+end_example
+
+The disk corresponding to the =/boot= mountpoint is the name of the block special device that postmarketOS is currently running form. The device path to the relevant boot storage device is therefore =/dev/mmcblk0=. We will be using this device name in the next section to determine if an upgrade is needed, but you must be careful to use the device name that is relevant to your own running environment if you are following along.
+
+* How to determine if U-Boot needs to be upgraded?
+First, [[*Determine which bootable storage device is relevant][determine which bootable storage device is relevant]] for your running environment. After that, you can determine if an upgrade is necessary simply by comparing the version of U-Boot installed by the =u-boot-pinephone= package with the version of U-Boot that is written to the relevant bootable storage device.
+
+To see which version of =U-Boot= was installed by the =u-boot-pinephone= package, simply run the ~apk policy~ sub command as shown below:
+#+begin_src sh
+second-chance:~/$ apk policy u-boot-pinephone
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+u-boot-pinephone policy:
+  2020.04_git20200421-r1:
+    lib/apk/db/installed
+    etc/apk/cache
+    http://postmarketos1.brixit.nl/postmarketos/master
+#+end_example
+
+Alternatively, you can use the [[https://linux.die.net/man/1/busybox][busybox(1)]] ~strings~ command to search the binary's printable strings for the regex pattern ~U-Boot [[:digit:]]~ by piping the output through a [[https://linux.die.net/man/1/busybox][busybox(1)]] ~grep~ filter. As a side note, the PinePhone uses busybox, so when you find yourself looking up command line documentation with the intention of running the command from a PinePhone shell, always check the [[https://linux.die.net/man/1/busybox][busybox(1)]] man pages first.
+
+#+begin_src sh
+second-chance:~/packages$ strings /usr/share/u-boot/pine64-pinephone/u-boot-sunxi-with-spl.bin | grep -E 'U-Boot [[:digit:]]'
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+U-Boot 2020.04 (Jun 20 2020 - 12:41:48 +0000)
+#+end_example
+
+Similarly, to determine the version of U-Boot that is currently written to bootable storage, you can search for the same regex pattern in the printable strings of the boot disk after the first =8 KiB=. However, since the bootable storage is significantly larger than =u-boot-sunxi-with-spl.bin=, it would not be efficient to use the ~strings~ command as we did previously. Instead, we will use the [[https://linux.die.net/man/1/busybox][busybox(1)]] ~dd~ command, which will allow us to control where to begin and end the search. Since we can't easily know the exact offset of the version string, which can very from build to build, my strategy has been to simply skip the first =8 KiB= and then read the same number of =KiB= as the size of the currently installed =u-boot-sunxi-with-spl.bin=. If my search turns up nothing, then that means that the previously installed version was larger, and I can simply increase the =count= to some reasonable number of =KiB= until I find what I am looking for.
+
+First, let's determine the size of =u-boot-sunxi-with-spl.bin=.
+#+begin_src sh
+ls -lh /usr/share/u-boot/pine64-pinephone/u-boot-sunxi-with-spl.bin
+#+end_src
+
+#+begin_example
+-rw-r--r--    1 root     root      543.3K Jul 18  2020 /usr/share/u-boot/pine64-pinephone/u-boot-sunxi-with-spl.bin
+#+end_example
+
+The binary installed to disk is about =543 KiB=. I will use the [[https://linux.die.net/man/1/busybox][busybox(1)]] ~dd~ command to write 543 =1 KiB= blocks of data to standard output and then pipe that through a ~grep~ filter to search for the U-Boot version string. 
+
+#+begin_src sh
+second-chance:~$ sudo dd if=/dev/mmcblk0 bs=1024 skip=8 count=543 | grep -E 'U-Boot [[:digit:]]'
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+U-Boot 2020.04-rc3 (Mar 18 2020 - 13:16:10 +0000)
+543+0 records in
+543+0 records out
+#+end_example
+
+In case you are not confident using the ~dd~ command, here is a breakdown of the optional flags that I used in the above:
+| option | description                                                                                                                                            |
+|--------+--------------------------------------------------------------------------------------------------------------------------------------------------------|
+| if     | input file path. In our case it is the path to the bootable storage device.                                                                            |
+| bs     | block size, or number of bytes per count. Not to be confused with disk blocksize. It is purposely set to =1024B= so that each count represents =1 KiB= |
+| skip   | number of input blocks to skip. We know from [[*Layout of sunxi bootable storage][Layout of sunxi bootable storage]] that we can ignore the first =8KiB=                                      |
+| count  | number of input blocks to parse. In our case, ~dd~ just sends those blocks to =stdout=                                                                 |
+
+Finally, since the version of U-Boot compiled into =/usr/share/u-boot/pine64-pinephone/u-boot-sunxi-with-spl.bin= is newer then the the version written to bootable storage =/dev/mmcblk0=, I know that it is time to upgrade U-Boot.
+
+|                             | version                          |
+|-----------------------------+----------------------------------|
+| =u-boot-sunxi-with-spl.bin= | U-Boot 2020.04 (Jun 20 2020)     |
+| =/dev/mmcblk0=              | U-Boot 2020.04-rc3 (Mar 18 2020) |
+
+* Write U-Boot+SPL to bootable storage
+Back in June, [[https://github.com/crust-firmware/crust][Crust]] firmware was added to pmaport and, in the same commit, [[https://gitlab.com/postmarketOS/pmaports/-/commit/c5f26eeb65fb2292c2f2a0a82045c9dffafa7290#76dfa9fc47a3e569570ed17a25caab62acb90b42_35_36][the u-boot-pinephone a-pack was updated]] to include the [[https://gitlab.com/postmarketOS/pmaports/-/commit/c5f26eeb65fb2292c2f2a0a82045c9dffafa7290#be17589e1fe5ec006101adc48bc853a906a0c339][update-u-boot]] script. The ~update-u-boot~ script, which originated in the [[https://git.alpinelinux.org/aports/tree/main/u-boot][alpine Linux u-boot repository]], provides the simplest way for you to upgrade your boot storage to the latest version of U-BOOT+SPL. Simply run:
+
+#+begin_src sh
+second-chance:~$ update-u-boot
+#+end_src
+
+To see if your version of =u-boot-pinephone= includes the =upgrade-u-boot= script, simply run:
+#+begin_src sh
+second-chance:~$ apk info -L u-boot-pinephone
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+u-boot-pinephone-2020.07_git20200612-r1 contains:
+usr/sbin/update-u-boot
+usr/share/u-boot/pine64-pinephone/u-boot-sunxi-with-spl.bin
+#+end_example
+
+If your version of =u-boot-pinephone= does not include =usr/sbin/update-u-boot=, or if you are just curious about how to upgrade U-Boot without the ~upgrade-u-boot~ command, then read on. If you haven't already, first [[*Determine which bootable storage device is relevant][determine which bootable storage device is relevant]] for your running environment. After that, Use the ~dd~ command to write the latest version of u-boot to your bootable storage. Be sure to replace =/dev/mmcblk0= with the path to the bootable storage device that is relevant for your running environment:
+
+#+begin_src sh
+second-chance:~$ sudo dd if=/usr/share/u-boot/pine64-pinephone/u-boot-sunxi-with-spl.bin of=/dev/mmcblk0 bs=1024 seek=8
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+486+1 records in
+486+1 records out
+#+end_example
+
+In case you are not confident using the ~dd~ command, here is a breakdown of the optional flags that I used in the above:
+| option | description                                                                                                                                             |
+|--------+---------------------------------------------------------------------------------------------------------------------------------------------------------|
+| if     | input file path. In our case it is the path to the =u-boot-sunxi-with-spl.bin=.                                                                         |
+| of     | output file path. In our case it is the path to the bootable storage device.                                                                            |
+| bs     | block size, or number of bytes per count. Not to be confused with disk blocksize. It is purposely set to =1024B= so that each count represents =1 KiB=. |
+| seek   | number of output blocks to offset writing to disk. We know from [[*Layout of sunxi bootable storage][Layout of sunxi bootable storage]] that the offset must be =8KiB=.                        |
+
+Now we can verify it worked by grepping the disk for the new version.
+#+begin_src sh
+second-chance:~$ sudo dd if=/dev/mmcblk0 bs=1024 skip=8 count=486 | grep -E 'U-Boot [[:digit:]]'
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+U-Boot 2020.04 (Jun 20 2020 - 12:41:48 +0000)
+486+0 records in
+486+0 records out
+#+end_example
+
+* Walking the bin
+I was curious about how =u-boot-sunxi-with-spl.bin= was structured, so I decided to investigate using [[https://github.com/ReFirmLabs/binwalk][binwalk]], an opensource firmware analysis tool developed by [[https://www.refirmlabs.com/binwalk/][ReFirm Labs Inc]] (no affiliation). Sure, I could discover exactly the same by browsing [[https://gitlab.com/pine64-org/u-boot][Pine64's fork of u-boot]], starting with [[https://gitlab.com/pine64-org/u-boot/-/blob/master/board/sunxi/mksunxi_fit_atf.sh][board/sunxi/mksunxi_fit_atf.sh]], but then I wouldn't learn anything about ~binwalk~. Besides, there can be only one single source of truth and that truth is what is compiled and running in production.
+
+After installing ~binwalk~ on my local dev box, I downloaded the =u-boot-pinephone= package from the [[http://postmarketos1.brixit.nl/postmarketos/master/aarch64/][postmarketOS master aarch64 repository]]:
+#+begin_src sh :results output scalar :shebang /env/bin/bash :dir ~/u-boot-pinephone :wrap example
+$ wget --quiet -r --no-parent --no-directories --level=1 -A "u-boot-pinephone-*.apk" http://postmarketos1.brixit.nl/postmarketos/master/aarch64/
+$ ls
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+u-boot-pinephone-2020.07_git20200612-r1.apk
+#+end_example
+
+APK packages are gzip compressed. To see this, we can use ~file~ ([[https://man7.org/linux/man-pages/man1/file.1.html][file(1)]]) to output the compression format:
+#+begin_src sh :results output scalar :shebang /env/bin/bash :dir ~/u-boot-pinephone :wrap example
+$ file -b u-boot-pinephone-2020.07_git20200612-r1.apk
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+gzip compressed data, from Unix, original size modulo 2^32 573440
+#+end_example
+
+The package can be decompressed and extracted using the ~tar~ command ([[https://man7.org/linux/man-pages/man1/tar.1.html][tar(1)]]).
+
+#+begin_src sh
+$ tar xzf u-boot-pinephone-2020.07_git20200612-r1.apk --no-anchor u-boot-sunxi-with-spl.bin
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+tar: Ignoring unknown extended header keyword 'APK-TOOLS.checksum.SHA1'
+tar: Ignoring unknown extended header keyword 'APK-TOOLS.checksum.SHA1'
+#+end_example
+
+The archive will be extracted relative to the current working directory. 
+
+#+begin_src sh :results output scalar :shebang #/env/bin/bash :dir ~/u-boot-pinephone :wrap example
+tree usr
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+usr
+└── share
+    └── u-boot
+        └── pine64-pinephone
+            └── u-boot-sunxi-with-spl.bin
+
+3 directories, 1 file
+#+end_example
+
+For convenience, I moved the binary to the root of my current working directory.
+#+begin_src sh :results output scalar :shebang #/env/bin/bash :dir ~/u-boot-pinephone :wrap example
+mv usr/share/u-boot/pine64-pinephone/u-boot-sunxi-with-spl.bin ./ && rm -rf usr/
+#+end_src
+
+Now that we have extracted the =u-boot-sunxi-with-spl.bin=, we can use ~binwalk~ to scan the binary for known signatures. I am currently using =Binwalk v2.2.0=, see [[https://github.com/ReFirmLabs/binwalk/wiki/Usage#-d---ddtypeextcmd][binwalk wiki for usage]]:
+
+#+begin_src sh :results output scalar :shebang #/env/bin/bash :dir ~/u-boot-pinephone :wrap example
+binwalk --signature u-boot-sunxi-with-spl.bin 
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+
+DECIMAL       HEXADECIMAL     DESCRIPTION
+--------------------------------------------------------------------------------
+32768         0x8000          device tree image (dtb)
+325944        0x4F938         CRC32 polynomial table, little endian
+490112        0x77A80         device tree image (dtb)
+523168        0x7FBA0         device tree image (dtb)
+#+end_example
+
+Binwalk recognizes three /device tree blobs/ (DTB) and one cyclic redundancy check table. Notice, that the first DTB is located at offset =32768B=, exactly =32 KiB= from the start of the file. Thanks to binwalk, we know the offsets of 4 binary blobs. Let's extract all four blobs for further examination.
+
+#+begin_src sh :results output scalar :shebang #/env/bin/bash :dir ~/u-boot-pinephone :wrap example
+binwalk -q --dd='device.*:dtb' --dd='crc32.*:crc' u-boot-sunxi-with-spl.bin
+tree
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+.
+├── u-boot-pinephone-2020.07_git20200612-r1.apk
+├── u-boot-sunxi-with-spl.bin
+└── _u-boot-sunxi-with-spl.bin.extracted
+    ├── 4F938.crc
+    ├── 77A80.dtb
+    ├── 7FBA0.dtb
+    └── 8000.dtb
+
+1 directory, 6 files
+#+end_example
+
+By default, ~binwalk~ extracts the blobs to files named after their hexadecimal offsets, with an optional file extension matching the string that follows the first colon provided to the [[https://github.com/ReFirmLabs/binwalk/wiki/Usage#-d---ddtypeextcmd][--dd optional parameter]].
+
+* Examine what we found on our walk
+Using the ~file~ command, we can collect some preliminary metadata about the extracted files:
+#+begin_src sh :results output scalar :shebang #/env/bin/bash :dir ~/u-boot-pinephone :wrap example
+file _u-boot-sunxi-with-spl.bin.extracted/*
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+_u-boot-sunxi-with-spl.bin.extracted/4F938.crc: data
+_u-boot-sunxi-with-spl.bin.extracted/77A80.dtb: Device Tree Blob version 17, size=33053, boot CPU=0, string block size=2345, DT structure block size=30652
+_u-boot-sunxi-with-spl.bin.extracted/7FBA0.dtb: Device Tree Blob version 17, size=33189, boot CPU=0, string block size=2353, DT structure block size=30780
+_u-boot-sunxi-with-spl.bin.extracted/8000.dtb:  Device Tree Blob version 17, size=1388, boot CPU=0, string block size=131, DT structure block size=1200
+#+end_example
+
+The files are device tree blobs, which is a binary format. Let's use the ~dtc~ command ([[https://manpages.debian.org/jessie/device-tree-compiler/dtc.1.en.html][dtc(1)]]) to reverse engineer the DTBs into human readable Device Tree Source (DTS) text.
+
+#+begin_src sh :results output scalar :shebang #/env/bin/bash :dir ~/u-boot-pinephone :wrap example
+  dtc -I dtb -O dts -o _u-boot-sunxi-with-spl.bin.extracted/8000.dts _u-boot-sunxi-with-spl.bin.extracted/8000.dtb
+  dtc -I dtb -O dts -o _u-boot-sunxi-with-spl.bin.extracted/77A80.dts _u-boot-sunxi-with-spl.bin.extracted/77A80.dtb
+  dtc -I dtb -O dts -o _u-boot-sunxi-with-spl.bin.extracted/7FBA0.dts _u-boot-sunxi-with-spl.bin.extracted/7FBA0.dtb
+  tree
+#+end_src
+
+#+RESULTS:
+
+#+begin_example
+.
+├── 0.spl
+├── u-boot-pinephone-2020.07_git20200612-r1.apk
+├── u-boot-sunxi-with-spl.bin
+└── _u-boot-sunxi-with-spl.bin.extracted
+    ├── 4F938.crc
+    ├── 77A80.dtb
+    ├── 77A80.dts
+    ├── 7FBA0.dtb
+    ├── 7FBA0.dts
+    ├── 8000.dtb
+    └── 8000.dts
+
+1 directory, 10 files
+#+end_example
+
+Finally, let's examine the device tree source of =_u-boot-sunxi-with-spl.bin.extracted/8000.dts=.
+
+#+begin_example
+/dts-v1/;
+
+/ {
+        timestamp = <0x5f1356a0>;
+        description = "Configuration to load ATF before U-Boot";
+        #address-cells = <0x01>;
+
+        images {
+
+                uboot {
+                        data-size = <0x649b0>;
+                        data-offset = <0x00>;
+                        description = "U-Boot (64-bit)";
+                        type = "standalone";
+                        os = "u-boot";
+                        arch = "arm64";
+                        compression = "none";
+                        load = <0x4a000000>;
+                };
+
+                atf {
+                        data-size = <0x817d>;
+                        data-offset = <0x649b0>;
+                        description = "ARM Trusted Firmware";
+                        type = "firmware";
+                        os = "arm-trusted-firmware";
+                        arch = "arm64";
+                        compression = "none";
+                        load = <0x44000>;
+                        entry = <0x44000>;
+                };
+
+                scp {
+                        data-size = <0x29e4>;
+                        data-offset = <0x6cb30>;
+                        description = "SCP firmware";
+                        type = "firmware";
+                        arch = "or1k";
+                        compression = "none";
+                        load = <0x50000>;
+                };
+
+                fdt_1 {
+                        data-size = <0x811d>;
+                        data-offset = <0x6f514>;
+                        description = "sun50i-a64-pinephone-1.1";
+                        type = "flat_dt";
+                        compression = "none";
+                };
+
+                fdt_2 {
+                        data-size = <0x81a5>;
+                        data-offset = <0x77634>;
+                        description = "sun50i-a64-pinephone-1.2";
+                        type = "flat_dt";
+                        compression = "none";
+                };
+        };
+
+        configurations {
+                default = "config_1";
+
+                config_1 {
+                        description = "sun50i-a64-pinephone-1.1";
+                        firmware = "atf";
+                        loadables = "scp\0uboot";
+                        fdt = "fdt_1";
+                };
+
+                config_2 {
+                        description = "sun50i-a64-pinephone-1.2";
+                        firmware = "atf";
+                        loadables = "scp\0uboot";
+                        fdt = "fdt_2";
+                };
+        };
+};
+#+end_example
+
+In the ~images~ structure we can clearly see the offsets for /U Boot/, /Arm Trusted Firmware/, /SCP firmware/ and the /flattend device tree/. The reason why there are two flattend device trees is because the binary includes payloads to support two different versions of PinePhone hardware. The rest of the firmware and hardware configuration is contained within the other two device tree source files as shown in the following table:
+
+| Name      | Compatible PinePhone Model |
+|-----------+----------------------------|
+| 77A80.dts | PinePhone-1.1              |
+| 7FBA0.dts | PinePhone-1.2              |
+
+Using the offsets found within the device tree source, we could continue to reverse engineer =u-boot-sunxi-with-spl.bin= by extracting the firmware into individual binary files. Then, we could scan each extracted file using binwalk, perhaps it will find something new. I will leave that as an exercise to the curious reader.
+
+* Conclusion
+I hope you have a better understanding about what U-Boot is and why it is important to keep it updated. More importantly, I hope you enjoyed reading this article and are curious to learn more about firmware development and your PinePhone. Please feel free to leave a comment or send me a direct email.
