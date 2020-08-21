@@ -4,6 +4,8 @@
 #+date: 2019-03-24T03:07:24Z
 #+HUGO_BASE_DIR: ../../
 #+HUGO_SECTION: post
+#+HUGO_CATEGORIES: programming
+#+HUGO_TAGS: bazel toolchain cmake cpp
 #+HUGO_DRAFT: false
 #+HUGO_AUTO_SET_LASTMOD: true
 #+startup: showeverything
@@ -12,18 +14,17 @@
 In my spare time I have been experimenting with [[https://bazel.build/faq.html#what-is-Bazel][the Bazel build runner]]. I wanted to add [[https://github.com/jedisct1/libsodium][Libsodium]] as a dependency to my Bazel C/C++ project. The Libsodium project is not [[https://docs.bazel.build/versions/master/build-ref.html#packages][a Bazel package]] and therefore Bazel will not know how to treat it as a dependency. If I wish to add Libsodium as a repository based dependency to my project, then It makes sense to write [[https://docs.bazel.build/versions/master/build-ref.html#BUILD_files][a BUILD file]] defining how Bazel should build the Libsodium library.
 
 * What you need to know
-Rules_foreign_cc is an /experimental/ Bazel extension with build rules for interfacing with non-Bazel build systems. By the time you read this post, the API may be many versions ahead and may not maintain backwards compatibility. With that in mind, the example contained within this post will target [[https://github.com/bazelbuild/rules_foreign_cc/tree/a3593905f73ce19c09d21f9968f1d3f5bc115157][a fixed version of the API]] right before [[https://github.com/bazelbuild/rules_foreign_cc/pull/234][they removed backwards compatibility with Bazel v0.22]].
+Rules_foreign_cc is an /experimental/ Bazel extension with build rules for interfacing with non-Bazel build systems. By the time you read this post, the API may be many versions ahead and might not maintain backwards compatibility. With that in mind, the example contained within this post will target [[https://github.com/bazelbuild/rules_foreign_cc/tree/a3593905f73ce19c09d21f9968f1d3f5bc115157][a fixed version of the API]] right before [[https://github.com/bazelbuild/rules_foreign_cc/pull/234][they removed backwards compatibility with Bazel v0.22]].
 
-This is not a tutorial on using Bazel to build C/C++ projects. If you are not familiar with the basics of building C/C++ projects with Bazel then I recommend that you start with an [[https://docs.bazel.build/versions/master/tutorial/cpp.html#introduction-to-bazel-building-a-c-project][Introduction to Bazel: Building a C++ Project]] before reading on. In fact, I recommend that you read through everything in the [[https://docs.bazel.build/versions/master/bazel-and-cpp.html][C++ and Bazel documentation]], but it is not strictly necessary.
+This is not a tutorial on using Bazel to build C/C++ projects. If you are not familiar with the basics of building C/C++ projects with Bazel, then I recommend that you start with an [[https://docs.bazel.build/versions/master/tutorial/cpp.html#introduction-to-bazel-building-a-c-project][Introduction to Bazel: Building a C++ Project]] before reading on. In fact, I recommend that you read through everything in the [[https://docs.bazel.build/versions/master/bazel-and-cpp.html][C++ and Bazel documentation]], but that is not strictly necessary.
 
-I would also like to point out that I have only tested this with Bazel v 0.20.0 on a Gentoo system. If you are planning to try this from a system running Microsoft Windows then you should install Bazel 0.23+. See [[https://github.com/bazelbuild/rules_foreign_cc#bazel-versions-compatibility][Bazel versions compatibility]] for up to date compatibility information.
+I would also like to point out that I have only tested this with Bazel v0.20.0 on a Gentoo system. If you are planning to try this from a system running Microsoft Windows, then you should install Bazel v0.23+. See [[https://github.com/bazelbuild/rules_foreign_cc#bazel-versions-compatibility][Bazel versions compatibility]] for up to date compatibility information.
 
 * Introducing rules_foreign_cc
 Initially I thought that I would have to write a [[https://docs.bazel.build/versions/master/skylark/rules.html#extending-bazel][bazel extension]] with [[https://docs.bazel.build/versions/master/skylark/rules.html][custom build rules]], but then I discovered the experimental [[https://github.com/bazelbuild/rules_foreign_cc][rules_foreign_cc project]] after coming across this old [[https://groups.google.com/forum/#!topic/bazel-discuss/cMcjRnAete0][Google Groups bazel-discuss thread]]. The rules_foreign_cc project contains a Bazel extension named [[https://github.com/bazelbuild/rules_foreign_cc/blob/master/workspace_definitions.bzl][rules_foreign_cc//:workspace_definitions.bzl]] that provides support for adding dependencies that require foreign toolchains. In fact, the workspace definitions extension has the CMake toolchain as a registered native default toolchain and is sufficient for building GNU configure/make projects like Libsodium. With that in mind, I will restrict my focus to what I needed to do to add Libsodium to my project so that the project builds successfully and Libsodium is able to be initialized at run-time.
 
 * Project layout
-
-The full source code is available at my [[https://github.com/BloggerBust/bazelLibsodiumTest][BloggerBust/bazelLibsodiumTest GitHub repository]]. Before we get started let's take a brief look at the project's layout:
+The full source code is available at my [[https://github.com/BloggerBust/bazelLibsodiumTest][BloggerBust/bazelLibsodiumTest GitHub repository]]. Before we get started, let's take a brief look at the project's layout:
 
 #+begin_src sh :results output scalar :shebang "#!/bin/env bash" :wrap EXAMPLE
   tree ~/dev/bazelLibsodiumTest/ -I "bazel*"
@@ -56,12 +57,10 @@ The full source code is available at my [[https://github.com/BloggerBust/bazelLi
 - src/lib/TestLibsodium.cpp :: Initializes Libsodium and prints to the standard output a success or failure message
 
 * Load the rules_foreign_cc workspace definitions extension
-
-On March 11, 2019 the rules_foreign_cc project [[https://github.com/bazelbuild/rules_foreign_cc/pull/234][removed support for Bazel version less than 0.22]]. The [[https://github.com/BloggerBust/bazelLibsodiumTest/blob/master/WORKSPACE][workspace file]] in my GitHub repository has a comment explaining how to set the rules_foreign_cc master branch as the dependency, but in this post I will only discuss setting the final commit that provided support for Bazel pre version 0.22 since many distributions do not include the latest Bazel version in their stable package tree.
+On March 11, 2019 the rules_foreign_cc project [[https://github.com/bazelbuild/rules_foreign_cc/pull/234][removed support for Bazel version less than 0.22]]. The [[https://github.com/BloggerBust/bazelLibsodiumTest/blob/master/WORKSPACE][workspace file]] in my GitHub repository has a comment explaining how to set the rules_foreign_cc master branch as the dependency, but in this post I will only discuss setting the final commit that provided support for Bazel pre version 0.22, since many distributions do not include the latest Bazel version in their stable package tree.
 
 ** Determine the sha256 hash
-
-The purpose of the sha256 hash validation is to ensure that subsequent downloads from either the same or different environments are building exactly the same dependencies. It is more about build integrity then security. Please download the zip archive for commit ~a3593905f73ce19c09d21f9968f1d3f5bc115157~ and then calculate its sha256 hash. You can determine the URI of a commit using the pattern: =https://github.com/<user-name>/<commit-hash>.zip=
+The purpose of the sha256 hash validation is to ensure that subsequent downloads from either the same or different environments are building exactly the same dependencies. It is more about build integrity than security. Please download the zip archive for commit ~a3593905f73ce19c09d21f9968f1d3f5bc115157~ and then calculate its sha256 hash. You can determine the URI of a commit using the pattern: =https://github.com/<user-name>/<commit-hash>.zip=
 
 #+begin_src sh :results output scalar :shebang "#!/bin/env bash" :wrap EXAMPLE
   wget https://github.com/bazelbuild/rules_foreign_cc/archive/a3593905f73ce19c09d21f9968f1d3f5bc115157.zip
@@ -77,11 +76,10 @@ The purpose of the sha256 hash validation is to ensure that subsequent downloads
 
 Now we know that the sha256 hash is ~6f3484eacc172c90d605e79130f9f01ec827a98b99c499c396eddc597a9c219d~ and with that we can configure the build to validate the hash before building the dependency.
 
-It is important to understand that what I have just explained is a flawed protocol if my intention was to protect myself against a sophisticated man in the middle attack. Consider that if I download the archive and calculate the hash, then ask the build to download the archive and compare to what I had previously calculated, of course I should expect it to be the same. Following this protocol I should expect the hash to validate even if a hostile proxy was delivering a modified archive. To mitigate the threat of a man in the middle attack, the Libsodium project supports [[https://download.libsodium.org/doc/installation#integrity-checking][cryptographic integrity checking]] which I will not be covering in this post.
+It is important to understand that what I have just explained is a flawed protocol if my intention was to protect myself against a sophisticated man in the middle attack. Consider that if I download the archive and calculate the hash, then ask the build to download the same archive and compare its calculated hash to what I had previously calculated, of course I should expect the hashes to be the same. Following this protocol I should expect the hash to validate even if a hostile proxy was delivering a modified archive. To mitigate the threat of a man in the middle attack, the Libsodium project supports [[https://download.libsodium.org/doc/installation#integrity-checking][cryptographic integrity checking]] which I will not be covering in this post.
 
 ** Add rules_foreign_cc as a dependency
-
-When the archive is extracted the root directory will be the name of the archive, followed by a hyphen, followed by the name of the branch or commit. It is best to strip away this top level archive directory since it causes issues with target paths. We do this by setting strip_prefix to /rules_foreign_cc-a3593905f73ce19c09d21f9968f1d3f5bc115157/. Additionally, we want to set the sha256 hash of the archive. If the sha256 hash of the downloaded archive does not match the value of the sha256 attribute then the build will be halted.
+When the archive is extracted the root directory will be the name of the archive, followed by a hyphen, followed by the name of the branch or commit. It is best to strip away this top level archive directory since it causes issues with target paths. We do this by setting strip_prefix to /rules_foreign_cc-a3593905f73ce19c09d21f9968f1d3f5bc115157/. Additionally, we want to set the sha256 hash of the archive. If the sha256 hash of the downloaded archive does not match the value of the sha256 attribute, then the build will be halted.
 
 #+begin_src python
 
@@ -99,7 +97,6 @@ When the archive is extracted the root directory will be the name of the archive
 #+end_src
 
 ** Initialize rules_foreign_cc
-
 To initialize rules_foreign_cc we must load the rules_foreign_cc_dependencies function from the workspace_definitions extension. Once loaded, we can immediately call the function without passing any arguments so that the registered default toolchain will be selected. Calling this function will also initiate necessary code generation needed for C++ and Starlark API support.
 #+begin_example
 load("@rules_foreign_cc//:workspace_definitions.bzl", "rules_foreign_cc_dependencies")
@@ -121,12 +118,11 @@ The simplest way to ensure that we capture all of the source files that must be 
 #+end_src
 
 * Create the a BUILD file for Libsodium
-
 Now it is time to configure make. We need to let make know the following:
 
-1. *Where the library source code is for Libsodium:* This is satisfied by setting the /lib_source/ attribute to a label targeting the file group that we created under [[*Configure the Libsodium dependency][Configure the Libsodium dependency]]
-2. *The path to where the compiled library binaries will be written to following a successful build:* This is satisfied by setting the /out_lib_dir/ attribute to a directory relative to the /libsodium_configure/ package. I simply named this directory /lib/
-3. *The name of the resulting shared library that we would like bazelLibsodiumTest binary to link to:* This is satisfied by setting the /shared_libraries/ attribute. Alternatively you can specify a static library with the /static_libraries/ attribute
+1. *Where the library source code is for Libsodium:* This is satisfied by setting the /lib_source/ attribute to a label targeting the file group that we created under [[*Configure the Libsodium dependency][Configure the Libsodium dependency]].
+2. *The path to where the compiled library binaries will be written to following a successful build:* This is satisfied by setting the /out_lib_dir/ attribute to a directory relative to the /libsodium_configure/ package. I simply named this directory =lib/=.
+3. *The name of the resulting shared library that we would like bazelLibsodiumTest binary to link to:* This is satisfied by setting the /shared_libraries/ attribute. Alternatively you can specify a static library with the /static_libraries/ attribute.
 
 #+begin_src python
   load("@rules_foreign_cc//tools/build_defs:configure.bzl", "configure_make")
@@ -140,10 +136,10 @@ Now it is time to configure make. We need to let make know the following:
   )
 #+end_src
 
-Since the BUILD file is in the root of our project the label for the configure_make target will be =//:libsodium_configure=
+Since the BUILD file is in the root of our project the label for the configure_make target will be =//:libsodium_configure=.
 
 * Create a BUILD file for our TestLibsodium library
-To add the Libsodium library as a dependency of the TestLibsodium Library package it is a simple matter of assigning the =//:libsodium_configure= label to the /deps/ attribute.
+To add the Libsodium library as a dependency of the TestLibsodium Library package, simply assign the =//:libsodium_configure= label to the /deps/ attribute.
 #+begin_src python
   cc_library(
       name = "test_libsodium",
@@ -155,11 +151,10 @@ To add the Libsodium library as a dependency of the TestLibsodium Library packag
 #+end_src
 
 * Time to build and run
-
 There are a few strange things in this build command that I think need some explanation:
 - ~env TMPDIR=~/dev/tmp~ :: For security reasons [[file:mount-tmp-as-non-executable.org::*Mounting%20/tmp%20as%20non%20executable%20improves%20security%20and%20increases%20awareness][I mount /tmp as non executable]], therefore I must override the default path since Bazel executes the configure script from this location. You probably won't need this part of the command.
 - ~--experimental_cc_skylark_api_enabled_packages=@rules_foreign_cc//tools/build_defs,tools/build_defs,@foreign_cc_impl~ :: Required for Bazel 0.20 to 0.21
-- ~2>&1~ :: I discovered that all the compiler output was on stderr. This redirects stderr to stdout. Perhaps this has been fixed in a more recent version of Bazel.
+- ~2>&1~ :: I discovered that all the compiler output was sent to ~stderr~. This redirects ~stderr~ to ~stdout~. Perhaps this has been fixed in a more recent version of Bazel.
 
 #+begin_src sh :results output scalar :shebang "#!/bin/env bash" :wrap EXAMPLE :dir ~/dev/bazelLibsodiumTest
   env TMPDIR=~/dev/tmp bazel build --experimental_cc_skylark_api_enabled_packages=@rules_foreign_cc//tools/build_defs,tools/build_defs,@foreign_cc_impl //src:main 2>&1
@@ -197,7 +192,7 @@ going to initialize Libsodium, wish me luck
 //////////////////////////////////////////////////////
 #+end_EXAMPLE
 
-If anything goes wrong then add ~--verbose_failures --sandbox_debug~ optional flags to the build command.
+If anything goes wrong, then add ~--verbose_failures --sandbox_debug~ optional flags to the build command.
 
 * Conclusion
-Thanks to the rules_foreign_cc project adding Libsodium as a dependency was easy. For GNU configure/make Autotools based projects with foreign dependencies of their own additional work would be needed. Also, keep in mind that the project is experimental and is unlikely to maintain backwards compatibility until it is deemed stable. I hope that you found this post useful.
+Thanks to the rules_foreign_cc project adding Libsodium as a dependency was easy. For projects based on GNU configure/make Autotools that have foreign dependencies of their own, additional work would be needed. Also, keep in mind that the project is experimental and is unlikely to maintain backwards compatibility until it is deemed stable. I hope that you found this post useful.

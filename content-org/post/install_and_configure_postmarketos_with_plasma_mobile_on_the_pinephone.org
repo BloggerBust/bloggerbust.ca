@@ -1275,7 +1275,7 @@ Once you have made your decision, use ~vi~ to edit =/etc/inittab= and locate the
 Replace ~vt100~ in that command with your chosen Terminfo. Or, if you are feeling confident, you can simply use ~sed~ (see [[https://man7.org/linux/man-pages/man1/sed.1.html][sed(1)]]). A backup will be saved to =/etc/inittab.bk=.
 
 #+begin_src sh
-  second-chance:~$ sed -ibk 's/ttyS0 115200 vt100/ttyS0 115200 xterm-256color/' /etc/inittab
+  second-chance:~$ sed -i 's/ttyS0 115200 vt100/ttyS0 115200 xterm-256color/' /etc/inittab
 #+end_src
 
 On your next reboot the Terminfo for the login session will be as you set it. I would rather not reboot now though, so let's change our Terminfo for the current session by exporting a new value for the ~TERM~ environment variable.
