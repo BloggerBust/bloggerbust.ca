@@ -501,4 +501,4 @@ In the ~images~ structure we can clearly see the offsets for /U Boot/, /Arm Trus
 Using the offsets found within the device tree source, we could continue to reverse engineer =u-boot-sunxi-with-spl.bin= by extracting the firmware into individual binary files. Then, we could scan each extracted file using binwalk, perhaps it will find something new. I will leave that as an exercise to the curious reader.
 
 * Conclusion
-I hope you have a better understanding about what U-Boot is and why it is important to keep it updated. More importantly, I hope you enjoyed reading this article and are curious to learn more about firmware development and your PinePhone. Please feel free to leave a comment or send me a direct email.
+I hope you have a better understanding about what U-Boot is and why it is important to keep it updated. More importantly, I hope you enjoyed reading this article and are curious to learn more about firmware development and your PinePhone. Please feel free to leave a comment or send me a direct email. [[https://forum.pine64.org/showthread.php?tid=11099][Discussed on Pine64]].
