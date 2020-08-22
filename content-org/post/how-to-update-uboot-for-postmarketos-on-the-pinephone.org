@@ -17,6 +17,8 @@ If you are in a hurry to update U-Boot and the SPL on your PinePhone, then pleas
 
 In this article, I am going to explain what U-Boot, SoC and the SPL are. After that, I will describe the sunxi bootable storage layout as well as the PinePhone boot procedure, so you will understand what you will be updating and why. Then, I will teach you how to determine if an upgrade is required, and I will explain two different ways of upgrading U-Boot. As a special treat for the curious, I will show you the first steps to reverse engineer the U-Boot+SPL firmware blob. I hope this article peeks your curiosity and encourages you to learn more.
 
+Discussed on [[https://news.ycombinator.com/item?id=24244407][Hacker News]] and [[https://forum.pine64.org/showthread.php?tid=11099][Pine64]].
+
 * What is U-Boot?
 U-Boot, or rather [[https://en.wikipedia.org/wiki/Das_U-Boot][Das U-Boot]] a.k.a /the Universal Boot Loader/, is a small program that is loaded into /read-only memory/ (ROM) and is ultimately responsible for loading the Linux kernel. Designed with flexibility in mind, U-Boot now supports [[https://gitlab.denx.de/u-boot/u-boot/-/tree/master/arch][a wide variety of architectures]] for [[https://gitlab.denx.de/u-boot/u-boot/-/tree/master/board][embedded boards]], each of which may support multiple boot methods. This article is only concerned with U-Boot as it is configured for the [[https://gitlab.denx.de/u-boot/u-boot/-/blob/master/board/sunxi/README.sunxi64][Allwinner 64-bit boards]], specifically the [[https://linux-sunxi.org/A64][Allwinner A64 SoC]].
 
@@ -501,4 +503,4 @@ In the ~images~ structure we can clearly see the offsets for /U Boot/, /Arm Trus
 Using the offsets found within the device tree source, we could continue to reverse engineer =u-boot-sunxi-with-spl.bin= by extracting the firmware into individual binary files. Then, we could scan each extracted file using ~binwalk~, perhaps it will find something new. I will leave that as an exercise to the curious reader.
 
 * Conclusion
-I hope you have a better understanding about what U-Boot is and why it is important to keep it updated. More importantly, I hope you enjoyed reading this article and are curious to learn more about firmware development and your PinePhone. Please feel free to leave a comment or send me a direct email. [[https://forum.pine64.org/showthread.php?tid=11099][Discussed on Pine64]].
+I hope you have a better understanding about what U-Boot is and why it is important to keep it updated. More importantly, I hope you enjoyed reading this article and are curious to learn more about firmware development and your PinePhone. Please feel free to leave a comment or send me a direct email.
