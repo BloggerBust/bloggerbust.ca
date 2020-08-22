@@ -136,10 +136,10 @@ mmcblk2boot0 disk
 mmcblk2boot1 disk 
 #+end_example
 
-The disk corresponding to the =/boot= mountpoint is the name of the block special device that postmarketOS is currently running form. The device path to the relevant boot storage device is therefore =/dev/mmcblk0=. We will be using this device name in the next section to determine if an upgrade is needed, but you must be careful to use the device name that is relevant to your own running environment if you are following along.
+The disk corresponding to the =/boot= mountpoint is the name of the block special device that postmarketOS is currently running form. The device path to the relevant boot storage device is therefore =/dev/mmcblk0=. We will be using this device name in the next two sections to determine if an upgrade is needed and again to perform the actual upgrade if warranted. You must be careful to use the device name that is relevant to your own running environment if you are following along.
 
 * How to determine if U-Boot needs to be upgraded?
-First, [[*Determine which bootable storage device is relevant][determine which bootable storage device is relevant]] for your running environment. After that, you can determine if an upgrade is necessary simply by comparing the version of U-Boot installed by the =u-boot-pinephone= package with the version of U-Boot that is written to the relevant bootable storage device.
+You can determine if an upgrade is necessary simply by comparing the version of U-Boot installed by the =u-boot-pinephone= package with the version of U-Boot that is written to [[*Determine which bootable storage device is relevant][the bootable storage device which is relevant to your running environment]].
 
 To see which version of =U-Boot= was installed by the =u-boot-pinephone= package, simply run the ~apk policy~ sub command as shown below:
 #+begin_src sh
@@ -194,16 +194,16 @@ U-Boot 2020.04-rc3 (Mar 18 2020 - 13:16:10 +0000)
 #+end_example
 
 In case you are not confident using the ~dd~ command, here is a breakdown of the optional flags that I used in the above:
-| option | description                                                                                                                                            |
-|--------+--------------------------------------------------------------------------------------------------------------------------------------------------------|
-| if     | input file path. In our case it is the path to the bootable storage device.                                                                            |
-| bs     | block size, or number of bytes per count. Not to be confused with disk blocksize. It is purposely set to =1024B= so that each count represents =1 KiB= |
-| skip   | number of input blocks to skip. We know from [[*Layout of sunxi bootable storage][Layout of sunxi bootable storage]] that we can ignore the first =8KiB=                                      |
-| count  | number of input blocks to parse. In our case, ~dd~ just sends those blocks to =stdout=                                                                 |
+| option | description                                                                                                                                                                 |
+|--------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| if     | input file path. In our case it is the path to the bootable storage device.                                                                                                 |
+| bs     | block size, or number of bytes per count. Not to be confused with disk blocksize or a rude expletive. It is purposely set to =1024B= so that each count represents =1 KiB=. |
+| skip   | number of input blocks to skip. We know from [[*Layout of sunxi bootable storage][Layout of sunxi bootable storage]] that we can ignore the first =8KiB=.                                                          |
+| count  | number of input blocks to parse. In our case, ~dd~ just sends those blocks to =stdout=.                                                                                     |
 
-Finally, since the version of U-Boot compiled into =/usr/share/u-boot/pine64-pinephone/u-boot-sunxi-with-spl.bin= is newer then the the version written to bootable storage =/dev/mmcblk0=, I know that it is time to upgrade U-Boot.
+Finally, since the version of U-Boot compiled into =/usr/share/u-boot/pine64-pinephone/u-boot-sunxi-with-spl.bin= is newer than the the version written to bootable storage =/dev/mmcblk0=, I know that it is time to upgrade U-Boot.
 
-|                             | version                          |
+| Name                        | Version                          |
 |-----------------------------+----------------------------------|
 | =u-boot-sunxi-with-spl.bin= | U-Boot 2020.04 (Jun 20 2020)     |
 | =/dev/mmcblk0=              | U-Boot 2020.04-rc3 (Mar 18 2020) |
@@ -215,7 +215,7 @@ Back in June, [[https://github.com/crust-firmware/crust][Crust]] firmware was ad
 second-chance:~$ update-u-boot
 #+end_src
 
-To see if your version of =u-boot-pinephone= includes the =upgrade-u-boot= script, simply run:
+To see if your version of =u-boot-pinephone= includes the =upgrade-u-boot= script, use the ~apk info~ sub command:
 #+begin_src sh
 second-chance:~$ apk info -L u-boot-pinephone
 #+end_src
@@ -228,7 +228,7 @@ usr/sbin/update-u-boot
 usr/share/u-boot/pine64-pinephone/u-boot-sunxi-with-spl.bin
 #+end_example
 
-If your version of =u-boot-pinephone= does not include =usr/sbin/update-u-boot=, or if you are just curious about how to upgrade U-Boot without the ~upgrade-u-boot~ command, then read on. If you haven't already, first [[*Determine which bootable storage device is relevant][determine which bootable storage device is relevant]] for your running environment. After that, Use the ~dd~ command to write the latest version of u-boot to your bootable storage. Be sure to replace =/dev/mmcblk0= with the path to the bootable storage device that is relevant for your running environment:
+If your version of =u-boot-pinephone= does not include =usr/sbin/update-u-boot=, or if you are just curious about how to upgrade U-Boot without the ~upgrade-u-boot~ command, then read on. Use the ~dd~ command to write the latest version of u-boot to your bootable storage. Be sure to replace =/dev/mmcblk0= with the path to [[*Determine which bootable storage device is relevant][the bootable storage device that is relevant for your running environment]]:
 
 #+begin_src sh
 second-chance:~$ sudo dd if=/usr/share/u-boot/pine64-pinephone/u-boot-sunxi-with-spl.bin of=/dev/mmcblk0 bs=1024 seek=8
@@ -242,12 +242,12 @@ second-chance:~$ sudo dd if=/usr/share/u-boot/pine64-pinephone/u-boot-sunxi-with
 #+end_example
 
 In case you are not confident using the ~dd~ command, here is a breakdown of the optional flags that I used in the above:
-| option | description                                                                                                                                             |
-|--------+---------------------------------------------------------------------------------------------------------------------------------------------------------|
-| if     | input file path. In our case it is the path to the =u-boot-sunxi-with-spl.bin=.                                                                         |
-| of     | output file path. In our case it is the path to the bootable storage device.                                                                            |
-| bs     | block size, or number of bytes per count. Not to be confused with disk blocksize. It is purposely set to =1024B= so that each count represents =1 KiB=. |
-| seek   | number of output blocks to offset writing to disk. We know from [[*Layout of sunxi bootable storage][Layout of sunxi bootable storage]] that the offset must be =8KiB=.                        |
+| option | description                                                                                                                                                                 |
+|--------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| if     | input file path. In our case it is the path to the =u-boot-sunxi-with-spl.bin=.                                                                                             |
+| of     | output file path. In our case it is the path to the bootable storage device.                                                                                                |
+| bs     | block size, or number of bytes per count. Not to be confused with disk blocksize or a rude expletive. It is purposely set to =1024B= so that each count represents =1 KiB=. |
+| seek   | number of output blocks to offset writing to disk. We know from [[*Layout of sunxi bootable storage][Layout of sunxi bootable storage]] that the offset must be =8KiB=.                                            |
 
 Now we can verify it worked by grepping the disk for the new version.
 #+begin_src sh
@@ -342,7 +342,7 @@ DECIMAL       HEXADECIMAL     DESCRIPTION
 523168        0x7FBA0         device tree image (dtb)
 #+end_example
 
-Binwalk recognizes three /device tree blobs/ (DTB) and one cyclic redundancy check table. Notice, that the first DTB is located at offset =32768B=, exactly =32 KiB= from the start of the file. Thanks to binwalk, we know the offsets of 4 binary blobs. Let's extract all four blobs for further examination.
+Binwalk recognizes three /device tree blobs/ (DTB) and one cyclic redundancy check table. Notice, that the first DTB is located at offset =32768B=, exactly =32 KiB= from the start of the file. Thanks to ~binwalk~, we know the offsets of 4 binary blobs. Let's extract all four blobs for further examination.
 
 #+begin_src sh :results output scalar :shebang #/env/bin/bash :dir ~/u-boot-pinephone :wrap example
 binwalk -q --dd='device.*:dtb' --dd='crc32.*:crc' u-boot-sunxi-with-spl.bin
@@ -498,7 +498,7 @@ In the ~images~ structure we can clearly see the offsets for /U Boot/, /Arm Trus
 | 77A80.dts | PinePhone-1.1              |
 | 7FBA0.dts | PinePhone-1.2              |
 
-Using the offsets found within the device tree source, we could continue to reverse engineer =u-boot-sunxi-with-spl.bin= by extracting the firmware into individual binary files. Then, we could scan each extracted file using binwalk, perhaps it will find something new. I will leave that as an exercise to the curious reader.
+Using the offsets found within the device tree source, we could continue to reverse engineer =u-boot-sunxi-with-spl.bin= by extracting the firmware into individual binary files. Then, we could scan each extracted file using ~binwalk~, perhaps it will find something new. I will leave that as an exercise to the curious reader.
 
 * Conclusion
 I hope you have a better understanding about what U-Boot is and why it is important to keep it updated. More importantly, I hope you enjoyed reading this article and are curious to learn more about firmware development and your PinePhone. Please feel free to leave a comment or send me a direct email. [[https://forum.pine64.org/showthread.php?tid=11099][Discussed on Pine64]].
