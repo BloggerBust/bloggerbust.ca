@@ -1,0 +1,5 @@
+_id: 40305a50-3036-11eb-8030-351d11fcb921
+name: Anatoliy
+email: 40e24a49db5bab7972eb581587d7da01
+message: "Hello!\r\nNow Zeit has turned into Vercel. Their instrument is now not \"now\", but \"vercel\". But overall, your instruction works!!\r\nI have forked your repository.\r\nAs a result, the application started for me, I saw (https://{YOUR-DEPLOYMENT-ALIAS}/)\r\nHello from Staticman version 3.0.0!\r\n```\r\nbut following the link ```https://{YOUR-DEPLOYMENT-ALIAS}/v3/connect/{YOUR-GitHub-USERNAME}/{YOUR-REPOSITORY-NAME}``` i see\r\n```{\"success\":false,\"errorCode\":\"INVALID_VERSION\"}```\r\nand by clicking on a link of this kind ```https://{YOUR-DEPLOYMENT-ALIAS}/v2/connect/{YOUR-GitHub-USERNAME}/{YOUR-REPOSITORY-NAME}``` i see error ```Internal Server Error```"
+date: 1606429513
