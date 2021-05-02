@@ -1,0 +1,13 @@
+_id: 8303c9c0-aba1-11eb-9eff-b973b2039f87
+name: David L
+email: 15af12697f18a68fd6a9e79340720417
+message: >-
+  This page was a great help.  I'm on Public Mobile and out of the box could
+  make a call and receive SMS, but could not view or send SMS.  So far I've used
+  this to get SMS properly working.  Now I'm working on getting the cellular
+  data working on my phone.  I have found that working with Manjaro Plasma that
+  restarting the ofono service with 'sudo systemctl restart ofono' doesn't seem
+  to implement the changes.  From what I'm seeing it does parse the gprs file
+  and revert's the file if it's not happy with it.  But in order for me to see
+  if it recognizes the contexts often I have to reboot the whole phone.
+date: 1619999574
