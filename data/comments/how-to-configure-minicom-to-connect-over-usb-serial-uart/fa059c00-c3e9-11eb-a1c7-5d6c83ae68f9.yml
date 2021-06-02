@@ -1,0 +1,12 @@
+_id: fa059c00-c3e9-11eb-a1c7-5d6c83ae68f9
+name: Andrew
+email: 12da6d73684d69046edb0df1320b6e39
+message: >-
+  Hi Trevor, many thanks for your blog. Could you possibly advise me whether I
+  can disable the login prompt that comes up on the 3.5mm jack? My intention is
+  to just use the pinephone as a portable terminal that I can communicate via
+  TTL-RS232 to Arduino (STM32) processors in the field. I have written a .tcl
+  script to communicate and the data goes out of the pinephone fine, however
+  data into the pinephone causes the login prompt to appear. Can ttyS0 not be
+  used as a basic UART? Best regards, Andrew
+date: 1622669525
