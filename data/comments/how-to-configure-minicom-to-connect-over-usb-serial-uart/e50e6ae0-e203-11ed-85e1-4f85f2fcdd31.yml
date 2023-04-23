@@ -1,0 +1,8 @@
+_id: e50e6ae0-e203-11ed-85e1-4f85f2fcdd31
+name: ludgate
+email: 4eac54f311e8b03754658f78ff9d8e1c
+message: >-
+  Addendum:  minicom accepts the config file on the cmdline (>minicom pinefon)
+  but I don't get the screen full of confirmation you show that ends in a login
+  prompt, just the login prompt.
+date: 1682274187
